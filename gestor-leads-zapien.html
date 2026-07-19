@@ -1,0 +1,735 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Gestor de Leads — Iré Inmobiliaria</title>
+<link rel="manifest" href="data:application/manifest+json,{}">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600;700&display=swap');
+
+  :root{
+    --bg:#0a0d0c; --bg-panel:#111613; --bg-panel-2:#161c18; --line:#223028;
+    --green:#00ffa3; --green-dim:#0a3d2b; --amber:#ffb020; --amber-dim:#3a2a0a;
+    --red:#ff5c5c; --red-dim:#3a1414; --grey:#8a8a8a; --grey-dim:#2a2a2a;
+    --text:#eaf5ee; --muted:#7c9188; --muted-2:#4d5f57;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;-webkit-font-smoothing:antialiased;}
+  .mono{font-family:'JetBrains Mono',monospace;}
+  button{font-family:inherit;cursor:pointer;}
+  input,select,textarea{font-family:inherit;}
+
+  .app{max-width:1080px;margin:0 auto;padding:0 16px 80px;}
+  header{padding:28px 0 20px;border-bottom:1px solid var(--line);margin-bottom:20px;}
+  .eyebrow{font-family:'JetBrains Mono',monospace;font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--green);margin-bottom:10px;display:flex;align-items:center;gap:8px;}
+  .eyebrow .dot{width:6px;height:6px;border-radius:50%;background:var(--green);box-shadow:0 0 8px var(--green);animation:pulse 2s infinite;}
+  @keyframes pulse{0%,100%{opacity:1;}50%{opacity:.35;}}
+  h1{font-family:'JetBrains Mono',monospace;font-size:clamp(22px,4vw,30px);font-weight:700;margin:0 0 4px;letter-spacing:-.01em;}
+  header .sub{color:var(--muted);font-size:13px;}
+  #sync-status{font-size:10.5px;color:var(--muted-2);margin-top:8px;font-family:'JetBrains Mono',monospace;display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+  #sync-status.err{color:var(--red);}
+
+  .login-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;}
+  .login-box{background:var(--bg-panel);border:1px solid var(--line);border-radius:12px;padding:28px;max-width:360px;width:100%;}
+  .login-box .eyebrow{margin-bottom:14px;}
+  .login-box h1{font-size:20px;margin-bottom:6px;}
+  .login-box .sub{color:var(--muted);font-size:13px;margin-bottom:20px;}
+  .login-box .field{margin-bottom:14px;}
+  .login-box .field label{display:block;font-size:11px;color:var(--muted);margin-bottom:5px;font-family:'JetBrains Mono',monospace;letter-spacing:.03em;text-transform:uppercase;}
+  .login-box .field input{width:100%;background:var(--bg);border:1px solid var(--line);color:var(--text);padding:10px 12px;border-radius:6px;font-size:14px;}
+  .login-box .field input:focus{outline:none;border-color:var(--green);}
+  #login-error{color:var(--red);font-size:12.5px;margin:-4px 0 14px;min-height:16px;}
+  .login-box .btn-primary{width:100%;padding:11px;font-size:13.5px;text-align:center;}
+
+  .dash{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:20px;}
+  @media(max-width:700px){.dash{grid-template-columns:repeat(2,1fr);}}
+  .dash-card{background:var(--bg-panel);border:1px solid var(--line);border-radius:8px;padding:14px 16px;}
+  .dash-card .k{font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-bottom:6px;}
+  .dash-card .v{font-family:'JetBrains Mono',monospace;font-size:22px;font-weight:700;color:var(--text);}
+  .dash-card.warn .v{color:var(--amber);}
+
+  .toolbar{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:18px;align-items:center;}
+  .toolbar input[type=text], .toolbar select{background:var(--bg-panel);border:1px solid var(--line);color:var(--text);padding:9px 12px;border-radius:7px;font-size:13px;}
+  .toolbar input[type=text]{flex:1;min-width:160px;}
+  .btn{background:var(--bg-panel);border:1px solid var(--line);color:var(--text);padding:9px 14px;border-radius:7px;font-size:13px;font-weight:500;white-space:nowrap;transition:all .15s;}
+  .btn:hover{border-color:var(--muted);}
+  .btn-primary{background:var(--green-dim);border-color:var(--green);color:var(--green);font-weight:600;}
+  .btn-primary:hover{box-shadow:0 0 12px rgba(0,255,163,.25);}
+  .btn-ghost{background:none;}
+  .btn-sm{padding:6px 10px;font-size:11.5px;}
+
+  .lead-list{display:flex;flex-direction:column;gap:8px;}
+  .lead-card{background:var(--bg-panel);border:1px solid var(--line);border-radius:9px;padding:14px 16px;cursor:pointer;transition:border-color .15s;}
+  .lead-card:hover{border-color:var(--muted-2);}
+  .lead-card.overdue{border-left:3px solid var(--red);}
+  .lc-top{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:8px;}
+  .lc-name{font-weight:600;font-size:14.5px;}
+  .lc-meta{color:var(--muted);font-size:11.5px;margin-top:2px;}
+  .badge{font-family:'JetBrains Mono',monospace;font-size:9.5px;letter-spacing:.04em;text-transform:uppercase;padding:4px 8px;border-radius:5px;white-space:nowrap;border:1px solid var(--line);color:var(--muted);}
+  .badge.st-nuevo, .badge.st-contactado{border-color:var(--muted-2);color:var(--muted);}
+  .badge.st-calificado, .badge.st-visita_programada, .badge.st-visita_realizada{border-color:var(--amber);color:var(--amber);}
+  .badge.st-propuesta, .badge.st-negociacion{border-color:var(--green);color:var(--green);}
+  .badge.st-ganado{border-color:var(--green);color:var(--green);background:var(--green-dim);}
+  .badge.st-perdido{border-color:var(--grey);color:var(--grey);background:var(--grey-dim);}
+  .lc-next{display:flex;justify-content:space-between;font-size:12px;color:var(--text);align-items:center;}
+  .lc-next .date{font-family:'JetBrains Mono',monospace;color:var(--muted);}
+  .lc-next .date.overdue{color:var(--red);font-weight:700;}
+  .mini-pipe{display:flex;gap:3px;margin-top:10px;}
+  .mini-pipe span{flex:1;height:4px;border-radius:2px;background:var(--line);}
+  .mini-pipe span.filled{background:var(--green);}
+  .mini-pipe span.filled-lost{background:var(--red);}
+  .empty{color:var(--muted-2);text-align:center;padding:40px 0;font-size:13px;}
+
+  .overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:flex-start;justify-content:center;padding:24px 14px;overflow-y:auto;z-index:50;}
+  .overlay.open{display:flex;}
+  .modal{background:var(--bg-panel);border:1px solid var(--line);border-radius:12px;max-width:720px;width:100%;padding:22px;margin-bottom:40px;}
+  .modal-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;}
+  .modal-head h2{font-family:'JetBrains Mono',monospace;font-size:16px;margin:0;color:var(--green);}
+  .close-x{background:none;border:none;color:var(--muted);font-size:20px;line-height:1;padding:4px;}
+  .tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin-bottom:18px;}
+  .tab{padding:9px 14px;font-size:12.5px;color:var(--muted);border-bottom:2px solid transparent;background:none;border-top:none;border-left:none;border-right:none;}
+  .tab.active{color:var(--green);border-bottom-color:var(--green);font-weight:600;}
+  .tabpane{display:none;}
+  .tabpane.active{display:block;}
+
+  .field{margin-bottom:12px;}
+  .field label{display:block;font-size:11px;color:var(--muted);margin-bottom:5px;font-family:'JetBrains Mono',monospace;letter-spacing:.03em;text-transform:uppercase;}
+  .field input, .field select, .field textarea{width:100%;background:var(--bg);border:1px solid var(--line);color:var(--text);padding:9px 11px;border-radius:6px;font-size:13.5px;}
+  .field textarea{resize:vertical;min-height:60px;}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+  @media(max-width:520px){.row2{grid-template-columns:1fr;}}
+
+  .stage-objetivo{color:var(--muted);font-size:13px;line-height:1.6;margin-bottom:16px;}
+  .sla-badge{font-family:'JetBrains Mono',monospace;font-size:10px;padding:4px 9px;border-radius:5px;border:1px solid var(--amber);color:var(--amber);display:inline-block;margin-bottom:14px;}
+  .acciones{list-style:none;margin:0 0 16px;padding:0;}
+  .acciones li{font-size:13px;line-height:1.5;padding:7px 0 7px 18px;position:relative;border-bottom:1px solid var(--line);}
+  .acciones li:last-child{border-bottom:none;}
+  .acciones li::before{content:"→";position:absolute;left:0;color:var(--green);font-family:'JetBrains Mono',monospace;}
+  .script-box{background:var(--bg);border:1px solid var(--line);border-left:3px solid var(--green);border-radius:6px;padding:12px 14px;font-size:12.5px;line-height:1.55;color:var(--muted);white-space:pre-wrap;margin-bottom:8px;}
+  .action-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px;}
+  .checklist{list-style:none;margin:0 0 16px;padding:0;}
+  .checklist li{display:flex;align-items:flex-start;gap:9px;padding:6px 0;font-size:13px;cursor:pointer;}
+  .checklist input{appearance:none;width:16px;height:16px;min-width:16px;margin-top:1px;border-radius:4px;border:1.5px solid var(--muted-2);cursor:pointer;position:relative;background:transparent;}
+  .checklist input:checked{background:var(--green);border-color:var(--green);}
+  .checklist input:checked::after{content:"✓";position:absolute;top:-3px;left:2px;font-size:12px;color:#00251a;font-weight:700;}
+  .checklist input:checked ~ span{color:var(--muted);text-decoration:line-through;}
+  .stage-select-row{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:18px;}
+  .stage-pill{font-family:'JetBrains Mono',monospace;font-size:10px;padding:6px 10px;border-radius:6px;border:1px solid var(--line);color:var(--muted);background:none;}
+  .stage-pill.current{border-color:var(--green);color:var(--green);background:var(--green-dim);font-weight:700;}
+  .stage-pill.lost-pill.current{border-color:var(--red);color:var(--red);background:var(--red-dim);}
+
+  .bitacora-entry{border-bottom:1px solid var(--line);padding:10px 0;}
+  .bitacora-entry:last-child{border-bottom:none;}
+  .bitacora-entry .date{font-family:'JetBrains Mono',monospace;font-size:10.5px;color:var(--muted-2);margin-bottom:3px;}
+  .bitacora-entry .txt{font-size:13px;line-height:1.5;}
+  #bitacora-input{display:flex;gap:8px;margin-top:14px;}
+  #bitacora-input textarea{flex:1;min-height:44px;}
+
+  .footer-actions{display:flex;justify-content:space-between;gap:10px;margin-top:20px;border-top:1px solid var(--line);padding-top:16px;}
+  .danger-text{color:var(--red);}
+
+  footer.appfoot{max-width:1080px;margin:40px auto 0;padding:16px;color:var(--muted-2);font-size:11px;font-family:'JetBrains Mono',monospace;text-align:center;}
+</style>
+</head>
+<body>
+
+<div class="login-wrap" id="login-wrap">
+  <div class="login-box">
+    <div class="eyebrow"><span class="dot"></span>IRÉ INMOBILIARIA · TEHUACÁN, PUE.</div>
+    <h1 class="mono">Gestor de Leads</h1>
+    <div class="sub">Inicia sesión con tu correo y contraseña para continuar.</div>
+    <div class="field">
+      <label>Correo</label>
+      <input type="email" id="login-email" autocomplete="username" placeholder="tucorreo@ejemplo.com">
+    </div>
+    <div class="field">
+      <label>Contraseña</label>
+      <input type="password" id="login-password" autocomplete="current-password" placeholder="********">
+    </div>
+    <div id="login-error"></div>
+    <button class="btn btn-primary" id="btn-login">Entrar</button>
+  </div>
+</div>
+
+<div class="app" id="app-root" style="display:none;">
+  <header>
+    <div class="eyebrow"><span class="dot"></span>IRÉ INMOBILIARIA · TEHUACÁN, PUE.</div>
+    <h1>Gestor de Leads</h1>
+    <div class="sub">Pipeline de 9 etapas, con checklist de calidad y bitácora por lead.</div>
+    <div id="sync-status" class="mono">
+      <span id="sync-status-text">conectando…</span>
+      <button class="btn btn-sm" id="btn-logout">Cerrar sesión</button>
+    </div>
+  </header>
+
+  <div class="dash" id="dash"></div>
+
+  <div class="toolbar">
+    <button class="btn btn-primary" id="btn-new">+ Nuevo lead</button>
+    <input type="text" id="search" placeholder="Buscar por nombre o teléfono…">
+    <select id="filter-etapa"></select>
+    <label class="btn btn-sm" style="display:flex;align-items:center;gap:6px;">
+      <input type="checkbox" id="filter-overdue" style="width:14px;height:14px;"> Solo vencidos
+    </label>
+    <button class="btn btn-sm" id="btn-export">Exportar backup</button>
+    <button class="btn btn-sm" id="btn-import">Importar backup</button>
+    <input type="file" id="import-file" accept="application/json" style="display:none;">
+  </div>
+
+  <div class="lead-list" id="lead-list"></div>
+</div>
+
+<footer class="appfoot" id="app-footer" style="display:none;">GESTOR_LEADS · v1 · Sebastián Zapién</footer>
+
+<div class="overlay" id="overlay">
+  <div class="modal">
+    <div class="modal-head">
+      <h2 id="modal-title" class="mono">Nuevo lead</h2>
+      <button class="close-x" id="btn-close">✕</button>
+    </div>
+    <div class="tabs">
+      <button class="tab active" data-tab="datos">Datos</button>
+      <button class="tab" data-tab="etapa">Etapa &amp; Protocolo</button>
+      <button class="tab" data-tab="bitacora">Bitácora</button>
+    </div>
+
+    <div class="tabpane active" data-pane="datos">
+      <div class="row2">
+        <div class="field"><label>Nombre</label><input type="text" id="f-nombre" placeholder="Ana Torres"></div>
+        <div class="field"><label>Teléfono (WhatsApp)</label><input type="text" id="f-telefono" placeholder="238 123 4567"></div>
+      </div>
+      <div class="row2">
+        <div class="field"><label>Email</label><input type="text" id="f-email" placeholder="opcional"></div>
+        <div class="field"><label>Fuente</label>
+          <select id="f-fuente">
+            <option>Idealista</option><option>Referido</option><option>Web</option>
+            <option>Facebook</option><option>Instagram</option><option>WhatsApp</option>
+            <option>Puerta Fría</option><option>Otro</option>
+          </select>
+        </div>
+      </div>
+      <div class="row2">
+        <div class="field"><label>Tipo</label>
+          <select id="f-tipo"><option>Comprador</option><option>Vendedor</option><option>Inversor</option></select>
+        </div>
+        <div class="field"><label>Presupuesto</label><input type="text" id="f-presupuesto" placeholder="$1,800,000 - $2,200,000"></div>
+      </div>
+      <div class="field"><label>Ubicación preferida / enlace de Maps</label><input type="text" id="f-ubicacion" placeholder="Col. Centro, Tehuacán o link de Google Maps"></div>
+      <div class="row2">
+        <div class="field"><label>Valor estimado (MXN)</label><input type="number" id="f-valor" placeholder="2000000"></div>
+        <div class="field"><label>Probabilidad %</label><input type="number" id="f-prob" min="0" max="100" placeholder="40"></div>
+      </div>
+      <div class="row2">
+        <div class="field"><label>Próxima acción</label><input type="text" id="f-accion" placeholder="Confirmar visita del sábado"></div>
+        <div class="field"><label>Fecha próxima acción</label><input type="date" id="f-fecha-accion"></div>
+      </div>
+      <div class="field"><label>Notas generales</label><textarea id="f-notas" placeholder="Preferencias, objeciones, contexto…"></textarea></div>
+    </div>
+
+    <div class="tabpane" data-pane="etapa">
+      <div class="stage-select-row" id="stage-pills"></div>
+      <div id="stage-detail"></div>
+    </div>
+
+    <div class="tabpane" data-pane="bitacora">
+      <div id="bitacora-list"></div>
+      <div id="bitacora-input">
+        <textarea id="bitacora-text" placeholder="Registrar interacción de hoy…"></textarea>
+        <button class="btn btn-primary btn-sm" id="btn-add-bitacora">Agregar</button>
+      </div>
+    </div>
+
+    <div class="footer-actions">
+      <button class="btn danger-text" id="btn-delete" style="display:none;">Eliminar lead</button>
+      <div style="display:flex;gap:8px;margin-left:auto;">
+        <button class="btn" id="btn-whatsapp">Abrir WhatsApp</button>
+        <button class="btn btn-primary" id="btn-save">Guardar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyCCWAH2ceWogd_gw9fr1nNyd8whIh2L9kI",
+  authDomain: "gestor-leads-zapien.firebaseapp.com",
+  databaseURL: "https://gestor-leads-zapien-default-rtdb.firebaseio.com",
+  projectId: "gestor-leads-zapien",
+  storageBucket: "gestor-leads-zapien.firebasestorage.app",
+  messagingSenderId: "604443413324",
+  appId: "1:604443413324:web:b5e7da34a6f40aa2769de9"
+};
+
+let db = null;
+let leads = {};
+
+try{
+  firebase.initializeApp(firebaseConfig);
+  db = firebase.database();
+}catch(e){
+  console.error(e);
+}
+
+const statusTextEl = document.getElementById('sync-status-text');
+const statusWrapEl = document.getElementById('sync-status');
+const loginWrap = document.getElementById('login-wrap');
+const appRoot = document.getElementById('app-root');
+const appFooter = document.getElementById('app-footer');
+const loginError = document.getElementById('login-error');
+
+function showLogin(){
+  loginWrap.style.display = 'flex';
+  appRoot.style.display = 'none';
+  appFooter.style.display = 'none';
+}
+function showApp(){
+  loginWrap.style.display = 'none';
+  appRoot.style.display = 'block';
+  appFooter.style.display = 'block';
+}
+
+document.getElementById('btn-login').addEventListener('click', doLogin);
+document.getElementById('login-password').addEventListener('keydown', e=>{ if(e.key === 'Enter') doLogin(); });
+document.getElementById('login-email').addEventListener('keydown', e=>{ if(e.key === 'Enter') doLogin(); });
+
+function doLogin(){
+  const email = document.getElementById('login-email').value.trim();
+  const password = document.getElementById('login-password').value;
+  loginError.textContent = '';
+  if(!email || !password){
+    loginError.textContent = 'Ingresa tu correo y contraseña.';
+    return;
+  }
+  const btn = document.getElementById('btn-login');
+  btn.textContent = 'Entrando…';
+  btn.disabled = true;
+  firebase.auth().signInWithEmailAndPassword(email, password)
+    .catch(err=>{
+      loginError.textContent = 'Correo o contraseña incorrectos.';
+    })
+    .finally(()=>{
+      btn.textContent = 'Entrar';
+      btn.disabled = false;
+    });
+}
+
+document.getElementById('btn-logout').addEventListener('click', ()=>{
+  firebase.auth().signOut();
+});
+
+firebase.auth().onAuthStateChanged(user=>{
+  if(user){
+    showApp();
+    startListening();
+  } else {
+    showLogin();
+    if(db) db.ref('leads').off();
+    leads = {};
+  }
+});
+
+const STAGES = [
+  { id:"nuevo", num:"01", label:"Nuevo", sla:"< 15 min",
+    objetivo:"Confirmar que el lead es real y capturarlo antes de que se enfríe.",
+    acciones:["Registrar fuente y tipo (comprador/vendedor/inversor).","Enviar primer mensaje de bienvenida por WhatsApp.","Identificar zona y tipo de propiedad que busca."],
+    script:"Hola {nombre}, soy Sebastián de Iré Inmobiliaria 👋\nVi tu interés en una propiedad. ¿Buscas para vivir o como inversión, y tienes alguna zona en mente?",
+    checklist:["Datos completos","Fuente registrada","Primer mensaje enviado dentro del SLA"],
+    tracker:"Mover a \"Contactado\" en cuanto conteste." },
+  { id:"contactado", num:"02", label:"Contactado", sla:"24–48 h",
+    objetivo:"Lograr respuesta y agendar una llamada breve de calificación.",
+    acciones:["Si no contesta en 24h, segundo intento con mensaje distinto.","Si no contesta en 48h, cambiar de canal.","Preguntar disponibilidad para una llamada de 5-10 min."],
+    script:"Hola {nombre}, ¿tienes 5 minutos hoy o mañana para platicar rápido de lo que buscas? Así te mando solo opciones que realmente apliquen.",
+    checklist:["Segundo intento enviado si no hubo respuesta","Canal cambiado tras 48h sin respuesta","Llamada de calificación agendada"],
+    tracker:"Fecha de Próxima Acción = fecha de la llamada acordada." },
+  { id:"calificado", num:"03", label:"Calificado", sla:"Misma llamada",
+    objetivo:"Confirmar presupuesto real, urgencia y necesidad específica antes de mostrar nada.",
+    acciones:["Presupuesto: rango y forma de pago (crédito/contado).","Timing: ¿para cuándo necesita cerrar?","Necesidad: zona no negociable, tamaño, condición mínima."],
+    script:"Para no hacerte perder tiempo, {nombre} — ¿tienes un presupuesto definido y ya viste si te dan crédito? ¿Hay una fecha en la que necesitas tener esto resuelto?",
+    checklist:["Presupuesto confirmado","Timing confirmado","Necesidad específica confirmada"],
+    tracker:"Si los 3 puntos están claros, avanza a \"Visita Programada\"." },
+  { id:"visita_programada", num:"04", label:"Visita Programada", sla:"Confirmar 24h y 2h antes",
+    objetivo:"Agendar una visita concreta, con fecha, hora y ubicación confirmadas.",
+    acciones:["Enviar ubicación exacta (Google Maps).","Confirmar 24h antes y de nuevo 2h antes.","Preparar llaves y documentos."],
+    script:"Hola {nombre}, quedamos en la visita — aquí está la ubicación. Te confirmo un día antes para que la tengas presente.",
+    checklist:["Fecha y hora confirmadas","Recordatorio de 24h enviado","Recordatorio de 2h enviado","Documentos/llaves listos"],
+    tracker:"Registrar Fecha Próxima Acción = fecha de la visita." },
+  { id:"visita_realizada", num:"05", label:"Visita Realizada", sla:"< 2 h después",
+    objetivo:"Obtener feedback honesto el mismo día, mientras la visita está fresca.",
+    acciones:["Contactar máximo 2 horas después.","Identificar objeciones concretas.","Definir el siguiente paso antes de terminar la conversación."],
+    script:"¿Qué te pareció, {nombre}? Cuéntame qué te gustó y qué no tanto — así te mando algo más ajustado si esta no es la indicada.",
+    checklist:["Feedback registrado en notas","Objeciones identificadas","Siguiente paso definido y con fecha"],
+    tracker:"Si hay interés real, avanza a \"Propuesta\"." },
+  { id:"propuesta", num:"06", label:"Propuesta", sla:"24–48 h tras la visita",
+    objetivo:"Enviar una propuesta afinada a lo que el lead confirmó que le interesa.",
+    acciones:["Enviar máximo 2-3 opciones.","Incluir fotos, precio y condiciones.","Acordar un plazo concreto para respuesta."],
+    script:"Te mando estas opciones que sí cumplen con lo que buscas, {nombre}. Échales un ojo y platicamos pronto para ver cuál te late más.",
+    checklist:["Propuesta enviada (máx. 3 opciones)","Comparación con la visita anterior incluida","Plazo de respuesta acordado"],
+    tracker:"Fecha Próxima Acción = fecha del plazo acordado." },
+  { id:"negociacion", num:"07", label:"Negociación", sla:"Respuesta en < 24 h",
+    objetivo:"Cerrar los términos finales con ambas partes informadas en todo momento.",
+    acciones:["Documentar cada oferta y contraoferta con fecha.","Nunca dejar la negociación sin un siguiente paso claro.","Confirmar por escrito cada acuerdo verbal."],
+    script:"Hola {nombre}, le comento tu propuesta a la otra parte y te tengo respuesta pronto.",
+    checklist:["Cada oferta documentada con fecha","Acuerdo confirmado por escrito","Próximo paso definido tras cada contacto"],
+    tracker:"Actualizar Valor Estimado y Probabilidad % conforme avanza." },
+  { id:"ganado", num:"08", label:"Cerrado Ganado", sla:"Seguimiento a 7, 15 y 180 días",
+    objetivo:"Formalizar el cierre y asegurar una experiencia post-venta impecable.",
+    acciones:["Acompañar el papeleo hasta la firma final.","Agradecer y confirmar disponibilidad post-cierre.","Programar encuesta (día 7) y solicitud de reseña (día 15)."],
+    script:"¡Felicidades, {nombre}! Fue un gusto acompañarte en todo el proceso. Cualquier cosa que necesites de aquí en adelante, aquí estoy.",
+    checklist:["Contrato firmado","Encuesta de satisfacción programada","Solicitud de referido/reseña programada"],
+    tracker:"No se archiva: pasa a seguimiento post-venta." },
+  { id:"perdido", num:"09", label:"Perdido", sla:"Cierre respetuoso", lost:true,
+    objetivo:"Cerrar con respeto, dejar la puerta abierta y aprender el motivo real.",
+    acciones:["Preguntar directamente el motivo real.","Agradecer el tiempo invertido, sin insistir.","Ofrecer quedar disponible para el futuro."],
+    script:"Entiendo perfecto, {nombre}. Gracias por el tiempo — si en algún momento las cosas cambian, aquí sigo.",
+    checklist:["Motivo real registrado","Despedida respetuosa enviada","Lead archivado en nutrición, no eliminado"],
+    tracker:"Estado Final = Cerrado Perdido, con motivo en Notas." },
+];
+const STAGE_BY_ID = Object.fromEntries(STAGES.map(s=>[s.id,s]));
+
+function startListening(){
+  statusTextEl.textContent = 'conectando…';
+  statusWrapEl.classList.remove('err');
+  db.ref('leads').on('value', snap=>{
+    leads = snap.val() || {};
+    statusTextEl.textContent = '● conectado a Firebase (sesión segura)';
+    statusWrapEl.classList.remove('err');
+    renderAll();
+  }, err=>{
+    statusTextEl.textContent = 'error de conexión — revisa tus reglas de Firebase';
+    statusWrapEl.classList.add('err');
+  });
+}
+
+function saveLead(id, data){ return db.ref('leads/'+id).set(data); }
+function deleteLeadRemote(id){ return db.ref('leads/'+id).remove(); }
+
+let currentLeadId = null;
+let currentStageId = "nuevo";
+let currentTab = "datos";
+
+function uid(){ return 'L' + Date.now().toString(36) + Math.random().toString(36).slice(2,6); }
+function todayStr(){ return new Date().toISOString().slice(0,10); }
+function isOverdue(lead){
+  if(!lead.fechaProximaAccion) return false;
+  if(lead.etapa === 'ganado' || lead.etapa === 'perdido') return false;
+  return lead.fechaProximaAccion < todayStr();
+}
+
+function renderDash(){
+  const all = Object.values(leads);
+  const activos = all.filter(l=>l.etapa!=='ganado' && l.etapa!=='perdido').length;
+  const vencidos = all.filter(isOverdue).length;
+  const now = new Date();
+  const ganadosMes = all.filter(l=>{
+    if(l.etapa!=='ganado' || !l.fechaCierre) return false;
+    const d = new Date(l.fechaCierre);
+    return d.getMonth()===now.getMonth() && d.getFullYear()===now.getFullYear();
+  }).length;
+  const valorPonderado = all.reduce((sum,l)=>{
+    if(l.etapa==='ganado'||l.etapa==='perdido') return sum;
+    const v = Number(l.valorEstimado)||0;
+    const p = Number(l.probabilidad)||0;
+    return sum + v*(p/100);
+  },0);
+
+  const dash = document.getElementById('dash');
+  dash.innerHTML = `
+    <div class="dash-card"><div class="k">Leads activos</div><div class="v">${activos}</div></div>
+    <div class="dash-card ${vencidos>0?'warn':''}"><div class="k">Acción vencida</div><div class="v">${vencidos}</div></div>
+    <div class="dash-card"><div class="k">Cerrados este mes</div><div class="v">${ganadosMes}</div></div>
+    <div class="dash-card"><div class="k">Valor ponderado</div><div class="v">$${Math.round(valorPonderado).toLocaleString('es-MX')}</div></div>
+  `;
+}
+
+function renderFilterOptions(){
+  const sel = document.getElementById('filter-etapa');
+  if(sel.dataset.built) return;
+  sel.dataset.built = "1";
+  sel.innerHTML = `<option value="">Todas las etapas</option>` +
+    STAGES.map(s=>`<option value="${s.id}">${s.num} · ${s.label}</option>`).join('');
+}
+
+function renderList(){
+  const listEl = document.getElementById('lead-list');
+  const search = document.getElementById('search').value.trim().toLowerCase();
+  const filterEtapa = document.getElementById('filter-etapa').value;
+  const onlyOverdue = document.getElementById('filter-overdue').checked;
+
+  let arr = Object.entries(leads).map(([id,l])=>({id,...l}));
+  arr = arr.filter(l=>{
+    if(search && !(`${l.nombre||''} ${l.telefono||''}`.toLowerCase().includes(search))) return false;
+    if(filterEtapa && l.etapa !== filterEtapa) return false;
+    if(onlyOverdue && !isOverdue(l)) return false;
+    return true;
+  });
+  arr.sort((a,b)=>{
+    const aOver = isOverdue(a), bOver = isOverdue(b);
+    if(aOver !== bOver) return aOver ? -1 : 1;
+    return (a.fechaProximaAccion||'9999').localeCompare(b.fechaProximaAccion||'9999');
+  });
+
+  if(arr.length === 0){
+    listEl.innerHTML = `<div class="empty">No hay leads que coincidan. Crea uno con "+ Nuevo lead".</div>`;
+    return;
+  }
+
+  listEl.innerHTML = arr.map(l=>{
+    const stage = STAGE_BY_ID[l.etapa] || STAGE_BY_ID.nuevo;
+    const overdue = isOverdue(l);
+    const idx = STAGES.findIndex(s=>s.id===l.etapa);
+    const pipeDots = STAGES.slice(0,8).map((s,i)=>{
+      let cls = '';
+      if(l.etapa==='perdido') cls = i<=idx ? 'filled-lost' : '';
+      else if(i<=idx && idx<8) cls = 'filled';
+      else if(l.etapa==='ganado') cls='filled';
+      return `<span class="${cls}"></span>`;
+    }).join('');
+    return `
+    <div class="lead-card ${overdue?'overdue':''}" data-id="${l.id}">
+      <div class="lc-top">
+        <div>
+          <div class="lc-name">${escapeHtml(l.nombre||'(sin nombre)')}</div>
+          <div class="lc-meta">${escapeHtml(l.telefono||'')} ${l.tipo?'· '+l.tipo:''} ${l.fuente?'· '+l.fuente:''}</div>
+        </div>
+        <div class="badge st-${l.etapa}">${stage.label}</div>
+      </div>
+      <div class="lc-next">
+        <span>${escapeHtml(l.proximaAccion || 'Sin próxima acción definida')}</span>
+        <span class="date ${overdue?'overdue':''}">${l.fechaProximaAccion || ''}</span>
+      </div>
+      <div class="mini-pipe">${pipeDots}</div>
+    </div>`;
+  }).join('');
+
+  listEl.querySelectorAll('.lead-card').forEach(card=>{
+    card.addEventListener('click', ()=> openModal(card.dataset.id));
+  });
+}
+
+function escapeHtml(s){
+  return String(s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+function renderAll(){
+  renderDash();
+  renderFilterOptions();
+  renderList();
+}
+
+const overlay = document.getElementById('overlay');
+
+function openModal(id){
+  currentLeadId = id || null;
+  currentTab = "datos";
+  const lead = id ? leads[id] : null;
+  currentStageId = lead ? (lead.etapa || 'nuevo') : 'nuevo';
+
+  document.getElementById('modal-title').textContent = lead ? 'Editar lead' : 'Nuevo lead';
+  document.getElementById('btn-delete').style.display = lead ? 'inline-block' : 'none';
+
+  document.getElementById('f-nombre').value = lead?.nombre || '';
+  document.getElementById('f-telefono').value = lead?.telefono || '';
+  document.getElementById('f-email').value = lead?.email || '';
+  document.getElementById('f-fuente').value = lead?.fuente || 'Referido';
+  document.getElementById('f-tipo').value = lead?.tipo || 'Comprador';
+  document.getElementById('f-presupuesto').value = lead?.presupuesto || '';
+  document.getElementById('f-ubicacion').value = lead?.ubicacion || '';
+  document.getElementById('f-valor').value = lead?.valorEstimado || '';
+  document.getElementById('f-prob').value = lead?.probabilidad || '';
+  document.getElementById('f-accion').value = lead?.proximaAccion || '';
+  document.getElementById('f-fecha-accion').value = lead?.fechaProximaAccion || '';
+  document.getElementById('f-notas').value = lead?.notas || '';
+
+  switchTab('datos');
+  renderStagePane();
+  renderBitacoraPane();
+  overlay.classList.add('open');
+}
+
+function closeModal(){
+  overlay.classList.remove('open');
+  currentLeadId = null;
+}
+
+function switchTab(tabName){
+  currentTab = tabName;
+  document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active', t.dataset.tab===tabName));
+  document.querySelectorAll('.tabpane').forEach(p=>p.classList.toggle('active', p.dataset.pane===tabName));
+}
+document.querySelectorAll('.tab').forEach(t=>t.addEventListener('click', ()=>switchTab(t.dataset.tab)));
+
+function renderStagePane(){
+  const pillsEl = document.getElementById('stage-pills');
+  pillsEl.innerHTML = STAGES.map(s=>`
+    <button class="stage-pill ${s.lost?'lost-pill':''} ${s.id===currentStageId?'current':''}" data-id="${s.id}">${s.num} ${s.label}</button>
+  `).join('');
+  pillsEl.querySelectorAll('.stage-pill').forEach(p=>{
+    p.addEventListener('click', ()=>{ currentStageId = p.dataset.id; renderStagePane(); });
+  });
+
+  const s = STAGE_BY_ID[currentStageId];
+  const lead = currentLeadId ? leads[currentLeadId] : null;
+  const nombre = document.getElementById('f-nombre').value || '{nombre}';
+  const scriptFilled = s.script.replaceAll('{nombre}', nombre);
+  const checklistState = (lead && lead.checklist && lead.checklist[s.id]) || [];
+
+  const detail = document.getElementById('stage-detail');
+  detail.innerHTML = `
+    <div class="sla-badge mono">SLA · ${s.sla}</div>
+    <div class="stage-objetivo">${s.objetivo}</div>
+    <h4 class="mono" style="font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:0 0 8px;">Acciones</h4>
+    <ul class="acciones">${s.acciones.map(a=>`<li>${a}</li>`).join('')}</ul>
+    <h4 class="mono" style="font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:14px 0 8px;">Plantilla de mensaje</h4>
+    <div class="script-box mono">${escapeHtml(scriptFilled)}</div>
+    <div class="action-row">
+      <button class="btn btn-sm" id="btn-copy-script">Copiar mensaje</button>
+    </div>
+    <h4 class="mono" style="font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:14px 0 8px;">Checklist de calidad</h4>
+    <ul class="checklist" id="stage-checklist">
+      ${s.checklist.map((c,i)=>`
+        <li><input type="checkbox" data-idx="${i}" ${checklistState[i]?'checked':''}><span>${c}</span></li>
+      `).join('')}
+    </ul>
+    <div style="font-size:11.5px;color:var(--muted-2);font-family:'JetBrains Mono',monospace;border-top:1px dashed var(--line);padding-top:10px;">
+      <b style="color:var(--muted);">Tracker →</b> ${s.tracker}
+    </div>
+  `;
+
+  document.getElementById('btn-copy-script').addEventListener('click', (e)=>{
+    navigator.clipboard?.writeText(scriptFilled).catch(()=>{});
+    e.target.textContent = 'Copiado ✓';
+    setTimeout(()=>{ e.target.textContent='Copiar mensaje'; }, 1500);
+  });
+}
+
+function renderBitacoraPane(){
+  const lead = currentLeadId ? leads[currentLeadId] : null;
+  const entries = (lead && lead.bitacora) ? Object.entries(lead.bitacora).sort((a,b)=>b[0].localeCompare(a[0])) : [];
+  const listEl = document.getElementById('bitacora-list');
+  if(entries.length===0){
+    listEl.innerHTML = `<div class="empty" style="padding:16px 0;">Sin entradas todavía.</div>`;
+  } else {
+    listEl.innerHTML = entries.map(([key,txt])=>{
+      const fecha = key.split('__')[0];
+      return `<div class="bitacora-entry"><div class="date mono">${fecha}</div><div class="txt">${escapeHtml(txt)}</div></div>`;
+    }).join('');
+  }
+}
+
+document.getElementById('btn-add-bitacora').addEventListener('click', ()=>{
+  const txt = document.getElementById('bitacora-text').value.trim();
+  if(!txt) return;
+  if(!currentLeadId){
+    alert('Guarda el lead primero antes de agregar una entrada de bitácora.');
+    return;
+  }
+  const key = new Date().toISOString().slice(0,16).replace('T',' ') + '__' + Math.random().toString(36).slice(2,6);
+  const lead = leads[currentLeadId] || {};
+  const bitacora = lead.bitacora || {};
+  bitacora[key] = txt;
+  saveLead(currentLeadId, {...lead, bitacora});
+  document.getElementById('bitacora-text').value = '';
+  setTimeout(renderBitacoraPane, 150);
+});
+
+document.getElementById('btn-save').addEventListener('click', ()=>{
+  const nombre = document.getElementById('f-nombre').value.trim();
+  if(!nombre){ alert('Ponle al menos un nombre al lead.'); return; }
+
+  const id = currentLeadId || uid();
+  const existing = currentLeadId ? leads[currentLeadId] : null;
+
+  const stageChecklist = [...document.querySelectorAll('#stage-checklist input')].map(cb=>cb.checked);
+  const checklist = { ...(existing?.checklist || {}) , [currentStageId]: stageChecklist };
+
+  const wasNotGanado = !existing || existing.etapa !== 'ganado';
+  const isNowGanado = currentStageId === 'ganado';
+
+  const data = {
+    nombre,
+    telefono: document.getElementById('f-telefono').value.trim(),
+    email: document.getElementById('f-email').value.trim(),
+    fuente: document.getElementById('f-fuente').value,
+    tipo: document.getElementById('f-tipo').value,
+    presupuesto: document.getElementById('f-presupuesto').value.trim(),
+    ubicacion: document.getElementById('f-ubicacion').value.trim(),
+    valorEstimado: Number(document.getElementById('f-valor').value)||0,
+    probabilidad: Number(document.getElementById('f-prob').value)||0,
+    proximaAccion: document.getElementById('f-accion').value.trim(),
+    fechaProximaAccion: document.getElementById('f-fecha-accion').value,
+    notas: document.getElementById('f-notas').value.trim(),
+    etapa: currentStageId,
+    fechaCreacion: existing?.fechaCreacion || todayStr(),
+    fechaCierre: (isNowGanado && wasNotGanado) ? todayStr() : (existing?.fechaCierre || null),
+    checklist,
+    bitacora: existing?.bitacora || {},
+  };
+
+  saveLead(id, data).then(()=>{
+    closeModal();
+  });
+});
+
+document.getElementById('btn-delete').addEventListener('click', ()=>{
+  if(!currentLeadId) return;
+  if(confirm('¿Eliminar este lead? Esta acción no se puede deshacer. Si está perdido, mejor déjalo archivado en vez de borrarlo.')){
+    deleteLeadRemote(currentLeadId).then(closeModal);
+  }
+});
+
+document.getElementById('btn-whatsapp').addEventListener('click', ()=>{
+  const phone = document.getElementById('f-telefono').value.replace(/\D/g,'');
+  const nombre = document.getElementById('f-nombre').value || '{nombre}';
+  const s = STAGE_BY_ID[currentStageId];
+  const text = encodeURIComponent(s.script.replaceAll('{nombre}', nombre));
+  if(!phone){ alert('Agrega un teléfono para poder abrir WhatsApp.'); return; }
+  window.open(`https://wa.me/${phone}?text=${text}`, '_blank');
+});
+
+document.getElementById('btn-new').addEventListener('click', ()=>openModal(null));
+document.getElementById('btn-close').addEventListener('click', closeModal);
+overlay.addEventListener('click', (e)=>{ if(e.target===overlay) closeModal(); });
+
+document.getElementById('search').addEventListener('input', renderList);
+document.getElementById('filter-etapa').addEventListener('change', renderList);
+document.getElementById('filter-overdue').addEventListener('change', renderList);
+
+document.getElementById('btn-export').addEventListener('click', ()=>{
+  const blob = new Blob([JSON.stringify(leads, null, 2)], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `leads-backup-${todayStr()}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+});
+
+document.getElementById('btn-import').addEventListener('click', ()=>{
+  document.getElementById('import-file').click();
+});
+document.getElementById('import-file').addEventListener('change', (e)=>{
+  const file = e.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = ()=>{
+    try{
+      const data = JSON.parse(reader.result);
+      const count = Object.keys(data).length;
+      if(!confirm(`Se importarán ${count} leads. Se combinan con los existentes (mismo ID = se sobrescribe). ¿Continuar?`)) return;
+      const promises = Object.entries(data).map(([id,d])=>saveLead(id,d));
+      Promise.all(promises).then(()=>alert('Importación completa.'));
+    }catch(err){
+      alert('El archivo no es un backup válido.');
+    }
+  };
+  reader.readAsText(file);
+  e.target.value = '';
+});
+</script>
+</body>
+</html>
