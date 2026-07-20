@@ -56,6 +56,12 @@
   #login-error, #sync-msg{font-size:12px;color:var(--red);min-height:14px;margin-top:4px;}
   .status-line{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--muted-2);margin-top:6px;}
   .status-line.ok{color:var(--green);}
+  .prop-fotos{display:flex;gap:8px;overflow-x:auto;margin-bottom:12px;}
+  .prop-fotos img{height:120px;width:170px;object-fit:cover;border-radius:8px;border:1px solid var(--line);flex-shrink:0;background:var(--bg);}
+  .prop-precio{font-family:'JetBrains Mono',monospace;font-size:18px;color:var(--green);font-weight:700;margin-bottom:6px;}
+  .prop-ficha{display:flex;gap:14px;flex-wrap:wrap;font-size:12.5px;color:var(--muted);margin-bottom:8px;}
+  .prop-ficha span{background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:4px 9px;}
+  .prop-desc{font-size:13px;color:var(--text);line-height:1.5;}
 </style>
 </head>
 <body>
@@ -75,6 +81,12 @@
         <select id="f-propiedad-publico"></select>
       </div>
       <div class="sub" id="propiedad-direccion-hint" style="margin-top:8px;"></div>
+    </div>
+    <div class="card" id="propiedad-detalle-card" style="display:none;">
+      <div class="prop-fotos" id="propiedad-fotos"></div>
+      <div class="prop-precio" id="propiedad-precio"></div>
+      <div class="prop-ficha" id="propiedad-ficha"></div>
+      <div class="prop-desc" id="propiedad-desc"></div>
     </div>
     <div id="slots-container"></div>
   </div>
@@ -118,7 +130,38 @@
           <input type="text" id="p-lng" placeholder="Longitud (ej. -97.3928)">
         </div>
         <input type="text" id="p-direccion" placeholder="Dirección completa" style="width:100%;background:var(--bg);border:1px solid var(--line);color:var(--text);padding:9px 11px;border-radius:6px;font-size:13.5px;margin-top:8px;">
+        <div class="row2" style="grid-template-columns:1fr 1fr 1fr;margin-top:8px;">
+          <select id="p-operacion" style="background:var(--bg);border:1px solid var(--line);color:var(--text);padding:9px 11px;border-radius:6px;font-size:13.5px;">
+            <option value="Venta">Venta</option>
+            <option value="Renta">Renta</option>
+          </select>
+          <input type="number" id="p-precio" placeholder="Precio (ej. 1850000)">
+          <input type="number" id="p-recamaras" placeholder="Recámaras">
+        </div>
+        <div class="row2" style="grid-template-columns:1fr 1fr 1fr;margin-top:8px;">
+          <input type="number" id="p-banos" placeholder="Baños" step="0.5">
+          <input type="number" id="p-m2c" placeholder="m² construcción">
+          <input type="number" id="p-m2t" placeholder="m² terreno">
+        </div>
+        <textarea id="p-descripcion" placeholder="Descripción del inmueble (amenidades, estado, notas de venta)" style="width:100%;background:var(--bg);border:1px solid var(--line);color:var(--text);padding:9px 11px;border-radius:6px;font-size:13.5px;margin-top:8px;min-height:60px;resize:vertical;"></textarea>
+        <textarea id="p-fotos" placeholder="Links de fotos, uno por línea (ej. https://...)" style="width:100%;background:var(--bg);border:1px solid var(--line);color:var(--text);padding:9px 11px;border-radius:6px;font-size:13.5px;margin-top:8px;min-height:50px;resize:vertical;"></textarea>
         <button class="btn btn-primary btn-sm" id="btn-add-propiedad" style="margin-top:8px;">+ Agregar propiedad</button>
+      </div>
+
+      <div class="card">
+        <h2 class="mono" style="font-size:14px;color:var(--green);margin:0 0 12px;">Cita manual (fuera de horario)</h2>
+        <div class="sub" style="margin-bottom:12px;">Para agendar una cita en un horario que no está publicado o habilitado — el cliente no la ve ni la puede tomar, la agendas tú directo aquí.</div>
+        <div class="row2" style="grid-template-columns:1.4fr 1fr;">
+          <input type="text" id="m-nombre" placeholder="Nombre del cliente">
+          <input type="text" id="m-telefono" placeholder="Teléfono (WhatsApp)">
+        </div>
+        <div class="row2" style="grid-template-columns:1fr 1fr 1fr;margin-top:8px;">
+          <select id="m-propiedad" style="background:var(--bg);border:1px solid var(--line);color:var(--text);padding:9px 11px;border-radius:6px;font-size:13.5px;"><option value="">Sin propiedad</option></select>
+          <input type="date" id="m-fecha">
+          <input type="time" id="m-hora">
+        </div>
+        <input type="text" id="m-notas" placeholder="Notas (opcional)" style="width:100%;background:var(--bg);border:1px solid var(--line);color:var(--text);padding:9px 11px;border-radius:6px;font-size:13.5px;margin-top:8px;">
+        <button class="btn btn-primary btn-sm" id="btn-add-manual" style="margin-top:8px;">+ Agendar manualmente</button>
       </div>
 
       <div class="card">
@@ -228,6 +271,7 @@ function loadPublicAvailability(){
   db.ref('propiedades').on('value', snap=>{
     propiedades = snap.val() || {};
     renderPropiedadPicker();
+    renderManualPropiedadSelect();
     renderSlots();
   });
 }
@@ -251,11 +295,53 @@ function renderPropiedadPicker(){
   sel.innerHTML = activas.map(([id,p])=>`<option value="${id}" ${id===selectedPropiedadId?'selected':''}>${escapeHtml(p.nombre)}</option>`).join('');
   const p = propiedades[selectedPropiedadId];
   document.getElementById('propiedad-direccion-hint').textContent = p && p.direccion ? '📍 ' + p.direccion : '';
+  renderPropiedadDetalle(p);
+}
+
+function renderPropiedadDetalle(p){
+  const card = document.getElementById('propiedad-detalle-card');
+  if(!p){ card.style.display = 'none'; return; }
+
+  const tieneFicha = p.precio || p.recamaras || p.banos || p.m2c || p.m2t || p.descripcion || (p.fotos && p.fotos.length);
+  if(!tieneFicha){ card.style.display = 'none'; return; }
+  card.style.display = 'block';
+
+  const fotosEl = document.getElementById('propiedad-fotos');
+  if(p.fotos && p.fotos.length){
+    fotosEl.style.display = 'flex';
+    fotosEl.innerHTML = p.fotos.map(url=>`<img src="${escapeHtml(url)}" loading="lazy" onerror="this.style.display='none'">`).join('');
+  } else {
+    fotosEl.style.display = 'none';
+    fotosEl.innerHTML = '';
+  }
+
+  const precioEl = document.getElementById('propiedad-precio');
+  if(p.precio){
+    precioEl.style.display = 'block';
+    precioEl.textContent = `$${Number(p.precio).toLocaleString('es-MX')}${p.operacion==='Renta' ? ' / mes' : ''}`;
+  } else {
+    precioEl.style.display = 'none';
+  }
+
+  const fichaEl = document.getElementById('propiedad-ficha');
+  const fichaItems = [];
+  if(p.operacion) fichaItems.push(p.operacion);
+  if(p.recamaras) fichaItems.push(p.recamaras + ' rec');
+  if(p.banos) fichaItems.push(p.banos + ' baños');
+  if(p.m2c) fichaItems.push(p.m2c + ' m² const.');
+  if(p.m2t) fichaItems.push(p.m2t + ' m² terreno');
+  fichaEl.style.display = fichaItems.length ? 'flex' : 'none';
+  fichaEl.innerHTML = fichaItems.map(t=>`<span>${escapeHtml(String(t))}</span>`).join('');
+
+  const descEl = document.getElementById('propiedad-desc');
+  descEl.style.display = p.descripcion ? 'block' : 'none';
+  descEl.textContent = p.descripcion || '';
 }
 document.getElementById('f-propiedad-publico').addEventListener('change', (e)=>{
   selectedPropiedadId = e.target.value;
   const p = propiedades[selectedPropiedadId];
   document.getElementById('propiedad-direccion-hint').textContent = p && p.direccion ? '📍 ' + p.direccion : '';
+  renderPropiedadDetalle(p);
   renderSlots();
 });
 
@@ -594,6 +680,7 @@ function renderPropiedadesAdmin(obj){
       <div>
         <b>${escapeHtml(p.nombre)}</b> ${p.activo===false?'<span class="cita-meta">(inactiva)</span>':''}
         <div class="cita-meta">${escapeHtml(p.direccion||'')}${(p.lat!=null&&p.lng!=null)?' · '+p.lat+', '+p.lng:' · sin coordenadas'}</div>
+        <div class="cita-meta">${p.operacion?p.operacion+' · ':''}${p.precio?'$'+Number(p.precio).toLocaleString('es-MX')+(p.operacion==='Renta'?'/mes':''):'sin precio'}${p.recamaras?' · '+p.recamaras+' rec':''}${p.banos?' · '+p.banos+' baños':''}${p.m2c?' · '+p.m2c+'m² const':''}${(p.fotos&&p.fotos.length)?' · '+p.fotos.length+' foto(s)':''}</div>
       </div>
       <div style="display:flex;gap:6px;">
         <button class="btn btn-sm" data-action="toggle-prop" data-id="${p.id}">${p.activo===false?'Activar':'Desactivar'}</button>
@@ -616,11 +703,79 @@ function renderPropiedadesAdmin(obj){
   });
 }
 
+function renderManualPropiedadSelect(){
+  const sel = document.getElementById('m-propiedad');
+  if(!sel) return;
+  const prevVal = sel.value;
+  const activas = Object.entries(propiedades).filter(([id,p])=>p.activo!==false);
+  sel.innerHTML = `<option value="">Sin propiedad</option>` +
+    activas.map(([id,p])=>`<option value="${id}">${escapeHtml(p.nombre)}</option>`).join('');
+  if(activas.some(([id])=>id===prevVal)) sel.value = prevVal;
+}
+
+document.getElementById('btn-add-manual').addEventListener('click', ()=>{
+  const nombre = document.getElementById('m-nombre').value.trim();
+  const telefono = document.getElementById('m-telefono').value.trim();
+  const propiedadId = document.getElementById('m-propiedad').value || null;
+  const propiedadNombre = propiedadId && propiedades[propiedadId] ? propiedades[propiedadId].nombre : null;
+  const fecha = document.getElementById('m-fecha').value;
+  const hora = document.getElementById('m-hora').value;
+  const notas = document.getElementById('m-notas').value.trim();
+
+  if(!nombre || !telefono){ alert('Pon nombre y teléfono del cliente.'); return; }
+  if(!fecha || !hora){ alert('Elige fecha y hora.'); return; }
+  if(!auth.currentUser){ alert('Tu sesión de admin se cerró, vuelve a iniciar sesión.'); return; }
+
+  const slotFlagKey = `${fecha}_${hora}`;
+  if(ocupados[slotFlagKey]){
+    if(!confirm('Ya hay una cita agendada en ese horario exacto. ¿Quieres agendar de todos modos (se guardará junto a la existente)?')) return;
+  }
+
+  const btn = document.getElementById('btn-add-manual');
+  btn.disabled = true; btn.textContent = 'Agendando…';
+
+  db.ref('citas_publicas/'+slotFlagKey).set({ propiedadId: propiedadId || null })
+    .then(()=>{
+      const citaId = db.ref('citas').push().key;
+      return db.ref('citas/'+citaId).set({
+        nombre, telefono, notas,
+        propiedadId, propiedadNombre,
+        fecha, hora,
+        leadId: null,
+        estado: 'pendiente',
+        manual: true,
+        creado: new Date().toISOString()
+      });
+    })
+    .then(()=>{
+      document.getElementById('m-nombre').value = '';
+      document.getElementById('m-telefono').value = '';
+      document.getElementById('m-propiedad').value = '';
+      document.getElementById('m-fecha').value = '';
+      document.getElementById('m-hora').value = '';
+      document.getElementById('m-notas').value = '';
+    })
+    .catch(err=>{
+      alert('No se pudo agendar la cita manual.\n\nError: ' + err.message);
+    })
+    .finally(()=>{
+      btn.disabled = false; btn.textContent = '+ Agendar manualmente';
+    });
+});
+
 document.getElementById('btn-add-propiedad').addEventListener('click', ()=>{
   const nombre = document.getElementById('p-nombre').value.trim();
   const direccion = document.getElementById('p-direccion').value.trim();
   const latRaw = document.getElementById('p-lat').value.trim();
   const lngRaw = document.getElementById('p-lng').value.trim();
+  const operacion = document.getElementById('p-operacion').value;
+  const precio = Number(document.getElementById('p-precio').value) || null;
+  const recamaras = Number(document.getElementById('p-recamaras').value) || null;
+  const banos = Number(document.getElementById('p-banos').value) || null;
+  const m2c = Number(document.getElementById('p-m2c').value) || null;
+  const m2t = Number(document.getElementById('p-m2t').value) || null;
+  const descripcion = document.getElementById('p-descripcion').value.trim();
+  const fotos = document.getElementById('p-fotos').value.split('\n').map(s=>s.trim()).filter(Boolean);
   if(!nombre){ alert('Ponle un nombre a la propiedad.'); return; }
   const lat = latRaw ? Number(latRaw) : null;
   const lng = lngRaw ? Number(lngRaw) : null;
@@ -629,12 +784,22 @@ document.getElementById('btn-add-propiedad').addEventListener('click', ()=>{
   const btn = document.getElementById('btn-add-propiedad');
   btn.disabled = true; btn.textContent = 'Guardando…';
   const propId = db.ref('propiedades').push().key;
-  db.ref('propiedades/'+propId).set({ nombre, direccion, lat, lng, activo: true })
+  db.ref('propiedades/'+propId).set({
+    nombre, direccion, lat, lng, activo: true,
+    operacion, precio, recamaras, banos, m2c, m2t, descripcion, fotos
+  })
     .then(()=>{
       document.getElementById('p-nombre').value = '';
       document.getElementById('p-direccion').value = '';
       document.getElementById('p-lat').value = '';
       document.getElementById('p-lng').value = '';
+      document.getElementById('p-precio').value = '';
+      document.getElementById('p-recamaras').value = '';
+      document.getElementById('p-banos').value = '';
+      document.getElementById('p-m2c').value = '';
+      document.getElementById('p-m2t').value = '';
+      document.getElementById('p-descripcion').value = '';
+      document.getElementById('p-fotos').value = '';
     })
     .catch(err=>{
       alert('No se pudo guardar la propiedad.\n\nError: ' + err.message + '\n\nSi el error dice "permission denied", tienes que subir las reglas nuevas de Firebase (reglas-realtime-database.json) en Firebase Console → Realtime Database → Reglas → Publicar.');
@@ -658,7 +823,7 @@ function renderCitasList(citasObj){
   list.innerHTML = arr.map(c=>`
     <div class="cita-item">
       <div>
-        <b>${escapeHtml(c.nombre)}</b> — ${c.fecha} ${c.hora} ${c.propiedadNombre?'· 🏠 '+escapeHtml(c.propiedadNombre):''}
+        <b>${escapeHtml(c.nombre)}</b> — ${c.fecha} ${c.hora} ${c.propiedadNombre?'· 🏠 '+escapeHtml(c.propiedadNombre):''} ${c.manual?'<span class="cita-meta" style="color:var(--green);">· manual</span>':''}
         <div class="cita-meta">${escapeHtml(c.telefono||'')} ${c.notas?'· '+escapeHtml(c.notas):''}</div>
       </div>
       <div style="display:flex;gap:6px;">
