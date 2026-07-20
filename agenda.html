@@ -198,31 +198,45 @@ function loadPublicAvailability(){
 function pad(n){ return n<10 ? '0'+n : ''+n; }
 function dateKey(d){ return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`; }
 
+// Normaliza un día a formato { activo, rangos:[{inicio,fin},...] }
+// (compatible con el formato viejo que solo tenía un rango inicio/fin)
+function normalizarDia(cfg){
+  if(!cfg) return { activo:false, rangos:[{inicio:'09:00', fin:'18:00'}] };
+  if(cfg.rangos) return cfg;
+  return { activo: cfg.activo, rangos: [{inicio: cfg.inicio || '09:00', fin: cfg.fin || '18:00'}] };
+}
+
 function generateSlotsForDay(date){
   const dayKey = DAY_KEYS[date.getDay()];
-  const cfg = horario && horario[dayKey];
-  if(!cfg || !cfg.activo) return [];
+  const cfgRaw = horario && horario[dayKey];
+  const cfg = normalizarDia(cfgRaw);
+  if(!cfg.activo) return [];
   const dur = (horario.duracionMin) || 30;
-  const [hI,mI] = cfg.inicio.split(':').map(Number);
-  const [hF,mF] = cfg.fin.split(':').map(Number);
-  let startMin = hI*60+mI;
-  const endMin = hF*60+mF;
   const dKey = dateKey(date);
   const blocked = bloqueos[dKey] || [];
   const slots = [];
   const now = new Date();
-  while(startMin + dur <= endMin){
-    const h = Math.floor(startMin/60), m = startMin%60;
-    const timeLabel = `${pad(h)}:${pad(m)}`;
-    const slotDate = new Date(date); slotDate.setHours(h,m,0,0);
-    const isPast = slotDate <= now;
-    const isBlocked = blocked.includes(timeLabel);
-    const isTaken = ocupados[`${dKey}_${timeLabel}`];
-    if(!isPast && !isBlocked && !isTaken){
-      slots.push(timeLabel);
+
+  (cfg.rangos || []).forEach(rango=>{
+    if(!rango.inicio || !rango.fin) return;
+    const [hI,mI] = rango.inicio.split(':').map(Number);
+    const [hF,mF] = rango.fin.split(':').map(Number);
+    let startMin = hI*60+mI;
+    const endMin = hF*60+mF;
+    while(startMin + dur <= endMin){
+      const h = Math.floor(startMin/60), m = startMin%60;
+      const timeLabel = `${pad(h)}:${pad(m)}`;
+      const slotDate = new Date(date); slotDate.setHours(h,m,0,0);
+      const isPast = slotDate <= now;
+      const isBlocked = blocked.includes(timeLabel);
+      const isTaken = ocupados[`${dKey}_${timeLabel}`];
+      if(!isPast && !isBlocked && !isTaken && !slots.includes(timeLabel)){
+        slots.push(timeLabel);
+      }
+      startMin += dur;
     }
-    startMin += dur;
-  }
+  });
+  slots.sort();
   return slots;
 }
 
@@ -360,27 +374,70 @@ auth.onAuthStateChanged(user=>{
    ========================================================= */
 function renderHorarioEditor(cfg){
   const editor = document.getElementById('horario-editor');
-  editor.innerHTML = DAY_KEYS.filter(d=>d!=='dom' || true).map(dk=>{
-    const c = (cfg && cfg[dk]) || {activo: dk!=='dom' && dk!=='sab', inicio:'09:00', fin:'18:00'};
+  editor.innerHTML = DAY_KEYS.map(dk=>{
+    const cRaw = (cfg && cfg[dk]) || {activo: dk!=='dom' && dk!=='sab'};
+    const c = normalizarDia(cRaw);
+    const rangosHtml = c.rangos.map((r,i)=>`
+      <div class="row2 rango-row" data-day="${dk}" data-idx="${i}">
+        <span></span>
+        <input type="time" class="h-inicio" value="${r.inicio}">
+        <input type="time" class="h-fin" value="${r.fin}">
+        <button type="button" class="btn btn-sm btn-quitar-rango" style="color:var(--red);">✕</button>
+      </div>`).join('');
     return `
-    <div class="row2">
-      <label style="display:flex;align-items:center;gap:6px;font-size:12.5px;min-width:110px;">
+    <div class="day-group" data-day="${dk}" style="margin-bottom:14px;border-bottom:1px dashed var(--line);padding-bottom:10px;">
+      <label style="display:flex;align-items:center;gap:6px;font-size:12.5px;margin-bottom:6px;">
         <input type="checkbox" data-day="${dk}" class="h-activo" ${c.activo?'checked':''}> ${DAY_LABELS[dk]}
       </label>
-      <input type="time" data-day="${dk}" class="h-inicio" value="${c.inicio}">
-      <input type="time" data-day="${dk}" class="h-fin" value="${c.fin}">
+      <div class="rangos-list" data-day="${dk}">${rangosHtml}</div>
+      <button type="button" class="btn btn-sm btn-add-rango" data-day="${dk}" style="margin-top:4px;">+ Agregar franja (ej. tarde)</button>
     </div>`;
   }).join('');
   document.getElementById('a-duracion').value = (cfg && cfg.duracionMin) || 30;
+  attachHorarioEditorEvents();
+}
+
+function attachHorarioEditorEvents(){
+  document.querySelectorAll('.btn-add-rango').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const dk = btn.dataset.day;
+      const list = document.querySelector(`.rangos-list[data-day="${dk}"]`);
+      const idx = list.querySelectorAll('.rango-row').length;
+      const row = document.createElement('div');
+      row.className = 'row2 rango-row';
+      row.dataset.day = dk; row.dataset.idx = idx;
+      row.innerHTML = `
+        <span></span>
+        <input type="time" class="h-inicio" value="16:00">
+        <input type="time" class="h-fin" value="18:00">
+        <button type="button" class="btn btn-sm btn-quitar-rango" style="color:var(--red);">✕</button>`;
+      list.appendChild(row);
+      attachQuitarRango(row.querySelector('.btn-quitar-rango'));
+    });
+  });
+  document.querySelectorAll('.btn-quitar-rango').forEach(attachQuitarRango);
+}
+function attachQuitarRango(btn){
+  btn.addEventListener('click', ()=>{
+    const row = btn.closest('.rango-row');
+    const list = row.parentElement;
+    if(list.querySelectorAll('.rango-row').length <= 1){
+      alert('Cada día activo necesita al menos una franja de horario.');
+      return;
+    }
+    row.remove();
+  });
 }
 
 document.getElementById('btn-save-horario').addEventListener('click', ()=>{
   const out = { duracionMin: Number(document.getElementById('a-duracion').value) };
   DAY_KEYS.forEach(dk=>{
     const activo = document.querySelector(`.h-activo[data-day="${dk}"]`).checked;
-    const inicio = document.querySelector(`.h-inicio[data-day="${dk}"]`).value;
-    const fin = document.querySelector(`.h-fin[data-day="${dk}"]`).value;
-    out[dk] = { activo, inicio, fin };
+    const rangos = [...document.querySelectorAll(`.rango-row[data-day="${dk}"]`)].map(row=>({
+      inicio: row.querySelector('.h-inicio').value,
+      fin: row.querySelector('.h-fin').value
+    }));
+    out[dk] = { activo, rangos };
   });
   db.ref('disponibilidad/horarios').set(out).then(()=>{
     alert('Horario guardado.');
@@ -508,26 +565,29 @@ document.getElementById('btn-sync-calendar').addEventListener('click', ()=>{
       const d = new Date(now); d.setDate(now.getDate()+i);
       const dk = dateKey(d);
       const dayKey = DAY_KEYS[d.getDay()];
-      const cfg = horario && horario[dayKey];
-      if(!cfg || !cfg.activo) continue;
-      const [hI,mI] = cfg.inicio.split(':').map(Number);
-      const [hF,mF] = cfg.fin.split(':').map(Number);
-      let startMin = hI*60+mI;
-      const endMin = hF*60+mF;
-      while(startMin + dur <= endMin){
-        const h = Math.floor(startMin/60), m = startMin%60;
-        const slotStart = new Date(d); slotStart.setHours(h,m,0,0);
-        const slotEnd = new Date(slotStart.getTime() + dur*60000);
-        const overlaps = busy.some(b=>{
-          const bs = new Date(b.start), be = new Date(b.end);
-          return slotStart < be && slotEnd > bs;
-        });
-        if(overlaps){
-          if(!newBloqueos[dk]) newBloqueos[dk] = [];
-          newBloqueos[dk].push(`${pad(h)}:${pad(m)}`);
+      const cfg = normalizarDia(horario && horario[dayKey]);
+      if(!cfg.activo) continue;
+      (cfg.rangos || []).forEach(rango=>{
+        if(!rango.inicio || !rango.fin) return;
+        const [hI,mI] = rango.inicio.split(':').map(Number);
+        const [hF,mF] = rango.fin.split(':').map(Number);
+        let startMin = hI*60+mI;
+        const endMin = hF*60+mF;
+        while(startMin + dur <= endMin){
+          const h = Math.floor(startMin/60), m = startMin%60;
+          const slotStart = new Date(d); slotStart.setHours(h,m,0,0);
+          const slotEnd = new Date(slotStart.getTime() + dur*60000);
+          const overlaps = busy.some(b=>{
+            const bs = new Date(b.start), be = new Date(b.end);
+            return slotStart < be && slotEnd > bs;
+          });
+          if(overlaps){
+            if(!newBloqueos[dk]) newBloqueos[dk] = [];
+            if(!newBloqueos[dk].includes(`${pad(h)}:${pad(m)}`)) newBloqueos[dk].push(`${pad(h)}:${pad(m)}`);
+          }
+          startMin += dur;
         }
-        startMin += dur;
-      }
+      });
     }
     return db.ref('disponibilidad/bloqueos').set(newBloqueos);
   })
