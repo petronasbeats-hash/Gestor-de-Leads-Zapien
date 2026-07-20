@@ -243,6 +243,7 @@
     <div class="footer-actions">
       <button class="btn danger-text" id="btn-delete" style="display:none;">Eliminar lead</button>
       <div style="display:flex;gap:8px;margin-left:auto;">
+        <button class="btn" id="btn-agenda">Link de agenda</button>
         <button class="btn" id="btn-whatsapp">Abrir WhatsApp</button>
         <button class="btn btn-primary" id="btn-save">Guardar</button>
       </div>
@@ -680,6 +681,19 @@ document.getElementById('btn-delete').addEventListener('click', ()=>{
   if(confirm('¿Eliminar este lead? Esta acción no se puede deshacer. Si está perdido, mejor déjalo archivado en vez de borrarlo.')){
     deleteLeadRemote(currentLeadId).then(closeModal);
   }
+});
+
+document.getElementById('btn-agenda').addEventListener('click', ()=>{
+  const nombre = document.getElementById('f-nombre').value.trim();
+  const telefono = document.getElementById('f-telefono').value.trim();
+  if(!nombre){ alert('Ponle un nombre al lead primero.'); return; }
+  const base = location.origin + location.pathname.replace(/[^/]*$/, 'agenda.html');
+  const url = `${base}?nombre=${encodeURIComponent(nombre)}&telefono=${encodeURIComponent(telefono)}${currentLeadId?'&leadId='+encodeURIComponent(currentLeadId):''}`;
+  navigator.clipboard?.writeText(url).then(()=>{
+    alert('Link de agenda copiado:\n' + url);
+  }).catch(()=>{
+    prompt('Copia este link de agenda:', url);
+  });
 });
 
 document.getElementById('btn-whatsapp').addEventListener('click', ()=>{

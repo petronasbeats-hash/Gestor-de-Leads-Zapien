@@ -1,0 +1,576 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Agenda tu visita — Iré Inmobiliaria</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600;700&display=swap');
+  :root{
+    --bg:#0a0d0c; --bg-panel:#111613; --line:#223028;
+    --green:#00ffa3; --green-dim:#0a3d2b; --amber:#ffb020;
+    --red:#ff5c5c; --red-dim:#3a1414; --grey:#8a8a8a;
+    --text:#eaf5ee; --muted:#7c9188; --muted-2:#4d5f57;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;-webkit-font-smoothing:antialiased;}
+  .mono{font-family:'JetBrains Mono',monospace;}
+  button{font-family:inherit;cursor:pointer;}
+  input,select,textarea{font-family:inherit;}
+  .wrap{max-width:720px;margin:0 auto;padding:0 16px 60px;}
+  header{padding:28px 0 20px;border-bottom:1px solid var(--line);margin-bottom:22px;}
+  .eyebrow{font-family:'JetBrains Mono',monospace;font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--green);margin-bottom:10px;display:flex;align-items:center;gap:8px;}
+  .eyebrow .dot{width:6px;height:6px;border-radius:50%;background:var(--green);box-shadow:0 0 8px var(--green);animation:pulse 2s infinite;}
+  @keyframes pulse{0%,100%{opacity:1;}50%{opacity:.35;}}
+  h1{font-family:'JetBrains Mono',monospace;font-size:clamp(20px,4vw,26px);font-weight:700;margin:0 0 4px;}
+  header .sub{color:var(--muted);font-size:13px;}
+  .btn{background:var(--bg-panel);border:1px solid var(--line);color:var(--text);padding:9px 14px;border-radius:7px;font-size:13px;font-weight:500;white-space:nowrap;transition:all .15s;}
+  .btn:hover{border-color:var(--muted);}
+  .btn-primary{background:var(--green-dim);border-color:var(--green);color:var(--green);font-weight:600;}
+  .btn-primary:hover{box-shadow:0 0 12px rgba(0,255,163,.25);}
+  .btn-sm{padding:6px 10px;font-size:11.5px;}
+  .btn:disabled{opacity:.4;cursor:not-allowed;}
+  .card{background:var(--bg-panel);border:1px solid var(--line);border-radius:10px;padding:16px;margin-bottom:14px;}
+  .field{margin-bottom:12px;}
+  .field label{display:block;font-size:11px;color:var(--muted);margin-bottom:5px;font-family:'JetBrains Mono',monospace;letter-spacing:.03em;text-transform:uppercase;}
+  .field input,.field select{width:100%;background:var(--bg);border:1px solid var(--line);color:var(--text);padding:9px 11px;border-radius:6px;font-size:13.5px;}
+  .day-block{margin-bottom:16px;}
+  .day-title{font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px;}
+  .slots{display:flex;flex-wrap:wrap;gap:8px;}
+  .slot-btn{background:var(--bg);border:1px solid var(--line);color:var(--text);padding:9px 13px;border-radius:7px;font-size:13px;font-family:'JetBrains Mono',monospace;}
+  .slot-btn:hover{border-color:var(--green);color:var(--green);}
+  .slot-btn.selected{background:var(--green-dim);border-color:var(--green);color:var(--green);}
+  .empty{color:var(--muted-2);text-align:center;padding:30px 0;font-size:13px;}
+  .overlay{position:fixed;inset:0;background:rgba(0,0,0,.65);display:none;align-items:center;justify-content:center;padding:16px;z-index:60;}
+  .overlay.open{display:flex;}
+  .modal{background:var(--bg-panel);border:1px solid var(--line);border-radius:12px;max-width:420px;width:100%;padding:22px;}
+  .modal h2{font-family:'JetBrains Mono',monospace;font-size:15px;color:var(--green);margin:0 0 14px;}
+  .confirm-box{background:var(--bg);border:1px solid var(--green);border-radius:8px;padding:14px;font-size:13px;line-height:1.6;margin-bottom:10px;}
+  #toggle-admin{position:fixed;bottom:14px;right:14px;font-size:10.5px;opacity:.35;}
+  #toggle-admin:hover{opacity:1;}
+  .admin-wrap{display:none;}
+  .row2{display:grid;grid-template-columns:auto 1fr 1fr;gap:8px;align-items:center;margin-bottom:8px;}
+  .cita-item{border-bottom:1px solid var(--line);padding:10px 0;font-size:13px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;}
+  .cita-item:last-child{border-bottom:none;}
+  .cita-meta{color:var(--muted);font-size:11.5px;}
+  #login-error, #sync-msg{font-size:12px;color:var(--red);min-height:14px;margin-top:4px;}
+  .status-line{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--muted-2);margin-top:6px;}
+  .status-line.ok{color:var(--green);}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow"><span class="dot"></span>IRÉ INMOBILIARIA · TEHUACÁN, PUE.</div>
+    <h1 id="page-title">Agenda tu visita</h1>
+    <div class="sub" id="page-sub">Elige el día y hora que mejor te acomode.</div>
+  </header>
+
+  <!-- ============ VISTA PÚBLICA ============ -->
+  <div id="public-view">
+    <div id="slots-container"></div>
+  </div>
+
+  <!-- ============ VISTA ADMIN ============ -->
+  <div id="admin-view" class="admin-wrap">
+    <div class="card" id="admin-login-card">
+      <h2 class="mono" style="font-size:14px;color:var(--green);margin:0 0 12px;">Panel de administrador</h2>
+      <div class="field"><label>Correo</label><input type="email" id="a-email" autocomplete="username"></div>
+      <div class="field"><label>Contraseña</label><input type="password" id="a-password" autocomplete="current-password"></div>
+      <div id="login-error"></div>
+      <button class="btn btn-primary" id="btn-admin-login">Entrar</button>
+    </div>
+
+    <div id="admin-panel" style="display:none;">
+      <div class="card">
+        <h2 class="mono" style="font-size:14px;color:var(--green);margin:0 0 12px;">Horario semanal</h2>
+        <div id="horario-editor"></div>
+        <div class="field"><label>Duración de cada cita (minutos)</label>
+          <select id="a-duracion"><option value="30">30 min</option><option value="60">60 min</option><option value="90">90 min</option></select>
+        </div>
+        <button class="btn btn-primary btn-sm" id="btn-save-horario">Guardar horario</button>
+      </div>
+
+      <div class="card">
+        <h2 class="mono" style="font-size:14px;color:var(--green);margin:0 0 12px;">Google Calendar</h2>
+        <div class="sub" style="margin-bottom:10px;">Conecta tu Google Calendar para que no se agenden citas cuando ya tengas algo ocupado.</div>
+        <button class="btn" id="btn-google-connect">Conectar Google Calendar</button>
+        <button class="btn btn-primary btn-sm" id="btn-sync-calendar" style="display:none;margin-left:8px;">Sincronizar ahora</button>
+        <div id="sync-msg"></div>
+        <div class="status-line" id="google-status">No conectado.</div>
+      </div>
+
+      <div class="card">
+        <h2 class="mono" style="font-size:14px;color:var(--green);margin:0 0 12px;">Próximas citas agendadas</h2>
+        <div id="citas-list"></div>
+      </div>
+
+      <button class="btn" id="btn-admin-logout">Cerrar sesión</button>
+    </div>
+  </div>
+
+  <button class="btn btn-sm" id="toggle-admin">admin</button>
+</div>
+
+<!-- ============ MODAL DE CONFIRMACIÓN ============ -->
+<div class="overlay" id="overlay">
+  <div class="modal" id="modal-content">
+    <h2>Confirma tu cita</h2>
+    <div class="field"><label>Nombre</label><input type="text" id="f-nombre"></div>
+    <div class="field"><label>Teléfono (WhatsApp)</label><input type="text" id="f-telefono"></div>
+    <div class="field"><label>Notas (opcional)</label><input type="text" id="f-notas" placeholder="Ej. propiedad de interés"></div>
+    <div class="confirm-box mono" id="confirm-summary"></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;">
+      <button class="btn" id="btn-cancel-modal">Cancelar</button>
+      <button class="btn btn-primary" id="btn-confirm-booking">Confirmar cita</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+
+<script>
+/* =========================================================
+   CONFIG
+   ========================================================= */
+const firebaseConfig = {
+  apiKey: "AIzaSyCCWAH2ceWogd_gw9fr1nNyd8whIh2L9kI",
+  authDomain: "gestor-leads-zapien.firebaseapp.com",
+  databaseURL: "https://gestor-leads-zapien-default-rtdb.firebaseio.com",
+  projectId: "gestor-leads-zapien",
+  storageBucket: "gestor-leads-zapien.firebasestorage.app",
+  messagingSenderId: "604443413324",
+  appId: "1:604443413324:web:b5e7da34a6f40aa2769de9"
+};
+const GOOGLE_CLIENT_ID = "856006955419-firc8kbakkt7tde4582jq3u00q1jpsru.apps.googleusercontent.com";
+const GOOGLE_SCOPE = "https://www.googleapis.com/auth/calendar";
+
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+const auth = firebase.auth();
+
+const DAY_KEYS = ["dom","lun","mar","mie","jue","vie","sab"];
+const DAY_LABELS = {dom:"Domingo",lun:"Lunes",mar:"Martes",mie:"Miércoles",jue:"Jueves",vie:"Viernes",sab:"Sábado"};
+
+/* =========================================================
+   PARÁMETROS DE URL (link personalizado por lead)
+   ========================================================= */
+const params = new URLSearchParams(location.search);
+const prefillNombre = params.get('nombre') || '';
+const prefillTelefono = params.get('telefono') || '';
+const leadId = params.get('leadId') || null;
+
+if(prefillNombre){
+  document.getElementById('page-title').textContent = `Hola, ${prefillNombre} 👋`;
+  document.getElementById('page-sub').textContent = 'Elige el día y hora que mejor te acomode para tu visita.';
+}
+
+/* =========================================================
+   ESTADO
+   ========================================================= */
+let horario = null; // { lun:{activo,inicio,fin}, ... duracionMin }
+let bloqueos = {};  // { "2026-07-20": ["09:00","09:30"] }
+let ocupados = {};  // desde citas_publicas: { "2026-07-20_09:00": true }
+let selectedSlot = null; // {dateKey, timeKey, label}
+
+/* =========================================================
+   CARGAR DISPONIBILIDAD (público)
+   ========================================================= */
+function loadPublicAvailability(){
+  db.ref('disponibilidad/horarios').on('value', snap=>{
+    horario = snap.val();
+    renderSlots();
+  });
+  db.ref('disponibilidad/bloqueos').on('value', snap=>{
+    bloqueos = snap.val() || {};
+    renderSlots();
+  });
+  db.ref('citas_publicas').on('value', snap=>{
+    ocupados = snap.val() || {};
+    renderSlots();
+  });
+}
+
+function pad(n){ return n<10 ? '0'+n : ''+n; }
+function dateKey(d){ return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`; }
+
+function generateSlotsForDay(date){
+  const dayKey = DAY_KEYS[date.getDay()];
+  const cfg = horario && horario[dayKey];
+  if(!cfg || !cfg.activo) return [];
+  const dur = (horario.duracionMin) || 30;
+  const [hI,mI] = cfg.inicio.split(':').map(Number);
+  const [hF,mF] = cfg.fin.split(':').map(Number);
+  let startMin = hI*60+mI;
+  const endMin = hF*60+mF;
+  const dKey = dateKey(date);
+  const blocked = bloqueos[dKey] || [];
+  const slots = [];
+  const now = new Date();
+  while(startMin + dur <= endMin){
+    const h = Math.floor(startMin/60), m = startMin%60;
+    const timeLabel = `${pad(h)}:${pad(m)}`;
+    const slotDate = new Date(date); slotDate.setHours(h,m,0,0);
+    const isPast = slotDate <= now;
+    const isBlocked = blocked.includes(timeLabel);
+    const isTaken = ocupados[`${dKey}_${timeLabel}`];
+    if(!isPast && !isBlocked && !isTaken){
+      slots.push(timeLabel);
+    }
+    startMin += dur;
+  }
+  return slots;
+}
+
+function renderSlots(){
+  const container = document.getElementById('slots-container');
+  if(!horario){
+    container.innerHTML = `<div class="empty">Cargando disponibilidad…</div>`;
+    return;
+  }
+  const days = [];
+  const today = new Date();
+  for(let i=0;i<14;i++){
+    const d = new Date(today);
+    d.setDate(today.getDate()+i);
+    const slots = generateSlotsForDay(d);
+    if(slots.length > 0) days.push({date:d, slots});
+  }
+  if(days.length === 0){
+    container.innerHTML = `<div class="empty">No hay horarios disponibles en los próximos 14 días. Escríbenos directo por WhatsApp.</div>`;
+    return;
+  }
+  container.innerHTML = days.map(({date,slots})=>{
+    const dKey = dateKey(date);
+    const label = date.toLocaleDateString('es-MX', {weekday:'long', day:'numeric', month:'long'});
+    return `
+    <div class="day-block">
+      <div class="day-title">${label}</div>
+      <div class="slots">
+        ${slots.map(t=>`<button class="slot-btn" data-date="${dKey}" data-time="${t}">${t}</button>`).join('')}
+      </div>
+    </div>`;
+  }).join('');
+
+  container.querySelectorAll('.slot-btn').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const dKey = btn.dataset.date;
+      const t = btn.dataset.time;
+      const d = new Date(dKey+'T00:00:00');
+      const label = d.toLocaleDateString('es-MX', {weekday:'long', day:'numeric', month:'long'}) + ' — ' + t;
+      openBookingModal(dKey, t, label);
+    });
+  });
+}
+
+/* =========================================================
+   MODAL DE RESERVA
+   ========================================================= */
+const overlay = document.getElementById('overlay');
+function openBookingModal(dateKey_, timeKey, label){
+  selectedSlot = {dateKey: dateKey_, timeKey, label};
+  document.getElementById('f-nombre').value = prefillNombre;
+  document.getElementById('f-telefono').value = prefillTelefono;
+  document.getElementById('f-notas').value = '';
+  document.getElementById('confirm-summary').textContent = `📅 ${label}`;
+  overlay.classList.add('open');
+}
+document.getElementById('btn-cancel-modal').addEventListener('click', ()=> overlay.classList.remove('open'));
+overlay.addEventListener('click', e=>{ if(e.target===overlay) overlay.classList.remove('open'); });
+
+document.getElementById('btn-confirm-booking').addEventListener('click', ()=>{
+  const nombre = document.getElementById('f-nombre').value.trim();
+  const telefono = document.getElementById('f-telefono').value.trim();
+  const notas = document.getElementById('f-notas').value.trim();
+  if(!nombre || !telefono){ alert('Pon tu nombre y teléfono para poder confirmarte la cita.'); return; }
+  if(!selectedSlot) return;
+
+  const slotFlagKey = `${selectedSlot.dateKey}_${selectedSlot.timeKey}`;
+  const btn = document.getElementById('btn-confirm-booking');
+  btn.disabled = true; btn.textContent = 'Agendando…';
+
+  // 1. marcar el slot como ocupado (público, escritura única)
+  db.ref('citas_publicas/'+slotFlagKey).set(true)
+    .then(()=>{
+      // 2. guardar el detalle completo (solo admin puede leerlo)
+      const citaId = db.ref('citas').push().key;
+      return db.ref('citas/'+citaId).set({
+        nombre, telefono, notas,
+        fecha: selectedSlot.dateKey,
+        hora: selectedSlot.timeKey,
+        leadId: leadId || null,
+        estado: 'pendiente',
+        creado: new Date().toISOString()
+      });
+    })
+    .then(()=>{
+      document.getElementById('modal-content').innerHTML = `
+        <h2>✅ Cita confirmada</h2>
+        <div class="confirm-box mono">📅 ${selectedSlot.label}<br>👤 ${nombre}</div>
+        <div class="sub" style="margin-bottom:14px;">Te vamos a confirmar por WhatsApp. Si necesitas cambiar el horario, escríbenos directo.</div>
+        <button class="btn btn-primary" onclick="location.reload()">Listo</button>
+      `;
+    })
+    .catch(err=>{
+      alert('Ese horario ya no está disponible, elige otro.');
+      btn.disabled = false; btn.textContent = 'Confirmar cita';
+      overlay.classList.remove('open');
+    });
+});
+
+/* =========================================================
+   TOGGLE ADMIN
+   ========================================================= */
+document.getElementById('toggle-admin').addEventListener('click', ()=>{
+  const pub = document.getElementById('public-view');
+  const adm = document.getElementById('admin-view');
+  const showingAdmin = adm.style.display === 'block';
+  pub.style.display = showingAdmin ? 'block' : 'none';
+  adm.style.display = showingAdmin ? 'none' : 'block';
+});
+
+/* =========================================================
+   LOGIN ADMIN (mismo Firebase Auth que gestor-leads)
+   ========================================================= */
+document.getElementById('btn-admin-login').addEventListener('click', ()=>{
+  const email = document.getElementById('a-email').value.trim();
+  const password = document.getElementById('a-password').value;
+  const errEl = document.getElementById('login-error');
+  errEl.textContent = '';
+  auth.signInWithEmailAndPassword(email, password).catch(()=>{
+    errEl.textContent = 'Correo o contraseña incorrectos.';
+  });
+});
+document.getElementById('btn-admin-logout').addEventListener('click', ()=> auth.signOut());
+
+auth.onAuthStateChanged(user=>{
+  document.getElementById('admin-login-card').style.display = user ? 'none' : 'block';
+  document.getElementById('admin-panel').style.display = user ? 'block' : 'none';
+  if(user){
+    loadAdminData();
+  }
+});
+
+/* =========================================================
+   ADMIN: horario semanal
+   ========================================================= */
+function renderHorarioEditor(cfg){
+  const editor = document.getElementById('horario-editor');
+  editor.innerHTML = DAY_KEYS.filter(d=>d!=='dom' || true).map(dk=>{
+    const c = (cfg && cfg[dk]) || {activo: dk!=='dom' && dk!=='sab', inicio:'09:00', fin:'18:00'};
+    return `
+    <div class="row2">
+      <label style="display:flex;align-items:center;gap:6px;font-size:12.5px;min-width:110px;">
+        <input type="checkbox" data-day="${dk}" class="h-activo" ${c.activo?'checked':''}> ${DAY_LABELS[dk]}
+      </label>
+      <input type="time" data-day="${dk}" class="h-inicio" value="${c.inicio}">
+      <input type="time" data-day="${dk}" class="h-fin" value="${c.fin}">
+    </div>`;
+  }).join('');
+  document.getElementById('a-duracion').value = (cfg && cfg.duracionMin) || 30;
+}
+
+document.getElementById('btn-save-horario').addEventListener('click', ()=>{
+  const out = { duracionMin: Number(document.getElementById('a-duracion').value) };
+  DAY_KEYS.forEach(dk=>{
+    const activo = document.querySelector(`.h-activo[data-day="${dk}"]`).checked;
+    const inicio = document.querySelector(`.h-inicio[data-day="${dk}"]`).value;
+    const fin = document.querySelector(`.h-fin[data-day="${dk}"]`).value;
+    out[dk] = { activo, inicio, fin };
+  });
+  db.ref('disponibilidad/horarios').set(out).then(()=>{
+    alert('Horario guardado.');
+  });
+});
+
+function loadAdminData(){
+  db.ref('disponibilidad/horarios').once('value').then(snap=>{
+    renderHorarioEditor(snap.val());
+  });
+  db.ref('citas').orderByChild('fecha').on('value', snap=>{
+    renderCitasList(snap.val() || {});
+  });
+}
+
+function renderCitasList(citasObj){
+  const list = document.getElementById('citas-list');
+  const today = dateKey(new Date());
+  const arr = Object.entries(citasObj)
+    .map(([id,c])=>({id,...c}))
+    .filter(c=>c.fecha >= today)
+    .sort((a,b)=> (a.fecha+a.hora).localeCompare(b.fecha+b.hora));
+  if(arr.length===0){
+    list.innerHTML = `<div class="empty">Sin citas próximas.</div>`;
+    return;
+  }
+  list.innerHTML = arr.map(c=>`
+    <div class="cita-item">
+      <div>
+        <b>${escapeHtml(c.nombre)}</b> — ${c.fecha} ${c.hora}
+        <div class="cita-meta">${escapeHtml(c.telefono||'')} ${c.notas?'· '+escapeHtml(c.notas):''}</div>
+      </div>
+      <div style="display:flex;gap:6px;">
+        <button class="btn btn-sm" data-action="gcal" data-id="${c.id}">+ Google Calendar</button>
+        <button class="btn btn-sm" data-action="wa" data-id="${c.id}">WhatsApp</button>
+        <button class="btn btn-sm" data-action="del" data-id="${c.id}" style="color:var(--red);">Cancelar</button>
+      </div>
+    </div>
+  `).join('');
+
+  list.querySelectorAll('[data-action="del"]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const c = arr.find(x=>x.id===btn.dataset.id);
+      if(!confirm('¿Cancelar esta cita?')) return;
+      db.ref('citas/'+c.id).remove();
+      db.ref('citas_publicas/'+c.fecha+'_'+c.hora).remove();
+    });
+  });
+  list.querySelectorAll('[data-action="wa"]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const c = arr.find(x=>x.id===btn.dataset.id);
+      const phone = (c.telefono||'').replace(/\D/g,'');
+      const text = encodeURIComponent(`Hola ${c.nombre}, confirmamos tu visita el ${c.fecha} a las ${c.hora}. ¡Nos vemos!`);
+      window.open(`https://wa.me/${phone}?text=${text}`,'_blank');
+    });
+  });
+  list.querySelectorAll('[data-action="gcal"]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const c = arr.find(x=>x.id===btn.dataset.id);
+      addCitaToGoogleCalendar(c);
+    });
+  });
+}
+
+function escapeHtml(s){
+  return String(s).replace(/[&<>"']/g, ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+}
+
+/* =========================================================
+   GOOGLE CALENDAR — conexión y sync
+   ========================================================= */
+let googleAccessToken = null;
+let tokenClient = null;
+
+function initGoogleClient(){
+  if(!window.google || !google.accounts) { setTimeout(initGoogleClient, 300); return; }
+  tokenClient = google.accounts.oauth2.initTokenClient({
+    client_id: GOOGLE_CLIENT_ID,
+    scope: GOOGLE_SCOPE,
+    callback: (resp)=>{
+      if(resp.access_token){
+        googleAccessToken = resp.access_token;
+        document.getElementById('google-status').textContent = '● Conectado a Google Calendar';
+        document.getElementById('google-status').classList.add('ok');
+        document.getElementById('btn-sync-calendar').style.display = 'inline-block';
+      }
+    }
+  });
+}
+initGoogleClient();
+
+document.getElementById('btn-google-connect').addEventListener('click', ()=>{
+  if(!tokenClient){ alert('Google todavía está cargando, espera un segundo e inténtalo de nuevo.'); return; }
+  tokenClient.requestAccessToken();
+});
+
+document.getElementById('btn-sync-calendar').addEventListener('click', ()=>{
+  if(!googleAccessToken){ alert('Conecta Google Calendar primero.'); return; }
+  const msgEl = document.getElementById('sync-msg');
+  msgEl.style.color = 'var(--muted)';
+  msgEl.textContent = 'Sincronizando…';
+
+  const now = new Date();
+  const later = new Date(); later.setDate(now.getDate()+14);
+
+  fetch('https://www.googleapis.com/calendar/v3/freeBusy', {
+    method: 'POST',
+    headers: {
+      'Authorization': 'Bearer ' + googleAccessToken,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      timeMin: now.toISOString(),
+      timeMax: later.toISOString(),
+      items: [{ id: 'primary' }]
+    })
+  })
+  .then(r=>r.json())
+  .then(data=>{
+    const busy = (data.calendars && data.calendars.primary && data.calendars.primary.busy) || [];
+    const dur = (horario && horario.duracionMin) || 30;
+    const newBloqueos = {};
+    // Para cada bloque ocupado, marcar los slots del horario que caen dentro
+    for(let i=0;i<14;i++){
+      const d = new Date(now); d.setDate(now.getDate()+i);
+      const dk = dateKey(d);
+      const dayKey = DAY_KEYS[d.getDay()];
+      const cfg = horario && horario[dayKey];
+      if(!cfg || !cfg.activo) continue;
+      const [hI,mI] = cfg.inicio.split(':').map(Number);
+      const [hF,mF] = cfg.fin.split(':').map(Number);
+      let startMin = hI*60+mI;
+      const endMin = hF*60+mF;
+      while(startMin + dur <= endMin){
+        const h = Math.floor(startMin/60), m = startMin%60;
+        const slotStart = new Date(d); slotStart.setHours(h,m,0,0);
+        const slotEnd = new Date(slotStart.getTime() + dur*60000);
+        const overlaps = busy.some(b=>{
+          const bs = new Date(b.start), be = new Date(b.end);
+          return slotStart < be && slotEnd > bs;
+        });
+        if(overlaps){
+          if(!newBloqueos[dk]) newBloqueos[dk] = [];
+          newBloqueos[dk].push(`${pad(h)}:${pad(m)}`);
+        }
+        startMin += dur;
+      }
+    }
+    return db.ref('disponibilidad/bloqueos').set(newBloqueos);
+  })
+  .then(()=>{
+    msgEl.style.color = 'var(--green)';
+    msgEl.textContent = 'Sincronizado — se actualizaron los horarios bloqueados.';
+  })
+  .catch(err=>{
+    msgEl.style.color = 'var(--red)';
+    msgEl.textContent = 'Error al sincronizar. Intenta de nuevo.';
+  });
+});
+
+function addCitaToGoogleCalendar(c){
+  if(!googleAccessToken){
+    alert('Conecta Google Calendar primero (arriba en el panel).');
+    return;
+  }
+  const start = new Date(c.fecha+'T'+c.hora+':00');
+  const end = new Date(start.getTime() + ((horario && horario.duracionMin)||30)*60000);
+  fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events', {
+    method: 'POST',
+    headers: {
+      'Authorization': 'Bearer ' + googleAccessToken,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      summary: `Visita — ${c.nombre}`,
+      description: `Tel: ${c.telefono||''}\nNotas: ${c.notas||''}`,
+      start: { dateTime: start.toISOString() },
+      end: { dateTime: end.toISOString() }
+    })
+  }).then(r=>r.json()).then(()=>{
+    alert('Agregado a tu Google Calendar.');
+  }).catch(()=>{
+    alert('No se pudo agregar. Intenta reconectar Google Calendar.');
+  });
+}
+
+/* =========================================================
+   INIT
+   ========================================================= */
+loadPublicAvailability();
+</script>
+</body>
+</html>
