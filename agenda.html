@@ -345,6 +345,13 @@ document.getElementById('f-propiedad-publico').addEventListener('change', (e)=>{
   renderSlots();
 });
 
+function mapsLinkFor(p){
+  if(!p) return null;
+  if(p.lat!=null && p.lng!=null && p.lat!=='' && p.lng!=='') return `https://www.google.com/maps?q=${p.lat},${p.lng}`;
+  if(p.direccion) return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(p.direccion)}`;
+  return null;
+}
+
 function haversineKm(lat1,lng1,lat2,lng2){
   const R = 6371;
   const dLat = (lat2-lat1)*Math.PI/180;
@@ -525,9 +532,17 @@ document.getElementById('btn-confirm-booking').addEventListener('click', ()=>{
       });
     })
     .then(()=>{
+      const propObj = propiedadId ? propiedades[propiedadId] : null;
+      const mapsLink = mapsLinkFor(propObj);
+      const direccionBlock = (propObj && (propObj.direccion || mapsLink)) ? `
+        <div class="sub" style="margin:10px 0;text-align:left;">
+          ${propObj.direccion ? '📍 ' + escapeHtml(propObj.direccion) + '<br>' : ''}
+          ${mapsLink ? `<a href="${mapsLink}" target="_blank" style="color:var(--green);">Ver ubicación en Google Maps →</a>` : ''}
+        </div>` : '';
       document.getElementById('modal-content').innerHTML = `
         <h2>✅ Cita confirmada</h2>
         <div class="confirm-box mono">📅 ${selectedSlot.label}${propiedadNombre?'<br>🏠 '+escapeHtml(propiedadNombre):''}<br>👤 ${escapeHtml(nombre)}</div>
+        ${direccionBlock}
         <div class="sub" style="margin-bottom:14px;">Te vamos a confirmar por WhatsApp. Si necesitas cambiar el horario, escríbenos directo.</div>
         <button class="btn btn-primary" onclick="location.reload()">Listo</button>
       `;
@@ -846,7 +861,13 @@ function renderCitasList(citasObj){
     btn.addEventListener('click', ()=>{
       const c = arr.find(x=>x.id===btn.dataset.id);
       const phone = (c.telefono||'').replace(/\D/g,'');
-      const text = encodeURIComponent(`Hola ${c.nombre}, confirmamos tu visita el ${c.fecha} a las ${c.hora}. ¡Nos vemos!`);
+      const p = c.propiedadId ? propiedades[c.propiedadId] : null;
+      const mapsLink = mapsLinkFor(p);
+      let msg = `Hola ${c.nombre}, confirmamos tu visita el ${c.fecha} a las ${c.hora}.`;
+      if(p && p.direccion) msg += ` Dirección: ${p.direccion}.`;
+      if(mapsLink) msg += ` Ubicación en Maps: ${mapsLink}`;
+      msg += ' ¡Nos vemos!';
+      const text = encodeURIComponent(msg);
       window.open(`https://wa.me/${phone}?text=${text}`,'_blank');
     });
   });
