@@ -69,6 +69,13 @@
 
   <!-- ============ VISTA PÚBLICA ============ -->
   <div id="public-view">
+    <div class="card" id="propiedad-picker-card" style="display:none;">
+      <div class="field" style="margin-bottom:0;">
+        <label>¿Qué propiedad quieres visitar?</label>
+        <select id="f-propiedad-publico"></select>
+      </div>
+      <div class="sub" id="propiedad-direccion-hint" style="margin-top:8px;"></div>
+    </div>
     <div id="slots-container"></div>
   </div>
 
@@ -89,7 +96,29 @@
         <div class="field"><label>Duración de cada cita (minutos)</label>
           <select id="a-duracion"><option value="30">30 min</option><option value="60">60 min</option><option value="90">90 min</option></select>
         </div>
-        <button class="btn btn-primary btn-sm" id="btn-save-horario">Guardar horario</button>
+        <div class="row2" style="grid-template-columns:1fr 1fr;">
+          <div class="field" style="margin-bottom:0;"><label>Velocidad promedio de traslado (km/h)</label>
+            <input type="number" id="a-velocidad" value="25" min="5" max="120">
+          </div>
+          <div class="field" style="margin-bottom:0;"><label>Margen extra por parada (min)</label>
+            <input type="number" id="a-buffer" value="10" min="0" max="60">
+          </div>
+        </div>
+        <div class="sub" style="margin:8px 0 0;">Con esto se calcula el tiempo de traslado real entre propiedades y se deshabilitan automáticamente los horarios que no den tiempo de llegar a la siguiente cita.</div>
+        <button class="btn btn-primary btn-sm" id="btn-save-horario" style="margin-top:10px;">Guardar horario</button>
+      </div>
+
+      <div class="card">
+        <h2 class="mono" style="font-size:14px;color:var(--green);margin:0 0 12px;">Propiedades</h2>
+        <div class="sub" style="margin-bottom:12px;">Agrega las propiedades disponibles para mostrar en el enlace de agenda. Para las coordenadas: abre Google Maps, click derecho sobre la propiedad → copia el primer número (latitud) y el segundo (longitud).</div>
+        <div id="propiedades-list"></div>
+        <div class="row2" style="grid-template-columns:1.4fr 1fr 1fr;margin-top:10px;">
+          <input type="text" id="p-nombre" placeholder="Nombre / dirección corta">
+          <input type="text" id="p-lat" placeholder="Latitud (ej. 18.4625)">
+          <input type="text" id="p-lng" placeholder="Longitud (ej. -97.3928)">
+        </div>
+        <input type="text" id="p-direccion" placeholder="Dirección completa" style="width:100%;background:var(--bg);border:1px solid var(--line);color:var(--text);padding:9px 11px;border-radius:6px;font-size:13.5px;margin-top:8px;">
+        <button class="btn btn-primary btn-sm" id="btn-add-propiedad" style="margin-top:8px;">+ Agregar propiedad</button>
       </div>
 
       <div class="card">
@@ -120,6 +149,7 @@
     <div class="field"><label>Nombre</label><input type="text" id="f-nombre"></div>
     <div class="field"><label>Teléfono (WhatsApp)</label><input type="text" id="f-telefono"></div>
     <div class="field"><label>Notas (opcional)</label><input type="text" id="f-notas" placeholder="Ej. propiedad de interés"></div>
+    <input type="hidden" id="f-propiedad-id"><input type="hidden" id="f-propiedad-nombre">
     <div class="confirm-box mono" id="confirm-summary"></div>
     <div style="display:flex;gap:8px;justify-content:flex-end;">
       <button class="btn" id="btn-cancel-modal">Cancelar</button>
@@ -172,10 +202,12 @@ if(prefillNombre){
 /* =========================================================
    ESTADO
    ========================================================= */
-let horario = null; // { lun:{activo,inicio,fin}, ... duracionMin }
+let horario = null; // { lun:{activo,inicio,fin}, ... duracionMin, velocidadKmH, bufferMin }
 let bloqueos = {};  // { "2026-07-20": ["09:00","09:30"] }
-let ocupados = {};  // desde citas_publicas: { "2026-07-20_09:00": true }
+let ocupados = {};  // desde citas_publicas: { "2026-07-20_09:00": {propiedadId} }
 let selectedSlot = null; // {dateKey, timeKey, label}
+let propiedades = {}; // { id: {nombre, direccion, lat, lng, activo} }
+let selectedPropiedadId = null;
 
 /* =========================================================
    CARGAR DISPONIBILIDAD (público)
@@ -193,6 +225,56 @@ function loadPublicAvailability(){
     ocupados = snap.val() || {};
     renderSlots();
   });
+  db.ref('propiedades').on('value', snap=>{
+    propiedades = snap.val() || {};
+    renderPropiedadPicker();
+    renderSlots();
+  });
+}
+
+/* =========================================================
+   PROPIEDADES — selector público + cálculo de traslado
+   ========================================================= */
+function renderPropiedadPicker(){
+  const card = document.getElementById('propiedad-picker-card');
+  const sel = document.getElementById('f-propiedad-publico');
+  const activas = Object.entries(propiedades).filter(([id,p])=>p.activo!==false);
+  if(activas.length === 0){
+    card.style.display = 'none';
+    selectedPropiedadId = null;
+    return;
+  }
+  card.style.display = 'block';
+  if(!selectedPropiedadId || !propiedades[selectedPropiedadId]){
+    selectedPropiedadId = activas[0][0];
+  }
+  sel.innerHTML = activas.map(([id,p])=>`<option value="${id}" ${id===selectedPropiedadId?'selected':''}>${escapeHtml(p.nombre)}</option>`).join('');
+  const p = propiedades[selectedPropiedadId];
+  document.getElementById('propiedad-direccion-hint').textContent = p && p.direccion ? '📍 ' + p.direccion : '';
+}
+document.getElementById('f-propiedad-publico').addEventListener('change', (e)=>{
+  selectedPropiedadId = e.target.value;
+  const p = propiedades[selectedPropiedadId];
+  document.getElementById('propiedad-direccion-hint').textContent = p && p.direccion ? '📍 ' + p.direccion : '';
+  renderSlots();
+});
+
+function haversineKm(lat1,lng1,lat2,lng2){
+  const R = 6371;
+  const dLat = (lat2-lat1)*Math.PI/180;
+  const dLng = (lng2-lng1)*Math.PI/180;
+  const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLng/2)**2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+
+// Minutos estimados de traslado entre dos propiedades (línea recta + velocidad promedio + margen)
+function travelMinutes(propA, propB){
+  if(!propA || !propB || propA===propB) return 0;
+  if(propA.lat==null || propA.lng==null || propB.lat==null || propB.lng==null) return 0; // sin coordenadas, no se valida
+  const km = haversineKm(Number(propA.lat), Number(propA.lng), Number(propB.lat), Number(propB.lng));
+  const speed = (horario && horario.velocidadKmH) || 25;
+  const buffer = (horario && horario.bufferMin) || 10;
+  return Math.ceil((km / speed) * 60 + buffer);
 }
 
 function pad(n){ return n<10 ? '0'+n : ''+n; }
@@ -217,6 +299,18 @@ function generateSlotsForDay(date){
   const slots = [];
   const now = new Date();
 
+  // Citas ya agendadas ese día (con su propiedad), para validar traslado
+  const citasDelDia = Object.entries(ocupados)
+    .filter(([k])=>k.startsWith(dKey+'_'))
+    .map(([k,v])=>{
+      const hora = k.split('_')[1];
+      const [h,m] = hora.split(':').map(Number);
+      const propId = (v && typeof v === 'object') ? v.propiedadId : null;
+      return { startMin: h*60+m, endMin: h*60+m+dur, propId };
+    });
+
+  const propiedadElegida = selectedPropiedadId ? propiedades[selectedPropiedadId] : null;
+
   (cfg.rangos || []).forEach(rango=>{
     if(!rango.inicio || !rango.fin) return;
     const [hI,mI] = rango.inicio.split(':').map(Number);
@@ -230,7 +324,24 @@ function generateSlotsForDay(date){
       const isPast = slotDate <= now;
       const isBlocked = blocked.includes(timeLabel);
       const isTaken = ocupados[`${dKey}_${timeLabel}`];
-      if(!isPast && !isBlocked && !isTaken && !slots.includes(timeLabel)){
+
+      let isBlockedByTravel = false;
+      if(propiedadElegida){
+        const candStart = startMin, candEnd = startMin + dur;
+        for(const c of citasDelDia){
+          if(c.startMin === candStart) continue; // ya cubierto por isTaken
+          const otraProp = c.propId ? propiedades[c.propId] : null;
+          const t = travelMinutes(propiedadElegida, otraProp);
+          if(t <= 0) continue;
+          if(c.endMin <= candStart){
+            if(candStart - c.endMin < t){ isBlockedByTravel = true; break; }
+          } else if(candEnd <= c.startMin){
+            if(c.startMin - candEnd < t){ isBlockedByTravel = true; break; }
+          }
+        }
+      }
+
+      if(!isPast && !isBlocked && !isTaken && !isBlockedByTravel && !slots.includes(timeLabel)){
         slots.push(timeLabel);
       }
       startMin += dur;
@@ -290,7 +401,10 @@ function openBookingModal(dateKey_, timeKey, label){
   document.getElementById('f-nombre').value = prefillNombre;
   document.getElementById('f-telefono').value = prefillTelefono;
   document.getElementById('f-notas').value = '';
-  document.getElementById('confirm-summary').textContent = `📅 ${label}`;
+  const p = selectedPropiedadId ? propiedades[selectedPropiedadId] : null;
+  document.getElementById('f-propiedad-id').value = selectedPropiedadId || '';
+  document.getElementById('f-propiedad-nombre').value = p ? p.nombre : '';
+  document.getElementById('confirm-summary').innerHTML = p ? `📅 ${escapeHtml(label)}<br>🏠 ${escapeHtml(p.nombre)}` : `📅 ${escapeHtml(label)}`;
   overlay.classList.add('open');
 }
 document.getElementById('btn-cancel-modal').addEventListener('click', ()=> overlay.classList.remove('open'));
@@ -300,6 +414,8 @@ document.getElementById('btn-confirm-booking').addEventListener('click', ()=>{
   const nombre = document.getElementById('f-nombre').value.trim();
   const telefono = document.getElementById('f-telefono').value.trim();
   const notas = document.getElementById('f-notas').value.trim();
+  const propiedadId = document.getElementById('f-propiedad-id').value || null;
+  const propiedadNombre = document.getElementById('f-propiedad-nombre').value || null;
   if(!nombre || !telefono){ alert('Pon tu nombre y teléfono para poder confirmarte la cita.'); return; }
   if(!selectedSlot) return;
 
@@ -307,13 +423,14 @@ document.getElementById('btn-confirm-booking').addEventListener('click', ()=>{
   const btn = document.getElementById('btn-confirm-booking');
   btn.disabled = true; btn.textContent = 'Agendando…';
 
-  // 1. marcar el slot como ocupado (público, escritura única)
-  db.ref('citas_publicas/'+slotFlagKey).set(true)
+  // 1. marcar el slot como ocupado (público, escritura única) — se guarda la propiedad para poder validar traslados
+  db.ref('citas_publicas/'+slotFlagKey).set({ propiedadId: propiedadId || null })
     .then(()=>{
       // 2. guardar el detalle completo (solo admin puede leerlo)
       const citaId = db.ref('citas').push().key;
       return db.ref('citas/'+citaId).set({
         nombre, telefono, notas,
+        propiedadId, propiedadNombre,
         fecha: selectedSlot.dateKey,
         hora: selectedSlot.timeKey,
         leadId: leadId || null,
@@ -324,7 +441,7 @@ document.getElementById('btn-confirm-booking').addEventListener('click', ()=>{
     .then(()=>{
       document.getElementById('modal-content').innerHTML = `
         <h2>✅ Cita confirmada</h2>
-        <div class="confirm-box mono">📅 ${selectedSlot.label}<br>👤 ${nombre}</div>
+        <div class="confirm-box mono">📅 ${selectedSlot.label}${propiedadNombre?'<br>🏠 '+escapeHtml(propiedadNombre):''}<br>👤 ${escapeHtml(nombre)}</div>
         <div class="sub" style="margin-bottom:14px;">Te vamos a confirmar por WhatsApp. Si necesitas cambiar el horario, escríbenos directo.</div>
         <button class="btn btn-primary" onclick="location.reload()">Listo</button>
       `;
@@ -394,6 +511,8 @@ function renderHorarioEditor(cfg){
     </div>`;
   }).join('');
   document.getElementById('a-duracion').value = (cfg && cfg.duracionMin) || 30;
+  document.getElementById('a-velocidad').value = (cfg && cfg.velocidadKmH) || 25;
+  document.getElementById('a-buffer').value = (cfg && cfg.bufferMin) || 10;
   attachHorarioEditorEvents();
 }
 
@@ -430,7 +549,11 @@ function attachQuitarRango(btn){
 }
 
 document.getElementById('btn-save-horario').addEventListener('click', ()=>{
-  const out = { duracionMin: Number(document.getElementById('a-duracion').value) };
+  const out = {
+    duracionMin: Number(document.getElementById('a-duracion').value),
+    velocidadKmH: Number(document.getElementById('a-velocidad').value) || 25,
+    bufferMin: Number(document.getElementById('a-buffer').value) || 10
+  };
   DAY_KEYS.forEach(dk=>{
     const activo = document.querySelector(`.h-activo[data-day="${dk}"]`).checked;
     const rangos = [...document.querySelectorAll(`.rango-row[data-day="${dk}"]`)].map(row=>({
@@ -451,7 +574,65 @@ function loadAdminData(){
   db.ref('citas').orderByChild('fecha').on('value', snap=>{
     renderCitasList(snap.val() || {});
   });
+  db.ref('propiedades').on('value', snap=>{
+    renderPropiedadesAdmin(snap.val() || {});
+  });
 }
+
+/* =========================================================
+   ADMIN: catálogo de propiedades
+   ========================================================= */
+function renderPropiedadesAdmin(obj){
+  const list = document.getElementById('propiedades-list');
+  const arr = Object.entries(obj).map(([id,p])=>({id,...p}));
+  if(arr.length === 0){
+    list.innerHTML = `<div class="empty">Sin propiedades registradas.</div>`;
+    return;
+  }
+  list.innerHTML = arr.map(p=>`
+    <div class="cita-item">
+      <div>
+        <b>${escapeHtml(p.nombre)}</b> ${p.activo===false?'<span class="cita-meta">(inactiva)</span>':''}
+        <div class="cita-meta">${escapeHtml(p.direccion||'')}${(p.lat!=null&&p.lng!=null)?' · '+p.lat+', '+p.lng:' · sin coordenadas'}</div>
+      </div>
+      <div style="display:flex;gap:6px;">
+        <button class="btn btn-sm" data-action="toggle-prop" data-id="${p.id}">${p.activo===false?'Activar':'Desactivar'}</button>
+        <button class="btn btn-sm" data-action="del-prop" data-id="${p.id}" style="color:var(--red);">Eliminar</button>
+      </div>
+    </div>
+  `).join('');
+
+  list.querySelectorAll('[data-action="toggle-prop"]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const p = arr.find(x=>x.id===btn.dataset.id);
+      db.ref('propiedades/'+p.id+'/activo').set(p.activo===false ? true : false);
+    });
+  });
+  list.querySelectorAll('[data-action="del-prop"]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      if(!confirm('¿Eliminar esta propiedad del catálogo?')) return;
+      db.ref('propiedades/'+btn.dataset.id).remove();
+    });
+  });
+}
+
+document.getElementById('btn-add-propiedad').addEventListener('click', ()=>{
+  const nombre = document.getElementById('p-nombre').value.trim();
+  const direccion = document.getElementById('p-direccion').value.trim();
+  const latRaw = document.getElementById('p-lat').value.trim();
+  const lngRaw = document.getElementById('p-lng').value.trim();
+  if(!nombre){ alert('Ponle un nombre a la propiedad.'); return; }
+  const lat = latRaw ? Number(latRaw) : null;
+  const lng = lngRaw ? Number(lngRaw) : null;
+  if((latRaw && isNaN(lat)) || (lngRaw && isNaN(lng))){ alert('Latitud/longitud inválida.'); return; }
+  const propId = db.ref('propiedades').push().key;
+  db.ref('propiedades/'+propId).set({ nombre, direccion, lat, lng, activo: true }).then(()=>{
+    document.getElementById('p-nombre').value = '';
+    document.getElementById('p-direccion').value = '';
+    document.getElementById('p-lat').value = '';
+    document.getElementById('p-lng').value = '';
+  });
+});
 
 function renderCitasList(citasObj){
   const list = document.getElementById('citas-list');
@@ -467,7 +648,7 @@ function renderCitasList(citasObj){
   list.innerHTML = arr.map(c=>`
     <div class="cita-item">
       <div>
-        <b>${escapeHtml(c.nombre)}</b> — ${c.fecha} ${c.hora}
+        <b>${escapeHtml(c.nombre)}</b> — ${c.fecha} ${c.hora} ${c.propiedadNombre?'· 🏠 '+escapeHtml(c.propiedadNombre):''}
         <div class="cita-meta">${escapeHtml(c.telefono||'')} ${c.notas?'· '+escapeHtml(c.notas):''}</div>
       </div>
       <div style="display:flex;gap:6px;">
