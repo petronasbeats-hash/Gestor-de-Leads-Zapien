@@ -169,6 +169,11 @@
     <button class="btn btn-primary" id="btn-new">+ Nuevo lead</button>
     <input type="text" id="search" placeholder="Buscar por nombre o teléfono…">
     <select id="filter-etapa"></select>
+    <select id="filter-operacion">
+      <option value="">Compra y Renta</option>
+      <option value="Compra">Solo Compra</option>
+      <option value="Renta">Solo Renta</option>
+    </select>
     <label class="btn btn-sm" style="display:flex;align-items:center;gap:6px;">
       <input type="checkbox" id="filter-overdue" style="width:14px;height:14px;"> Solo vencidos
     </label>
@@ -210,11 +215,17 @@
         </div>
       </div>
       <div class="row2">
-        <div class="field"><label>Tipo</label>
-          <select id="f-tipo"><option>Comprador</option><option>Vendedor</option><option>Inversor</option></select>
+        <div class="field"><label>Operación</label>
+          <select id="f-operacion">
+            <option value="Compra">Compra / Venta</option>
+            <option value="Renta">Renta / Alquiler</option>
+          </select>
         </div>
-        <div class="field"><label>Presupuesto</label><input type="text" id="f-presupuesto" placeholder="$1,800,000 - $2,200,000"></div>
+        <div class="field"><label>Rol</label>
+          <select id="f-tipo"></select>
+        </div>
       </div>
+      <div class="field"><label>Presupuesto</label><input type="text" id="f-presupuesto" placeholder="$1,800,000 - $2,200,000 (o $8,000/mes si es renta)"></div>
       <div class="field"><label>Ubicación preferida / enlace de Maps</label><input type="text" id="f-ubicacion" placeholder="Col. Centro, Tehuacán o link de Google Maps"></div>
       <div class="row2">
         <div class="field"><label>Valor estimado (MXN)</label><input type="number" id="f-valor" placeholder="2000000"></div>
@@ -392,6 +403,22 @@ const STAGES = [
 ];
 const STAGE_BY_ID = Object.fromEntries(STAGES.map(s=>[s.id,s]));
 
+const ROLES_POR_OPERACION = {
+  Compra: ['Comprador','Vendedor','Inversor'],
+  Renta:  ['Inquilino','Arrendador']
+};
+
+function updateRolOptions(operacion, rolActual){
+  const sel = document.getElementById('f-tipo');
+  const roles = ROLES_POR_OPERACION[operacion] || ROLES_POR_OPERACION.Compra;
+  sel.innerHTML = roles.map(r=>`<option value="${r}">${r}</option>`).join('');
+  sel.value = roles.includes(rolActual) ? rolActual : roles[0];
+}
+document.getElementById('f-operacion').addEventListener('change', (e)=>{
+  updateRolOptions(e.target.value, null);
+});
+updateRolOptions('Compra', null);
+
 function startListening(){
   statusTextEl.textContent = 'conectando…';
   statusWrapEl.classList.remove('err');
@@ -459,12 +486,14 @@ function renderList(){
   const listEl = document.getElementById('lead-list');
   const search = document.getElementById('search').value.trim().toLowerCase();
   const filterEtapa = document.getElementById('filter-etapa').value;
+  const filterOperacion = document.getElementById('filter-operacion').value;
   const onlyOverdue = document.getElementById('filter-overdue').checked;
 
   let arr = Object.entries(leads).map(([id,l])=>({id,...l}));
   arr = arr.filter(l=>{
     if(search && !(`${l.nombre||''} ${l.telefono||''}`.toLowerCase().includes(search))) return false;
     if(filterEtapa && l.etapa !== filterEtapa) return false;
+    if(filterOperacion && (l.operacion||'Compra') !== filterOperacion) return false;
     if(onlyOverdue && !isOverdue(l)) return false;
     return true;
   });
@@ -495,7 +524,7 @@ function renderList(){
       <div class="lc-top">
         <div>
           <div class="lc-name">${escapeHtml(l.nombre||'(sin nombre)')}</div>
-          <div class="lc-meta">${escapeHtml(l.telefono||'')} ${l.tipo?'· '+l.tipo:''} ${l.fuente?'· '+l.fuente:''}</div>
+          <div class="lc-meta">${escapeHtml(l.telefono||'')} ${l.tipo?'· '+l.tipo:''}${l.operacion==='Renta'?' · Renta':''} ${l.fuente?'· '+l.fuente:''}</div>
         </div>
         <div class="badge st-${l.etapa}">${stage.label}</div>
       </div>
@@ -537,7 +566,9 @@ function openModal(id){
   document.getElementById('f-telefono').value = lead?.telefono || '';
   document.getElementById('f-email').value = lead?.email || '';
   document.getElementById('f-fuente').value = lead?.fuente || 'Referido';
-  document.getElementById('f-tipo').value = lead?.tipo || 'Comprador';
+  const operacionLead = lead?.operacion || 'Compra';
+  document.getElementById('f-operacion').value = operacionLead;
+  updateRolOptions(operacionLead, lead?.tipo);
   document.getElementById('f-presupuesto').value = lead?.presupuesto || '';
   document.getElementById('f-ubicacion').value = lead?.ubicacion || '';
   document.getElementById('f-valor').value = lead?.valorEstimado || '';
@@ -656,6 +687,7 @@ document.getElementById('btn-save').addEventListener('click', ()=>{
     telefono: document.getElementById('f-telefono').value.trim(),
     email: document.getElementById('f-email').value.trim(),
     fuente: document.getElementById('f-fuente').value,
+    operacion: document.getElementById('f-operacion').value,
     tipo: document.getElementById('f-tipo').value,
     presupuesto: document.getElementById('f-presupuesto').value.trim(),
     ubicacion: document.getElementById('f-ubicacion').value.trim(),
@@ -711,6 +743,7 @@ overlay.addEventListener('click', (e)=>{ if(e.target===overlay) closeModal(); })
 
 document.getElementById('search').addEventListener('input', renderList);
 document.getElementById('filter-etapa').addEventListener('change', renderList);
+document.getElementById('filter-operacion').addEventListener('change', renderList);
 document.getElementById('filter-overdue').addEventListener('change', renderList);
 
 document.getElementById('btn-export').addEventListener('click', ()=>{
