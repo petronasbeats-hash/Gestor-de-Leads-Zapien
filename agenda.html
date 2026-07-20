@@ -625,13 +625,23 @@ document.getElementById('btn-add-propiedad').addEventListener('click', ()=>{
   const lat = latRaw ? Number(latRaw) : null;
   const lng = lngRaw ? Number(lngRaw) : null;
   if((latRaw && isNaN(lat)) || (lngRaw && isNaN(lng))){ alert('Latitud/longitud inválida.'); return; }
+  if(!auth.currentUser){ alert('Tu sesión de admin se cerró, vuelve a iniciar sesión.'); return; }
+  const btn = document.getElementById('btn-add-propiedad');
+  btn.disabled = true; btn.textContent = 'Guardando…';
   const propId = db.ref('propiedades').push().key;
-  db.ref('propiedades/'+propId).set({ nombre, direccion, lat, lng, activo: true }).then(()=>{
-    document.getElementById('p-nombre').value = '';
-    document.getElementById('p-direccion').value = '';
-    document.getElementById('p-lat').value = '';
-    document.getElementById('p-lng').value = '';
-  });
+  db.ref('propiedades/'+propId).set({ nombre, direccion, lat, lng, activo: true })
+    .then(()=>{
+      document.getElementById('p-nombre').value = '';
+      document.getElementById('p-direccion').value = '';
+      document.getElementById('p-lat').value = '';
+      document.getElementById('p-lng').value = '';
+    })
+    .catch(err=>{
+      alert('No se pudo guardar la propiedad.\n\nError: ' + err.message + '\n\nSi el error dice "permission denied", tienes que subir las reglas nuevas de Firebase (reglas-realtime-database.json) en Firebase Console → Realtime Database → Reglas → Publicar.');
+    })
+    .finally(()=>{
+      btn.disabled = false; btn.textContent = '+ Agregar propiedad';
+    });
 });
 
 function renderCitasList(citasObj){
