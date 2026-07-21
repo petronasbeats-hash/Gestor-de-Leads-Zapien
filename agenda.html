@@ -62,6 +62,31 @@
   .prop-ficha{display:flex;gap:14px;flex-wrap:wrap;font-size:12.5px;color:var(--muted);margin-bottom:8px;}
   .prop-ficha span{background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:4px 9px;}
   .prop-desc{font-size:13px;color:var(--text);line-height:1.5;}
+  .seg-item{border:1px solid var(--line);border-radius:8px;padding:12px;margin-bottom:10px;}
+  .seg-top{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap;}
+  .seg-estado{background:var(--bg);border:1px solid var(--line);color:var(--text);padding:6px 9px;border-radius:6px;font-size:12.5px;}
+  .seg-estado.est-confirmada{border-color:var(--green);color:var(--green);}
+  .seg-estado.est-realizada{border-color:var(--green);color:var(--green);}
+  .seg-estado.est-no_asistio{border-color:var(--red);color:var(--red);}
+  .seg-estado.est-cancelada{border-color:var(--red);color:var(--red);}
+  .seg-notas{margin-top:8px;display:flex;flex-direction:column;gap:4px;}
+  .seg-nota-item{font-size:12px;color:var(--muted);background:var(--bg);border-radius:6px;padding:6px 9px;}
+  .seg-add-row{display:flex;gap:6px;margin-top:8px;}
+  .seg-add-row input{flex:1;background:var(--bg);border:1px solid var(--line);color:var(--text);padding:8px 10px;border-radius:6px;font-size:13px;}
+  .cal-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;}
+  .cal-weekdays{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;font-size:11px;color:var(--muted);text-align:center;margin-bottom:4px;}
+  .cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;}
+  .cal-day{min-height:64px;border:1px solid var(--line);border-radius:6px;padding:5px;cursor:pointer;background:var(--bg);transition:border-color .15s;}
+  .cal-day:hover{border-color:var(--green);}
+  .cal-day.empty{visibility:hidden;pointer-events:none;}
+  .cal-day.today{border-color:var(--green);}
+  .cal-day.selected{background:rgba(0,200,120,0.08);border-color:var(--green);}
+  .cal-day-num{font-size:12px;color:var(--text);font-family:'JetBrains Mono',monospace;}
+  .cal-dots{display:flex;flex-wrap:wrap;gap:3px;margin-top:5px;}
+  .cal-dot{width:7px;height:7px;border-radius:50%;background:var(--muted);}
+  .cal-dot.est-confirmada,.cal-dot.est-realizada{background:var(--green);}
+  .cal-dot.est-no_asistio,.cal-dot.est-cancelada{background:var(--red);}
+  .cal-more{font-size:10px;color:var(--muted);margin-top:2px;}
 </style>
 </head>
 <body>
@@ -178,6 +203,39 @@
         <div id="citas-list"></div>
       </div>
 
+      <div class="card">
+        <h2 class="mono" style="font-size:14px;color:var(--green);margin:0 0 12px;">Calendario de citas</h2>
+        <div class="cal-header">
+          <button class="btn btn-sm" id="cal-prev">← Anterior</button>
+          <div class="mono" id="cal-month-label" style="font-size:13.5px;color:var(--text);"></div>
+          <button class="btn btn-sm" id="cal-next">Siguiente →</button>
+        </div>
+        <div class="cal-weekdays">
+          <div>Dom</div><div>Lun</div><div>Mar</div><div>Mié</div><div>Jue</div><div>Vie</div><div>Sáb</div>
+        </div>
+        <div class="cal-grid" id="cal-grid"></div>
+        <div id="cal-day-detail" style="margin-top:14px;"></div>
+      </div>
+
+      <div class="card">
+        <h2 class="mono" style="font-size:14px;color:var(--green);margin:0 0 12px;">Seguimiento de citas</h2>
+        <div class="sub" style="margin-bottom:12px;">Marca qué pasó con cada visita y deja notas de seguimiento — se guarda un historial por cita.</div>
+        <div class="row2" style="grid-template-columns:1fr 1.2fr;">
+          <select id="seg-filtro-estado">
+            <option value="">Todos los estados</option>
+            <option value="pendiente">Pendiente</option>
+            <option value="confirmada">Confirmada</option>
+            <option value="realizada">Realizada</option>
+            <option value="no_asistio">No asistió</option>
+            <option value="cancelada">Cancelada</option>
+          </select>
+          <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted);">
+            <input type="checkbox" id="seg-incluir-pasadas" style="width:14px;height:14px;"> Incluir citas pasadas
+          </label>
+        </div>
+        <div id="seguimiento-list" style="margin-top:12px;"></div>
+      </div>
+
       <button class="btn" id="btn-admin-logout">Cerrar sesión</button>
     </div>
   </div>
@@ -251,6 +309,7 @@ let ocupados = {};  // desde citas_publicas: { "2026-07-20_09:00": {propiedadId}
 let selectedSlot = null; // {dateKey, timeKey, label}
 let propiedades = {}; // { id: {nombre, direccion, lat, lng, activo} }
 let selectedPropiedadId = null;
+let ultimasCitas = {};
 
 /* =========================================================
    CARGAR DISPONIBILIDAD (público)
@@ -673,7 +732,10 @@ function loadAdminData(){
     renderHorarioEditor(snap.val());
   });
   db.ref('citas').orderByChild('fecha').on('value', snap=>{
-    renderCitasList(snap.val() || {});
+    ultimasCitas = snap.val() || {};
+    renderCitasList(ultimasCitas);
+    renderSeguimientoList(ultimasCitas);
+    renderCalendario(ultimasCitas);
   });
   db.ref('propiedades').on('value', snap=>{
     renderPropiedadesAdmin(snap.val() || {});
@@ -878,6 +940,202 @@ function renderCitasList(citasObj){
     });
   });
 }
+
+/* =========================================================
+   SEGUIMIENTO DE CITAS — estado + bitácora por cita
+   ========================================================= */
+const ESTADOS_CITA = {
+  pendiente: 'Pendiente',
+  confirmada: 'Confirmada',
+  realizada: 'Realizada',
+  no_asistio: 'No asistió',
+  cancelada: 'Cancelada'
+};
+
+function citaSeguimientoItemHtml(c){
+  const estadoActual = c.estado || 'pendiente';
+  const notas = c.seguimiento ? Object.entries(c.seguimiento).sort((a,b)=>a[1].fecha.localeCompare(b[1].fecha)) : [];
+  return `
+    <div class="seg-item" data-cita-id="${c.id}">
+      <div class="seg-top">
+        <div>
+          <b>${escapeHtml(c.nombre)}</b> — ${c.fecha} ${c.hora} ${c.propiedadNombre?'· 🏠 '+escapeHtml(c.propiedadNombre):''}
+          <div class="cita-meta">${escapeHtml(c.telefono||'')}</div>
+        </div>
+        <select class="seg-estado est-${estadoActual}" data-action="seg-estado" data-id="${c.id}">
+          ${Object.entries(ESTADOS_CITA).map(([val,label])=>`<option value="${val}" ${val===estadoActual?'selected':''}>${label}</option>`).join('')}
+        </select>
+      </div>
+      <div class="seg-notas">
+        ${notas.length ? notas.map(([nid,n])=>`<div class="seg-nota-item">🗒️ ${new Date(n.fecha).toLocaleString('es-MX',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})} — ${escapeHtml(n.texto)}</div>`).join('') : ''}
+      </div>
+      <div class="seg-add-row">
+        <input type="text" data-nota-input="${c.id}" placeholder="Agregar nota de seguimiento...">
+        <button class="btn btn-sm" data-action="seg-add-nota" data-id="${c.id}">Agregar</button>
+      </div>
+    </div>
+  `;
+}
+
+function attachSeguimientoHandlers(container){
+  container.querySelectorAll('[data-action="seg-estado"]').forEach(sel=>{
+    sel.addEventListener('change', ()=>{
+      const id = sel.dataset.id;
+      db.ref('citas/'+id+'/estado').set(sel.value)
+        .then(()=>{
+          sel.className = 'seg-estado est-' + sel.value;
+        })
+        .catch(err=> alert('No se pudo actualizar el estado.\n\nError: ' + err.message));
+    });
+  });
+
+  container.querySelectorAll('[data-action="seg-add-nota"]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const id = btn.dataset.id;
+      const input = container.querySelector(`[data-nota-input="${id}"]`);
+      const texto = input.value.trim();
+      if(!texto) return;
+      if(!auth.currentUser){ alert('Tu sesión de admin se cerró, vuelve a iniciar sesión.'); return; }
+      btn.disabled = true;
+      const notaId = db.ref('citas/'+id+'/seguimiento').push().key;
+      db.ref('citas/'+id+'/seguimiento/'+notaId).set({
+        texto,
+        fecha: new Date().toISOString()
+      })
+        .then(()=>{ input.value = ''; })
+        .catch(err=> alert('No se pudo guardar la nota.\n\nError: ' + err.message))
+        .finally(()=>{ btn.disabled = false; });
+    });
+  });
+}
+
+function renderSeguimientoList(citasObj){
+  const list = document.getElementById('seguimiento-list');
+  if(!list) return;
+  const today = dateKey(new Date());
+  const filtroEstado = document.getElementById('seg-filtro-estado').value;
+  const incluirPasadas = document.getElementById('seg-incluir-pasadas').checked;
+
+  let arr = Object.entries(citasObj).map(([id,c])=>({id,...c}));
+  arr = arr.filter(c=>{
+    if(!incluirPasadas && c.fecha < today) return false;
+    const estadoActual = c.estado || 'pendiente';
+    if(filtroEstado && estadoActual !== filtroEstado) return false;
+    return true;
+  });
+  arr.sort((a,b)=> (a.fecha+a.hora).localeCompare(b.fecha+b.hora));
+
+  if(arr.length === 0){
+    list.innerHTML = `<div class="empty">No hay citas que coincidan con el filtro.</div>`;
+    return;
+  }
+
+  list.innerHTML = arr.map(c=>citaSeguimientoItemHtml(c)).join('');
+  attachSeguimientoHandlers(list);
+}
+
+document.getElementById('seg-filtro-estado').addEventListener('change', ()=> renderSeguimientoList(ultimasCitas));
+document.getElementById('seg-incluir-pasadas').addEventListener('change', ()=> renderSeguimientoList(ultimasCitas));
+
+/* =========================================================
+   CALENDARIO MENSUAL DE CITAS
+   ========================================================= */
+let calMonthDate = new Date();
+calMonthDate.setDate(1);
+let calSelectedDate = null;
+
+const MESES_ES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+
+function renderCalendario(citasObj){
+  const grid = document.getElementById('cal-grid');
+  const label = document.getElementById('cal-month-label');
+  if(!grid || !label) return;
+
+  const year = calMonthDate.getFullYear();
+  const month = calMonthDate.getMonth();
+  label.textContent = `${MESES_ES[month]} ${year}`;
+
+  const firstDay = new Date(year, month, 1);
+  const daysInMonth = new Date(year, month+1, 0).getDate();
+  const leadingBlanks = firstDay.getDay(); // 0=domingo
+  const totalCells = leadingBlanks + daysInMonth;
+  const rows = Math.ceil(totalCells/7);
+  const totalGridCells = rows*7;
+
+  // agrupar citas por fecha
+  const porFecha = {};
+  Object.entries(citasObj).forEach(([id,c])=>{
+    if(!c.fecha) return;
+    (porFecha[c.fecha] = porFecha[c.fecha] || []).push({id,...c});
+  });
+
+  const todayKey = dateKey(new Date());
+  let html = '';
+  for(let i=0;i<totalGridCells;i++){
+    const dayNum = i - leadingBlanks + 1;
+    if(dayNum < 1 || dayNum > daysInMonth){
+      html += `<div class="cal-day empty"></div>`;
+      continue;
+    }
+    const dKey = `${year}-${pad(month+1)}-${pad(dayNum)}`;
+    const citasDia = (porFecha[dKey] || []).sort((a,b)=>a.hora.localeCompare(b.hora));
+    const classes = ['cal-day'];
+    if(dKey === todayKey) classes.push('today');
+    if(dKey === calSelectedDate) classes.push('selected');
+    const dotsToShow = citasDia.slice(0,6);
+    const extra = citasDia.length - dotsToShow.length;
+    html += `
+      <div class="${classes.join(' ')}" data-date="${dKey}">
+        <div class="cal-day-num">${dayNum}</div>
+        <div class="cal-dots">
+          ${dotsToShow.map(c=>`<div class="cal-dot est-${c.estado||'pendiente'}"></div>`).join('')}
+        </div>
+        ${extra>0 ? `<div class="cal-more">+${extra}</div>` : ''}
+      </div>
+    `;
+  }
+  grid.innerHTML = html;
+
+  grid.querySelectorAll('.cal-day[data-date]').forEach(cell=>{
+    cell.addEventListener('click', ()=>{
+      calSelectedDate = cell.dataset.date;
+      renderCalendario(ultimasCitas);
+      renderCalDayDetail(ultimasCitas);
+    });
+  });
+
+  renderCalDayDetail(citasObj);
+}
+
+function renderCalDayDetail(citasObj){
+  const detail = document.getElementById('cal-day-detail');
+  if(!detail) return;
+  if(!calSelectedDate){
+    detail.innerHTML = `<div class="sub">Toca un día del calendario para ver sus citas.</div>`;
+    return;
+  }
+  const arr = Object.entries(citasObj)
+    .map(([id,c])=>({id,...c}))
+    .filter(c=>c.fecha === calSelectedDate)
+    .sort((a,b)=>a.hora.localeCompare(b.hora));
+
+  if(arr.length === 0){
+    detail.innerHTML = `<div class="sub">Sin citas el ${calSelectedDate}.</div>`;
+    return;
+  }
+  detail.innerHTML = `<div class="sub" style="margin-bottom:8px;">Citas del ${calSelectedDate}:</div>` +
+    arr.map(c=>citaSeguimientoItemHtml(c)).join('');
+  attachSeguimientoHandlers(detail);
+}
+
+document.getElementById('cal-prev').addEventListener('click', ()=>{
+  calMonthDate.setMonth(calMonthDate.getMonth()-1);
+  renderCalendario(ultimasCitas);
+});
+document.getElementById('cal-next').addEventListener('click', ()=>{
+  calMonthDate.setMonth(calMonthDate.getMonth()+1);
+  renderCalendario(ultimasCitas);
+});
 
 function escapeHtml(s){
   return String(s).replace(/[&<>"']/g, ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
