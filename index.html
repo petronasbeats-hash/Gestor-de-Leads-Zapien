@@ -68,8 +68,8 @@
   .lc-meta{color:var(--muted);font-size:11.5px;margin-top:2px;}
   .badge{font-family:'JetBrains Mono',monospace;font-size:9.5px;letter-spacing:.04em;text-transform:uppercase;padding:4px 8px;border-radius:5px;white-space:nowrap;border:1px solid var(--line);color:var(--muted);}
   .badge.st-nuevo, .badge.st-contactado{border-color:var(--muted-2);color:var(--muted);}
-  .badge.st-calificado, .badge.st-visita_programada, .badge.st-visita_realizada{border-color:var(--amber);color:var(--amber);}
-  .badge.st-propuesta, .badge.st-negociacion{border-color:var(--green);color:var(--green);}
+  .badge.st-calificado, .badge.st-requisitos, .badge.st-visita_programada, .badge.st-visita_realizada{border-color:var(--amber);color:var(--amber);}
+  .badge.st-propuesta, .badge.st-condiciones, .badge.st-negociacion{border-color:var(--green);color:var(--green);}
   .badge.st-ganado{border-color:var(--green);color:var(--green);background:var(--green-dim);}
   .badge.st-perdido{border-color:var(--grey);color:var(--grey);background:var(--grey-dim);}
   .lc-next{display:flex;justify-content:space-between;font-size:12px;color:var(--text);align-items:center;}
@@ -403,6 +403,70 @@ const STAGES = [
 ];
 const STAGE_BY_ID = Object.fromEntries(STAGES.map(s=>[s.id,s]));
 
+const STAGES_RENTA = [
+  { id:"nuevo", num:"01", label:"Nuevo", sla:"< 15 min",
+    objetivo:"Confirmar que el lead es real y capturarlo antes de que se enfríe.",
+    acciones:["Registrar fuente y rol (inquilino/arrendador).","Enviar primer mensaje de bienvenida por WhatsApp.","Identificar zona y presupuesto mensual que busca."],
+    script:"Hola {nombre}, soy Sebastián de Iré Inmobiliaria 👋\nVi tu interés en una propiedad en renta. ¿Para cuándo la necesitas y qué zona te interesa?",
+    checklist:["Datos completos","Fuente registrada","Primer mensaje enviado dentro del SLA"],
+    tracker:"Mover a \"Contactado\" en cuanto conteste." },
+  { id:"contactado", num:"02", label:"Contactado", sla:"24–48 h",
+    objetivo:"Lograr respuesta y agendar una llamada breve de calificación.",
+    acciones:["Si no contesta en 24h, segundo intento con mensaje distinto.","Si no contesta en 48h, cambiar de canal.","Preguntar disponibilidad para una llamada de 5-10 min."],
+    script:"Hola {nombre}, ¿tienes 5 minutos hoy o mañana para platicar rápido de lo que buscas en renta? Así te mando solo opciones que realmente apliquen.",
+    checklist:["Segundo intento enviado si no hubo respuesta","Canal cambiado tras 48h sin respuesta","Llamada de calificación agendada"],
+    tracker:"Fecha de Próxima Acción = fecha de la llamada acordada." },
+  { id:"requisitos", num:"03", label:"Requisitos", sla:"Misma llamada",
+    objetivo:"Confirmar renta mensual que puede pagar, aval/garantía y documentos antes de mostrar nada.",
+    acciones:["Renta mensual: rango que puede pagar y cuántos meses de depósito tiene disponibles.","Aval o garantía: ¿cuenta con alguien que pueda ser aval, o fiadora/o?","Documentos: comprobante de ingresos, identificación, referencias.","Timing: ¿para cuándo necesita mudarse?"],
+    script:"Para no hacerte perder tiempo, {nombre} — ¿qué renta mensual manejas y cuentas con aval o garantía? ¿Para cuándo necesitas mudarte?",
+    checklist:["Renta mensual confirmada","Aval/garantía confirmado","Documentos identificados","Fecha de mudanza confirmada"],
+    tracker:"Si los 4 puntos están claros, avanza a \"Visita Programada\"." },
+  { id:"visita_programada", num:"04", label:"Visita Programada", sla:"Confirmar 24h y 2h antes",
+    objetivo:"Agendar una visita concreta, con fecha, hora y ubicación confirmadas.",
+    acciones:["Enviar ubicación exacta (Google Maps).","Confirmar 24h antes y de nuevo 2h antes.","Preparar llaves y documentos del inmueble."],
+    script:"Hola {nombre}, quedamos en la visita — aquí está la ubicación. Te confirmo un día antes para que la tengas presente.",
+    checklist:["Fecha y hora confirmadas","Recordatorio de 24h enviado","Recordatorio de 2h enviado","Documentos/llaves listos"],
+    tracker:"Registrar Fecha Próxima Acción = fecha de la visita." },
+  { id:"visita_realizada", num:"05", label:"Visita Realizada", sla:"< 2 h después",
+    objetivo:"Obtener feedback honesto el mismo día, mientras la visita está fresca.",
+    acciones:["Contactar máximo 2 horas después.","Identificar objeciones concretas (precio, tamaño, ubicación).","Definir el siguiente paso antes de terminar la conversación."],
+    script:"¿Qué te pareció, {nombre}? Cuéntame qué te gustó y qué no tanto — así te mando algo más ajustado si esta no es la indicada.",
+    checklist:["Feedback registrado en notas","Objeciones identificadas","Siguiente paso definido y con fecha"],
+    tracker:"Si hay interés real, avanza a \"Condiciones de Renta\"." },
+  { id:"condiciones", num:"06", label:"Condiciones de Renta", sla:"24–48 h tras la visita",
+    objetivo:"Enviar por escrito las condiciones exactas de renta antes de avanzar a firma.",
+    acciones:["Confirmar renta mensual, depósito (meses) y qué incluye (mantenimiento, servicios).","Confirmar aval/garantía requerida y duración mínima del contrato.","Acordar un plazo concreto para respuesta."],
+    script:"Te mando las condiciones de renta, {nombre}: mensualidad, depósito y lo que incluye. Échale un ojo y platicamos pronto.",
+    checklist:["Condiciones enviadas por escrito","Aval/garantía y duración de contrato confirmados","Plazo de respuesta acordado"],
+    tracker:"Fecha Próxima Acción = fecha del plazo acordado." },
+  { id:"negociacion", num:"07", label:"Negociación", sla:"Respuesta en < 24 h",
+    objetivo:"Cerrar los términos finales con arrendador e inquilino informados en todo momento.",
+    acciones:["Documentar cada ajuste (renta, depósito, condiciones) con fecha.","Nunca dejar la negociación sin un siguiente paso claro.","Confirmar por escrito cada acuerdo verbal."],
+    script:"Hola {nombre}, le comento los términos a la otra parte y te tengo respuesta pronto.",
+    checklist:["Cada ajuste documentado con fecha","Acuerdo confirmado por escrito","Próximo paso definido tras cada contacto"],
+    tracker:"Actualizar Valor Estimado (renta mensual) y Probabilidad % conforme avanza." },
+  { id:"ganado", num:"08", label:"Cerrado Ganado", sla:"Seguimiento a 7, 30 y 180 días",
+    objetivo:"Formalizar la firma de contrato y entrega de llaves sin pendientes sueltos.",
+    acciones:["Acompañar hasta la firma del contrato de arrendamiento.","Confirmar entrega de llaves y estado del inmueble (inventario).","Programar seguimiento de pago puntual (día 30) y renovación (antes de que venza)."],
+    script:"¡Felicidades, {nombre}! Fue un gusto acompañarte. Cualquier cosa que necesites de aquí en adelante, aquí estoy.",
+    checklist:["Contrato firmado","Entrega de llaves e inventario confirmados","Seguimiento de primer pago programado"],
+    tracker:"No se archiva: pasa a seguimiento de renta activa." },
+  { id:"perdido", num:"09", label:"Perdido", sla:"Cierre respetuoso", lost:true,
+    objetivo:"Cerrar con respeto, dejar la puerta abierta y aprender el motivo real.",
+    acciones:["Preguntar directamente el motivo real.","Agradecer el tiempo invertido, sin insistir.","Ofrecer quedar disponible para el futuro."],
+    script:"Entiendo perfecto, {nombre}. Gracias por el tiempo — si en algún momento las cosas cambian, aquí sigo.",
+    checklist:["Motivo real registrado","Despedida respetuosa enviada","Lead archivado en nutrición, no eliminado"],
+    tracker:"Estado Final = Cerrado Perdido, con motivo en Notas." },
+];
+const STAGE_BY_ID_RENTA = Object.fromEntries(STAGES_RENTA.map(s=>[s.id,s]));
+
+function stagesForOperacion(op){ return op === 'Renta' ? STAGES_RENTA : STAGES; }
+function stageByIdForOperacion(op, etapaId){
+  const map = op === 'Renta' ? STAGE_BY_ID_RENTA : STAGE_BY_ID;
+  return map[etapaId] || stagesForOperacion(op)[0];
+}
+
 const ROLES_POR_OPERACION = {
   Compra: ['Comprador','Vendedor','Inversor'],
   Renta:  ['Inquilino','Arrendador']
@@ -416,6 +480,8 @@ function updateRolOptions(operacion, rolActual){
 }
 document.getElementById('f-operacion').addEventListener('change', (e)=>{
   updateRolOptions(e.target.value, null);
+  currentStageId = stagesForOperacion(e.target.value)[0].id;
+  renderStagePane();
 });
 updateRolOptions('Compra', null);
 
@@ -478,8 +544,15 @@ function renderFilterOptions(){
   const sel = document.getElementById('filter-etapa');
   if(sel.dataset.built) return;
   sel.dataset.built = "1";
+  const seen = new Set();
+  const merged = [];
+  [...STAGES, ...STAGES_RENTA].forEach(s=>{
+    if(seen.has(s.id)) return;
+    seen.add(s.id);
+    merged.push(s);
+  });
   sel.innerHTML = `<option value="">Todas las etapas</option>` +
-    STAGES.map(s=>`<option value="${s.id}">${s.num} · ${s.label}</option>`).join('');
+    merged.map(s=>`<option value="${s.id}">${s.num} · ${s.label}</option>`).join('');
 }
 
 function renderList(){
@@ -509,10 +582,11 @@ function renderList(){
   }
 
   listEl.innerHTML = arr.map(l=>{
-    const stage = STAGE_BY_ID[l.etapa] || STAGE_BY_ID.nuevo;
+    const stagesLead = stagesForOperacion(l.operacion);
+    const stage = stageByIdForOperacion(l.operacion, l.etapa);
     const overdue = isOverdue(l);
-    const idx = STAGES.findIndex(s=>s.id===l.etapa);
-    const pipeDots = STAGES.slice(0,8).map((s,i)=>{
+    const idx = stagesLead.findIndex(s=>s.id===l.etapa);
+    const pipeDots = stagesLead.slice(0,8).map((s,i)=>{
       let cls = '';
       if(l.etapa==='perdido') cls = i<=idx ? 'filled-lost' : '';
       else if(i<=idx && idx<8) cls = 'filled';
@@ -597,14 +671,16 @@ document.querySelectorAll('.tab').forEach(t=>t.addEventListener('click', ()=>swi
 
 function renderStagePane(){
   const pillsEl = document.getElementById('stage-pills');
-  pillsEl.innerHTML = STAGES.map(s=>`
+  const operacionActual = document.getElementById('f-operacion').value;
+  const stagesActuales = stagesForOperacion(operacionActual);
+  pillsEl.innerHTML = stagesActuales.map(s=>`
     <button class="stage-pill ${s.lost?'lost-pill':''} ${s.id===currentStageId?'current':''}" data-id="${s.id}">${s.num} ${s.label}</button>
   `).join('');
   pillsEl.querySelectorAll('.stage-pill').forEach(p=>{
     p.addEventListener('click', ()=>{ currentStageId = p.dataset.id; renderStagePane(); });
   });
 
-  const s = STAGE_BY_ID[currentStageId];
+  const s = stageByIdForOperacion(operacionActual, currentStageId);
   const lead = currentLeadId ? leads[currentLeadId] : null;
   const nombre = document.getElementById('f-nombre').value || '{nombre}';
   const scriptFilled = s.script.replaceAll('{nombre}', nombre);
