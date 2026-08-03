@@ -283,6 +283,7 @@
   <div class="modal" id="modal-content">
     <h2>Confirma tu cita</h2>
     <div class="field"><label>Nombre</label><input type="text" id="f-nombre"></div>
+    <div class="field"><label>Apellido (opcional)</label><input type="text" id="f-apellido"></div>
     <div class="field"><label>Teléfono (WhatsApp)</label><input type="text" id="f-telefono"></div>
     <div class="field"><label>Notas (opcional)</label><input type="text" id="f-notas" placeholder="Ej. propiedad de interés"></div>
     <input type="hidden" id="f-propiedad-id"><input type="hidden" id="f-propiedad-nombre">
@@ -546,14 +547,15 @@ function renderSlots(){
   }
   const days = [];
   const today = new Date();
-  for(let i=0;i<14;i++){
+  // Anticipación mínima: 1 día (no se muestran horarios de hoy, solo de mañana en adelante)
+  for(let i=1;i<=14;i++){
     const d = new Date(today);
     d.setDate(today.getDate()+i);
     const slots = generateSlotsForDay(d);
     if(slots.length > 0) days.push({date:d, slots});
   }
   if(days.length === 0){
-    container.innerHTML = `<div class="empty">No hay horarios disponibles en los próximos 14 días. Escríbenos directo por WhatsApp.</div>`;
+    container.innerHTML = `<div class="empty">No hay horarios disponibles en los próximos días. Escríbenos directo por WhatsApp.</div>`;
     return;
   }
   container.innerHTML = days.map(({date,slots})=>{
@@ -586,6 +588,7 @@ const overlay = document.getElementById('overlay');
 function openBookingModal(dateKey_, timeKey, label){
   selectedSlot = {dateKey: dateKey_, timeKey, label};
   document.getElementById('f-nombre').value = prefillNombre;
+  document.getElementById('f-apellido').value = '';
   document.getElementById('f-telefono').value = prefillTelefono;
   document.getElementById('f-notas').value = '';
   const p = selectedPropiedadId ? propiedades[selectedPropiedadId] : null;
@@ -597,8 +600,59 @@ function openBookingModal(dateKey_, timeKey, label){
 document.getElementById('btn-cancel-modal').addEventListener('click', ()=> overlay.classList.remove('open'));
 overlay.addEventListener('click', e=>{ if(e.target===overlay) overlay.classList.remove('open'); });
 
-document.getElementById('btn-confirm-booking').addEventListener('click', ()=>{
+function bitacoraKey(){
+  return new Date().toISOString().slice(0,16).replace('T',' ') + '__' + Math.random().toString(36).slice(2,6);
+}
+
+// Crea o actualiza el lead correspondiente en el Gestor de Leads para que la cita
+// aparezca ahí automáticamente (el Gestor escucha /leads en tiempo real).
+async function upsertLeadParaCita({nombre, apellido, telefono, notas, propiedadId, propiedadNombre}){
+  const propTxt = propiedadNombre ? ` — ${propiedadNombre}` : '';
+  const propObj = propiedadId ? propiedades[propiedadId] : null;
+
+  if(leadId){
+    // Ya existe un lead capturado manualmente en el Gestor: solo actualizamos su próxima acción.
+    await db.ref('leads/'+leadId).update({
+      proximaAccion: `Visita programada${propTxt}`,
+      fechaProximaAccion: selectedSlot.dateKey
+    });
+    await db.ref('leads/'+leadId+'/bitacora/'+bitacoraKey())
+      .set(`Cliente agendó su visita para ${selectedSlot.label}${propTxt} desde la agenda pública.`);
+    return leadId;
+  }
+
+  // No había lead previo: se crea uno nuevo con lo capturado en la agenda pública.
+  const nombreCompleto = apellido ? `${nombre} ${apellido}` : nombre;
+  const operacionProp = (propObj && propObj.operacion) || 'Compra';
+  const tipoDefault = operacionProp === 'Renta' ? 'Inquilino' : 'Comprador';
+  const newLeadId = db.ref('leads').push().key;
+
+  await db.ref('leads/'+newLeadId).set({
+    nombre: nombreCompleto,
+    telefono,
+    email: '',
+    fuente: 'Agenda pública',
+    operacion: operacionProp,
+    tipo: tipoDefault,
+    presupuesto: '',
+    ubicacion: (propObj && propObj.direccion) || '',
+    valorEstimado: (propObj && Number(propObj.precio)) || 0,
+    probabilidad: 30,
+    proximaAccion: `Visita programada${propTxt}`,
+    fechaProximaAccion: selectedSlot.dateKey,
+    notas: notas || '',
+    etapa: 'visita_programada',
+    fechaCreacion: dateKey(new Date()),
+    fechaCierre: null,
+    checklist: {},
+    bitacora: { [bitacoraKey()]: `Lead creado automáticamente desde la agenda pública. Cita: ${selectedSlot.label}${propTxt}.` }
+  });
+  return newLeadId;
+}
+
+document.getElementById('btn-confirm-booking').addEventListener('click', async ()=>{
   const nombre = document.getElementById('f-nombre').value.trim();
+  const apellido = document.getElementById('f-apellido').value.trim();
   const telefono = document.getElementById('f-telefono').value.trim();
   const notas = document.getElementById('f-notas').value.trim();
   const propiedadId = document.getElementById('f-propiedad-id').value || null;
@@ -610,42 +664,46 @@ document.getElementById('btn-confirm-booking').addEventListener('click', ()=>{
   const btn = document.getElementById('btn-confirm-booking');
   btn.disabled = true; btn.textContent = 'Agendando…';
 
-  // 1. marcar el slot como ocupado (público, escritura única) — se guarda la propiedad para poder validar traslados
-  db.ref('citas_publicas/'+slotFlagKey).set({ propiedadId: propiedadId || null })
-    .then(()=>{
-      // 2. guardar el detalle completo (solo admin puede leerlo)
-      const citaId = db.ref('citas').push().key;
-      return db.ref('citas/'+citaId).set({
-        nombre, telefono, notas,
-        propiedadId, propiedadNombre,
-        fecha: selectedSlot.dateKey,
-        hora: selectedSlot.timeKey,
-        leadId: leadId || null,
-        estado: 'pendiente',
-        creado: new Date().toISOString()
-      });
-    })
-    .then(()=>{
-      const propObj = propiedadId ? propiedades[propiedadId] : null;
-      const mapsLink = mapsLinkFor(propObj);
-      const direccionBlock = (propObj && (propObj.direccion || mapsLink)) ? `
-        <div class="sub" style="margin:10px 0;text-align:left;">
-          ${propObj.direccion ? '📍 ' + escapeHtml(propObj.direccion) + '<br>' : ''}
-          ${mapsLink ? `<a href="${mapsLink}" target="_blank" style="color:var(--green);">Ver ubicación en Google Maps →</a>` : ''}
-        </div>` : '';
-      document.getElementById('modal-content').innerHTML = `
-        <h2>✅ Cita confirmada</h2>
-        <div class="confirm-box mono">📅 ${selectedSlot.label}${propiedadNombre?'<br>🏠 '+escapeHtml(propiedadNombre):''}<br>👤 ${escapeHtml(nombre)}</div>
-        ${direccionBlock}
-        <div class="sub" style="margin-bottom:14px;">Te vamos a confirmar por WhatsApp. Si necesitas cambiar el horario, escríbenos directo.</div>
-        <button class="btn btn-primary" onclick="location.reload()">Listo</button>
-      `;
-    })
-    .catch(err=>{
-      alert('Ese horario ya no está disponible, elige otro.');
-      btn.disabled = false; btn.textContent = 'Confirmar cita';
-      overlay.classList.remove('open');
+  try{
+    // 1. marcar el slot como ocupado (público, escritura única) — se guarda la propiedad para poder validar traslados
+    await db.ref('citas_publicas/'+slotFlagKey).set({ propiedadId: propiedadId || null });
+
+    // 2. crear/actualizar el lead en el Gestor ANTES de guardar la cita, para poder enlazarla
+    const nombreCompleto = apellido ? `${nombre} ${apellido}` : nombre;
+    const leadIdFinal = await upsertLeadParaCita({nombre, apellido, telefono, notas, propiedadId, propiedadNombre});
+
+    // 3. guardar el detalle completo de la cita (solo admin puede leerlo)
+    const citaId = db.ref('citas').push().key;
+    await db.ref('citas/'+citaId).set({
+      nombre: nombreCompleto, telefono, notas,
+      propiedadId, propiedadNombre,
+      fecha: selectedSlot.dateKey,
+      hora: selectedSlot.timeKey,
+      leadId: leadIdFinal || null,
+      estado: 'pendiente',
+      creado: new Date().toISOString()
     });
+
+    const propObj = propiedadId ? propiedades[propiedadId] : null;
+    const mapsLink = mapsLinkFor(propObj);
+    const direccionBlock = (propObj && (propObj.direccion || mapsLink)) ? `
+      <div class="sub" style="margin:10px 0;text-align:left;">
+        ${propObj.direccion ? '📍 ' + escapeHtml(propObj.direccion) + '<br>' : ''}
+        ${mapsLink ? `<a href="${mapsLink}" target="_blank" style="color:var(--green);">Ver ubicación en Google Maps →</a>` : ''}
+      </div>` : '';
+    document.getElementById('modal-content').innerHTML = `
+      <h2>✅ Cita confirmada</h2>
+      <div class="confirm-box mono">📅 ${selectedSlot.label}${propiedadNombre?'<br>🏠 '+escapeHtml(propiedadNombre):''}<br>👤 ${escapeHtml(nombreCompleto)}</div>
+      ${direccionBlock}
+      <div class="sub" style="margin-bottom:14px;">Te vamos a confirmar por WhatsApp. Si necesitas cambiar el horario, escríbenos directo.</div>
+      <button class="btn btn-primary" onclick="location.reload()">Listo</button>
+    `;
+  }catch(err){
+    console.error(err);
+    alert('Ese horario ya no está disponible, elige otro.');
+    btn.disabled = false; btn.textContent = 'Confirmar cita';
+    overlay.classList.remove('open');
+  }
 });
 
 /* =========================================================
