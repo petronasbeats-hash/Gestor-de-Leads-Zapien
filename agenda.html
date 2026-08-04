@@ -1103,13 +1103,55 @@ function citaSeguimientoItemHtml(c){
   `;
 }
 
+// Etapas que consideramos "antes o en la visita" — solo desde ahí se auto-avanza al marcar
+// una cita como realizada, para no pisar progreso que ya hiciste manualmente (propuesta, negociación, etc.)
+const ETAPAS_PRE_VISITA = ['nuevo','contactado','calificado','requisitos','visita_programada'];
+
+// Sincroniza el lead en el Gestor cuando cambia el estado de una cita, para no tener
+// que actualizar el mismo hecho dos veces en dos pantallas distintas.
+async function sincronizarLeadPorEstadoCita(cita, nuevoEstado){
+  if(!cita || !cita.leadId) return;
+  const propTxt = cita.propiedadNombre ? ` — ${cita.propiedadNombre}` : '';
+  const cuando = `${cita.fecha} ${cita.hora}`;
+
+  const snap = await db.ref('leads/'+cita.leadId).once('value');
+  const lead = snap.val();
+  if(!lead) return;
+
+  if(nuevoEstado === 'realizada'){
+    const updates = {};
+    if(ETAPAS_PRE_VISITA.includes(lead.etapa)){
+      updates.etapa = 'visita_realizada';
+    }
+    await db.ref('leads/'+cita.leadId).update(updates);
+    await db.ref('leads/'+cita.leadId+'/bitacora/'+bitacoraKey())
+      .set(`Visita realizada el ${cuando}${propTxt}.`);
+  } else if(nuevoEstado === 'no_asistio'){
+    await db.ref('leads/'+cita.leadId+'/bitacora/'+bitacoraKey())
+      .set(`No se presentó a la cita del ${cuando}${propTxt}.`);
+  } else if(nuevoEstado === 'cancelada'){
+    const updates = {};
+    // Solo limpiamos la próxima acción si sigue apuntando exactamente a esta cita
+    // (si ya la moviste a otra fecha manualmente, no la tocamos).
+    if(lead.fechaProximaAccion === cita.fecha){
+      updates.proximaAccion = 'Sin próxima acción definida';
+      updates.fechaProximaAccion = null;
+    }
+    await db.ref('leads/'+cita.leadId).update(updates);
+    await db.ref('leads/'+cita.leadId+'/bitacora/'+bitacoraKey())
+      .set(`Cita cancelada — era el ${cuando}${propTxt}.`);
+  }
+}
+
 function attachSeguimientoHandlers(container){
   container.querySelectorAll('[data-action="seg-estado"]').forEach(sel=>{
     sel.addEventListener('change', ()=>{
       const id = sel.dataset.id;
+      const cita = ultimasCitas[id];
       db.ref('citas/'+id+'/estado').set(sel.value)
         .then(()=>{
           sel.className = 'seg-estado est-' + sel.value;
+          return sincronizarLeadPorEstadoCita(cita, sel.value);
         })
         .catch(err=> alert('No se pudo actualizar el estado.\n\nError: ' + err.message));
     });
