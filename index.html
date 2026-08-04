@@ -326,7 +326,13 @@
           <input type="number" id="p-m2t" placeholder="m² terreno">
         </div>
         <textarea id="p-descripcion" placeholder="Descripción del inmueble (amenidades, estado, notas de venta)" style="width:100%;background:var(--bg);border:1px solid var(--line);color:var(--text);padding:9px 11px;border-radius:6px;font-size:13.5px;margin-top:8px;min-height:60px;resize:vertical;"></textarea>
-        <textarea id="p-fotos" placeholder="Links de fotos, uno por línea (ej. https://...)" style="width:100%;background:var(--bg);border:1px solid var(--line);color:var(--text);padding:9px 11px;border-radius:6px;font-size:13.5px;margin-top:8px;min-height:50px;resize:vertical;"></textarea>
+        <textarea id="p-fotos" placeholder="Links de fotos, uno por línea (ej. https://...) — o sube directo abajo" style="width:100%;background:var(--bg);border:1px solid var(--line);color:var(--text);padding:9px 11px;border-radius:6px;font-size:13.5px;margin-top:8px;min-height:50px;resize:vertical;"></textarea>
+        <div style="margin-top:8px;">
+          <label class="btn btn-sm" for="p-fotos-file" style="display:inline-block;cursor:pointer;">📷 Subir fotos desde tu celular/PC</label>
+          <input type="file" id="p-fotos-file" accept="image/*" multiple style="display:none;">
+          <span id="p-fotos-upload-status" class="cita-meta" style="margin-left:8px;"></span>
+        </div>
+        <div id="p-fotos-thumbs" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;"></div>
         <button class="btn btn-primary btn-sm" id="btn-add-propiedad" style="margin-top:8px;">+ Agregar propiedad</button>
       </div>
     </div>
@@ -469,6 +475,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-storage-compat.js"></script>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 
 <script>
@@ -486,11 +493,13 @@ const GOOGLE_CLIENT_ID = "856006955419-firc8kbakkt7tde4582jq3u00q1jpsru.apps.goo
 const GOOGLE_SCOPE = "https://www.googleapis.com/auth/calendar";
 
 let db = null;
+let storage = null;
 let leads = {};
 
 try{
   firebase.initializeApp(firebaseConfig);
   db = firebase.database();
+  storage = firebase.storage();
 }catch(e){
   console.error(e);
 }
@@ -1277,7 +1286,7 @@ function renderPropiedadLeadPreview(){
   if(!sel || !box) return;
   const p = sel.value ? propiedades[sel.value] : null;
   if(!p){ box.classList.remove('show'); box.innerHTML = ''; return; }
-  const fotos = (p.fotos||'').split('\n').map(f=>f.trim()).filter(Boolean);
+  const fotos = Array.isArray(p.fotos) ? p.fotos.filter(Boolean) : (typeof p.fotos === 'string' ? p.fotos.split('\n').map(f=>f.trim()).filter(Boolean) : []);
   box.classList.add('show');
   box.innerHTML = `
     ${fotos.length ? `<div class="pp-fotos">${fotos.map(f=>`<img src="${escapeHtml(f)}" loading="lazy">`).join('')}</div>` : ''}
@@ -1417,6 +1426,56 @@ document.getElementById('btn-add-manual').addEventListener('click', ()=>{
     });
 });
 
+function renderFotosThumbs(){
+  const box = document.getElementById('p-fotos-thumbs');
+  const urls = document.getElementById('p-fotos').value.split('\n').map(s=>s.trim()).filter(Boolean);
+  box.innerHTML = urls.map((u,i)=>`
+    <div style="position:relative;">
+      <img src="${escapeHtml(u)}" style="height:60px;width:80px;object-fit:cover;border-radius:6px;border:1px solid var(--line);">
+      <button type="button" data-idx="${i}" class="thumb-remove" title="Quitar" style="position:absolute;top:-6px;right:-6px;background:var(--red);color:#fff;border:none;border-radius:50%;width:18px;height:18px;font-size:11px;line-height:1;cursor:pointer;">×</button>
+    </div>
+  `).join('');
+  box.querySelectorAll('.thumb-remove').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const idx = Number(btn.dataset.idx);
+      const urls2 = document.getElementById('p-fotos').value.split('\n').map(s=>s.trim()).filter(Boolean);
+      urls2.splice(idx,1);
+      document.getElementById('p-fotos').value = urls2.join('\n');
+      renderFotosThumbs();
+    });
+  });
+}
+document.getElementById('p-fotos').addEventListener('input', renderFotosThumbs);
+
+document.getElementById('p-fotos-file').addEventListener('change', async (e)=>{
+  const files = Array.from(e.target.files || []);
+  if(!files.length) return;
+  if(!storage){ alert('Firebase Storage no está disponible.'); return; }
+  if(!auth.currentUser){ alert('Tu sesión se cerró, vuelve a iniciar sesión.'); return; }
+  const statusEl = document.getElementById('p-fotos-upload-status');
+  const existing = document.getElementById('p-fotos').value.split('\n').map(s=>s.trim()).filter(Boolean);
+  let done = 0;
+  statusEl.textContent = `Subiendo 0/${files.length}…`;
+  for(const file of files){
+    try{
+      const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g,'_');
+      const path = `propiedades/${Date.now()}_${safeName}`;
+      const ref = storage.ref().child(path);
+      await ref.put(file);
+      const url = await ref.getDownloadURL();
+      existing.push(url);
+      done++;
+      statusEl.textContent = `Subiendo ${done}/${files.length}…`;
+      document.getElementById('p-fotos').value = existing.join('\n');
+      renderFotosThumbs();
+    }catch(err){
+      alert(`No se pudo subir "${file.name}".\n\nError: ${err.message}`);
+    }
+  }
+  statusEl.textContent = done ? `${done} foto(s) subida(s) ✓` : '';
+  e.target.value = '';
+});
+
 document.getElementById('btn-add-propiedad').addEventListener('click', ()=>{
   const nombre = document.getElementById('p-nombre').value.trim();
   const direccion = document.getElementById('p-direccion').value.trim();
@@ -1454,6 +1513,8 @@ document.getElementById('btn-add-propiedad').addEventListener('click', ()=>{
       document.getElementById('p-m2t').value = '';
       document.getElementById('p-descripcion').value = '';
       document.getElementById('p-fotos').value = '';
+      document.getElementById('p-fotos-upload-status').textContent = '';
+      renderFotosThumbs();
     })
     .catch(err=>{
       alert('No se pudo guardar la propiedad.\n\nError: ' + err.message);
