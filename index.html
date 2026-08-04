@@ -342,6 +342,7 @@
       <div class="card">
         <h2 class="mono" style="font-size:14px;color:var(--green);margin:0 0 12px;">Cita manual (fuera de horario)</h2>
         <div class="sub" style="margin-bottom:12px;">Para agendar una cita en un horario que no está publicado o habilitado — el cliente no la ve ni la puede tomar, la agendas tú directo aquí.</div>
+        <select id="m-lead" style="width:100%;background:var(--bg);border:1px solid var(--line);color:var(--text);padding:9px 11px;border-radius:6px;font-size:13.5px;margin-bottom:8px;"><option value="">Cliente nuevo (sin lead existente)</option></select>
         <div class="row2" style="grid-template-columns:1.4fr 1fr;">
           <input type="text" id="m-nombre" placeholder="Nombre del cliente">
           <input type="text" id="m-telefono" placeholder="Teléfono (WhatsApp)">
@@ -729,6 +730,7 @@ function startListening(){
     statusTextEl.textContent = '● conectado a Firebase (sesión segura)';
     statusWrapEl.classList.remove('err');
     renderAll();
+    renderManualLeadSelect();
   }, err=>{
     statusTextEl.textContent = 'error de conexión — revisa tus reglas de Firebase';
     statusWrapEl.classList.add('err');
@@ -1134,6 +1136,30 @@ function bitacoraKeyCitas(){
   return new Date().toISOString().slice(0,16).replace('T',' ') + '__' + Math.random().toString(36).slice(2,6);
 }
 
+const ETAPAS_ANTES_DE_VISITA_PROGRAMADA = ['nuevo','contactado','calificado','requisitos'];
+
+// Sincroniza el lead cuando se agenda una cita nueva (manual o pública) — sin que Sebas
+// tenga que mover la tarjeta a mano. Respeta la etapa según venta o renta porque
+// "visita_programada" y "visita_realizada" son ids compartidos en ambos flujos.
+async function sincronizarLeadPorNuevaCita(leadId, fecha, hora, propiedadNombre){
+  if(!leadId) return;
+  const snap = await db.ref('leads/'+leadId).once('value');
+  const lead = snap.val();
+  if(!lead) return;
+  const propTxt = propiedadNombre ? ` — ${propiedadNombre}` : '';
+  const cuando = `${fecha} ${hora}`;
+  const updates = {
+    proximaAccion: `Visita programada${propTxt}`,
+    fechaProximaAccion: fecha
+  };
+  if(ETAPAS_ANTES_DE_VISITA_PROGRAMADA.includes(lead.etapa)){
+    updates.etapa = 'visita_programada';
+  }
+  await db.ref('leads/'+leadId).update(updates);
+  await db.ref('leads/'+leadId+'/bitacora/'+bitacoraKeyCitas())
+    .set(`Cita agendada para ${cuando}${propTxt} — etapa sincronizada automáticamente.`);
+}
+
 // Sincroniza el lead en el Gestor cuando cambia el estado de una cita.
 async function sincronizarLeadPorEstadoCita(cita, nuevoEstado){
   if(!cita || !cita.leadId) return;
@@ -1145,25 +1171,30 @@ async function sincronizarLeadPorEstadoCita(cita, nuevoEstado){
   if(!lead) return;
 
   if(nuevoEstado === 'realizada'){
-    const updates = {};
+    const updates = {
+      proximaAccion: `Dar seguimiento — feedback de la visita${propTxt}`,
+      fechaProximaAccion: todayStr()
+    };
     if(ETAPAS_PRE_VISITA.includes(lead.etapa)){
       updates.etapa = 'visita_realizada';
     }
     await db.ref('leads/'+cita.leadId).update(updates);
     await db.ref('leads/'+cita.leadId+'/bitacora/'+bitacoraKeyCitas())
-      .set(`Visita realizada el ${cuando}${propTxt}.`);
+      .set(`Visita realizada el ${cuando}${propTxt}. Próxima acción: pedir feedback.`);
   } else if(nuevoEstado === 'no_asistio'){
+    await db.ref('leads/'+cita.leadId).update({
+      proximaAccion: `Reagendar visita — no se presentó${propTxt}`,
+      fechaProximaAccion: todayStr()
+    });
     await db.ref('leads/'+cita.leadId+'/bitacora/'+bitacoraKeyCitas())
-      .set(`No se presentó a la cita del ${cuando}${propTxt}.`);
+      .set(`No se presentó a la cita del ${cuando}${propTxt}. Próxima acción: reagendar.`);
   } else if(nuevoEstado === 'cancelada'){
-    const updates = {};
-    if(lead.fechaProximaAccion === cita.fecha){
-      updates.proximaAccion = 'Sin próxima acción definida';
-      updates.fechaProximaAccion = null;
-    }
-    await db.ref('leads/'+cita.leadId).update(updates);
+    await db.ref('leads/'+cita.leadId).update({
+      proximaAccion: `Reagendar visita — cita cancelada${propTxt}`,
+      fechaProximaAccion: todayStr()
+    });
     await db.ref('leads/'+cita.leadId+'/bitacora/'+bitacoraKeyCitas())
-      .set(`Cita cancelada — era el ${cuando}${propTxt}.`);
+      .set(`Cita cancelada — era el ${cuando}${propTxt}. Próxima acción: reagendar.`);
   }
 }
 
@@ -1399,6 +1430,26 @@ document.getElementById('stat-propiedades-incompletas-card')?.addEventListener('
   document.querySelector('.admin-tab-btn[data-tab="propiedades"]')?.click();
 });
 
+function renderManualLeadSelect(){
+  const sel = document.getElementById('m-lead');
+  if(!sel) return;
+  const prevVal = sel.value;
+  const arr = Object.entries(leads||{})
+    .filter(([id,l])=>!['ganado','perdido'].includes(l.etapa))
+    .sort((a,b)=>(a[1].nombre||'').localeCompare(b[1].nombre||''));
+  sel.innerHTML = `<option value="">Cliente nuevo (sin lead existente)</option>` +
+    arr.map(([id,l])=>`<option value="${id}">${escapeHtml(l.nombre||'(sin nombre)')}${l.telefono?' · '+escapeHtml(l.telefono):''}</option>`).join('');
+  if(arr.some(([id])=>id===prevVal)) sel.value = prevVal;
+}
+document.getElementById('m-lead')?.addEventListener('change', ()=>{
+  const id = document.getElementById('m-lead').value;
+  const lead = id ? leads[id] : null;
+  if(lead){
+    document.getElementById('m-nombre').value = lead.nombre || '';
+    document.getElementById('m-telefono').value = lead.telefono || '';
+  }
+});
+
 function renderManualPropiedadSelect(){
   const sel = document.getElementById('m-propiedad');
   if(!sel) return;
@@ -1409,9 +1460,41 @@ function renderManualPropiedadSelect(){
   if(activas.some(([id])=>id===prevVal)) sel.value = prevVal;
 }
 
+// Crea un lead nuevo desde una cita manual del admin cuando no se vinculó uno existente —
+// mismo criterio que la agenda pública (operación según la propiedad elegida).
+async function crearLeadDesdeCitaManual({nombre, telefono, fecha, hora, propiedadId, propiedadNombre, notas}){
+  const propObj = propiedadId ? propiedades[propiedadId] : null;
+  const propTxt = propiedadNombre ? ` — ${propiedadNombre}` : '';
+  const operacionProp = (propObj && propObj.operacion) || 'Compra';
+  const tipoDefault = operacionProp === 'Renta' ? 'Inquilino' : 'Comprador';
+  const newLeadId = db.ref('leads').push().key;
+  await db.ref('leads/'+newLeadId).set({
+    nombre, telefono, email: '',
+    fuente: 'Cita manual',
+    operacion: operacionProp,
+    tipo: tipoDefault,
+    presupuesto: '',
+    ubicacion: (propObj && propObj.direccion) || '',
+    propiedadId: propiedadId || null,
+    propiedadNombre: propiedadNombre || null,
+    valorEstimado: (propObj && Number(propObj.precio)) || 0,
+    probabilidad: 30,
+    proximaAccion: `Visita programada${propTxt}`,
+    fechaProximaAccion: fecha,
+    notas: notas || '',
+    etapa: 'visita_programada',
+    fechaCreacion: todayStr(),
+    fechaCierre: null,
+    checklist: {},
+    bitacora: { [bitacoraKeyCitas()]: `Lead creado automáticamente al agendar cita manual para ${fecha} ${hora}${propTxt}.` }
+  });
+  return newLeadId;
+}
+
 document.getElementById('btn-add-manual').addEventListener('click', ()=>{
   const nombre = document.getElementById('m-nombre').value.trim();
   const telefono = document.getElementById('m-telefono').value.trim();
+  let leadId = document.getElementById('m-lead').value || null;
   const propiedadId = document.getElementById('m-propiedad').value || null;
   const propiedadNombre = propiedadId && propiedades[propiedadId] ? propiedades[propiedadId].nombre : null;
   const fecha = document.getElementById('m-fecha').value;
@@ -1432,20 +1515,29 @@ document.getElementById('btn-add-manual').addEventListener('click', ()=>{
 
   db.ref('citas_publicas/'+slotFlagKey).set({ propiedadId: propiedadId || null })
     .then(()=>{
+      // Si no eligió un lead existente, crea uno nuevo automáticamente (mismo criterio que la agenda pública).
+      if(!leadId){
+        return crearLeadDesdeCitaManual({nombre, telefono, fecha, hora, propiedadId, propiedadNombre, notas})
+          .then(newId=>{ leadId = newId; });
+      }
+    })
+    .then(()=>{
       const citaId = db.ref('citas').push().key;
       return db.ref('citas/'+citaId).set({
         nombre, telefono, notas,
         propiedadId, propiedadNombre,
         fecha, hora,
-        leadId: null,
+        leadId,
         estado: 'pendiente',
         manual: true,
         creado: new Date().toISOString()
       });
     })
+    .then(()=> leadId ? sincronizarLeadPorNuevaCita(leadId, fecha, hora, propiedadNombre) : null)
     .then(()=>{
       document.getElementById('m-nombre').value = '';
       document.getElementById('m-telefono').value = '';
+      document.getElementById('m-lead').value = '';
       document.getElementById('m-propiedad').value = '';
       document.getElementById('m-fecha').value = '';
       document.getElementById('m-hora').value = '';
