@@ -458,19 +458,38 @@ function bitacoraKey(){
 
 // Crea o actualiza el lead correspondiente en el Gestor de Leads para que la cita
 // aparezca ahí automáticamente (el Gestor escucha /leads en tiempo real).
+function normalizarTelefono(tel){
+  return String(tel||'').replace(/\D/g,'').slice(-10);
+}
+
 async function upsertLeadParaCita({nombre, apellido, telefono, notas, propiedadId, propiedadNombre}){
   const propTxt = propiedadNombre ? ` — ${propiedadNombre}` : '';
   const propObj = propiedadId ? propiedades[propiedadId] : null;
+  const telNorm = normalizarTelefono(telefono);
 
-  if(leadId){
-    // Ya existe un lead capturado manualmente en el Gestor: solo actualizamos su próxima acción.
-    await db.ref('leads/'+leadId).update({
-      proximaAccion: `Visita programada${propTxt}`,
-      fechaProximaAccion: selectedSlot.dateKey
-    });
-    await db.ref('leads/'+leadId+'/bitacora/'+bitacoraKey())
-      .set(`Cliente agendó su visita para ${selectedSlot.label}${propTxt} desde la agenda pública.`);
-    return leadId;
+  let idParaActualizar = leadId || null;
+
+  // Si no vino leadId en el link, buscamos si ya existe un lead con este teléfono
+  // (para no duplicarlo si ya lo tenías capturado).
+  if(!idParaActualizar && telNorm){
+    try{
+      const idxSnap = await db.ref('telefonos_index/'+telNorm).once('value');
+      if(idxSnap.exists()) idParaActualizar = idxSnap.val();
+    }catch(e){ /* si no se puede consultar, seguimos y se crea uno nuevo */ }
+  }
+
+  if(idParaActualizar){
+    try{
+      await db.ref('leads/'+idParaActualizar).update({
+        proximaAccion: `Visita programada${propTxt}`,
+        fechaProximaAccion: selectedSlot.dateKey
+      });
+      await db.ref('leads/'+idParaActualizar+'/bitacora/'+bitacoraKey())
+        .set(`Cliente agendó su visita para ${selectedSlot.label}${propTxt} desde la agenda pública.`);
+      return idParaActualizar;
+    }catch(e){
+      // El lead ya no existe o el índice estaba desactualizado — seguimos y creamos uno nuevo.
+    }
   }
 
   // No había lead previo: se crea uno nuevo con lo capturado en la agenda pública.
@@ -499,6 +518,9 @@ async function upsertLeadParaCita({nombre, apellido, telefono, notas, propiedadI
     checklist: {},
     bitacora: { [bitacoraKey()]: `Lead creado automáticamente desde la agenda pública. Cita: ${selectedSlot.label}${propTxt}.` }
   });
+  if(telNorm){
+    db.ref('telefonos_index/'+telNorm).set(newLeadId).catch(()=>{});
+  }
   return newLeadId;
 }
 

@@ -725,20 +725,50 @@ updateRolOptions('Compra', null);
 function startListening(){
   statusTextEl.textContent = 'conectando…';
   statusWrapEl.classList.remove('err');
+  let backfillHecho = false;
   db.ref('leads').on('value', snap=>{
     leads = snap.val() || {};
     statusTextEl.textContent = '● conectado a Firebase (sesión segura)';
     statusWrapEl.classList.remove('err');
     renderAll();
     renderManualLeadSelect();
+    if(!backfillHecho){
+      backfillHecho = true;
+      backfillIndiceTelefonos();
+    }
   }, err=>{
     statusTextEl.textContent = 'error de conexión — revisa tus reglas de Firebase';
     statusWrapEl.classList.add('err');
   });
 }
 
-function saveLead(id, data){ return db.ref('leads/'+id).set(data); }
-function deleteLeadRemote(id){ return db.ref('leads/'+id).remove(); }
+function normalizarTelefono(tel){
+  return String(tel||'').replace(/\D/g,'').slice(-10);
+}
+
+// Backfill: asegura que todo lead con teléfono tenga su entrada en telefonos_index,
+// para que la agenda pública pueda detectar duplicados incluso en leads viejos.
+function backfillIndiceTelefonos(){
+  Object.entries(leads).forEach(([id,l])=>{
+    const tn = normalizarTelefono(l.telefono);
+    if(!tn) return;
+    db.ref('telefonos_index/'+tn).transaction(actual=> actual==null ? id : actual);
+  });
+}
+
+function saveLead(id, data){
+  return db.ref('leads/'+id).set(data).then(()=>{
+    const tn = normalizarTelefono(data.telefono);
+    if(tn) db.ref('telefonos_index/'+tn).set(id).catch(()=>{});
+  });
+}
+function deleteLeadRemote(id){
+  const tel = leads[id] && leads[id].telefono;
+  return db.ref('leads/'+id).remove().then(()=>{
+    const tn = normalizarTelefono(tel);
+    if(tn) db.ref('telefonos_index/'+tn).remove().catch(()=>{});
+  });
+}
 
 let currentLeadId = null;
 let currentStageId = "nuevo";
@@ -1488,6 +1518,8 @@ async function crearLeadDesdeCitaManual({nombre, telefono, fecha, hora, propieda
     checklist: {},
     bitacora: { [bitacoraKeyCitas()]: `Lead creado automáticamente al agendar cita manual para ${fecha} ${hora}${propTxt}.` }
   });
+  const tn = normalizarTelefono(telefono);
+  if(tn) db.ref('telefonos_index/'+tn).set(newLeadId).catch(()=>{});
   return newLeadId;
 }
 
