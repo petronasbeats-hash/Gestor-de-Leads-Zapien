@@ -836,13 +836,13 @@ function renderList(){
       <div class="lc-top">
         <div>
           <div class="lc-name">${escapeHtml(l.nombre||'(sin nombre)')}</div>
-          <div class="lc-meta">${escapeHtml(l.telefono||'')} ${l.tipo?'· '+l.tipo:''}${l.operacion==='Renta'?' · Renta':''} ${l.fuente?'· '+l.fuente:''}${l.propiedadNombre?' · 🏠 '+escapeHtml(l.propiedadNombre):''}</div>
+          <div class="lc-meta">${escapeHtml(l.telefono||'')} ${l.tipo?'· '+escapeHtml(l.tipo):''}${l.operacion==='Renta'?' · Renta':''} ${l.fuente?'· '+escapeHtml(l.fuente):''}${l.propiedadNombre?' · 🏠 '+escapeHtml(l.propiedadNombre):''}</div>
         </div>
         <div class="badge st-${l.etapa}">${stage.label}</div>
       </div>
       <div class="lc-next">
         <span>${escapeHtml(l.proximaAccion || 'Sin próxima acción definida')}</span>
-        <span class="date ${overdue?'overdue':''}">${l.fechaProximaAccion || ''}</span>
+        <span class="date ${overdue?'overdue':''}">${escapeHtml(l.fechaProximaAccion || '')}</span>
       </div>
       <div class="mini-pipe">${pipeDots}</div>
     </div>`;
