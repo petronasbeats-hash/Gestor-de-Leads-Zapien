@@ -252,7 +252,7 @@
   <div id="citas-view">
     <div class="admin-tabs">
       <button class="admin-tab-btn active" data-tab="resumen"><span class="tab-icon">📊</span>Resumen</button>
-      <button class="admin-tab-btn" data-tab="propiedades"><span class="tab-icon">🏠</span>Propiedades</button>
+      <button class="admin-tab-btn" data-tab="propiedades"><span class="tab-icon">🏠</span>Propiedades<span id="propiedades-tab-badge" style="display:none;background:var(--red);color:#fff;font-family:'JetBrains Mono',monospace;font-size:10px;border-radius:10px;padding:1px 6px;margin-left:6px;"></span></button>
       <button class="admin-tab-btn" data-tab="disponibilidad"><span class="tab-icon">🗓️</span>Disponibilidad</button>
       <button class="admin-tab-btn" data-tab="citas"><span class="tab-icon">📋</span>Citas</button>
     </div>
@@ -263,6 +263,7 @@
         <div class="resumen-stats">
           <div class="resumen-stat"><div class="num" id="stat-citas-semana">0</div><div class="label">Citas esta semana</div></div>
           <div class="resumen-stat"><div class="num" id="stat-propiedades-activas">0</div><div class="label">Propiedades activas</div></div>
+          <div class="resumen-stat" id="stat-propiedades-incompletas-card" style="cursor:pointer;display:none;grid-column:1/-1;"><div class="num" id="stat-propiedades-incompletas" style="color:var(--amber);">0</div><div class="label">Propiedades incompletas — toca para revisar</div></div>
           <div class="resumen-stat"><div class="num" id="stat-pendientes">0</div><div class="label">Seguimientos pendientes</div></div>
         </div>
       </div>
@@ -1275,7 +1276,7 @@ function renderPropiedadLeadSelect(){
   const prevValue = sel.value;
   const activas = Object.entries(propiedades||{}).filter(([id,p])=>p.activo!==false);
   sel.innerHTML = `<option value="">Sin propiedad asignada</option>` +
-    activas.map(([id,p])=>`<option value="${id}">${escapeHtml(p.nombre||'(sin nombre)')}${p.precio?' · $'+Number(p.precio).toLocaleString('es-MX'):''}</option>`).join('');
+    activas.map(([id,p])=>`<option value="${id}">${propiedadFaltantes(p).length?'⚠ ':''}${escapeHtml(p.nombre||'(sin nombre)')}${p.precio?' · $'+Number(p.precio).toLocaleString('es-MX'):''}</option>`).join('');
   if(prevValue && propiedades[prevValue]) sel.value = prevValue;
   renderPropiedadLeadPreview();
 }
@@ -1331,26 +1332,46 @@ function renderResumenStats(){
 }
 
 /* ---------- Catálogo de propiedades ---------- */
+function propiedadFaltantes(p){
+  const falta = [];
+  if(!p.precio) falta.push('precio');
+  if(!p.descripcion || !p.descripcion.trim()) falta.push('descripción');
+  const fotos = Array.isArray(p.fotos) ? p.fotos.filter(Boolean) : (typeof p.fotos === 'string' ? p.fotos.split('\n').map(f=>f.trim()).filter(Boolean) : []);
+  if(!fotos.length) falta.push('fotos');
+  if(!p.direccion || !p.direccion.trim()) falta.push('dirección');
+  if(p.lat==null || p.lng==null) falta.push('coordenadas');
+  if(!p.recamaras && !p.banos) falta.push('recámaras/baños');
+  return falta;
+}
+
 function renderPropiedadesAdmin(obj){
   const list = document.getElementById('propiedades-list');
   const arr = Object.entries(obj).map(([id,p])=>({id,...p}));
   if(arr.length === 0){
     list.innerHTML = `<div class="empty">Sin propiedades registradas.</div>`;
+    actualizarAvisoPropiedadesIncompletas(0);
     return;
   }
-  list.innerHTML = arr.map(p=>`
+  const incompletasActivas = arr.filter(p=>p.activo!==false && propiedadFaltantes(p).length>0).length;
+  actualizarAvisoPropiedadesIncompletas(incompletasActivas);
+
+  list.innerHTML = arr.map(p=>{
+    const faltantes = propiedadFaltantes(p);
+    return `
     <div class="cita-item">
       <div>
         <b>${escapeHtml(p.nombre)}</b> ${p.activo===false?'<span class="cita-meta">(inactiva)</span>':''}
         <div class="cita-meta">${escapeHtml(p.direccion||'')}${(p.lat!=null&&p.lng!=null)?' · '+p.lat+', '+p.lng:' · sin coordenadas'}</div>
         <div class="cita-meta">${p.operacion?p.operacion+' · ':''}${p.precio?'$'+Number(p.precio).toLocaleString('es-MX')+(p.operacion==='Renta'?'/mes':''):'sin precio'}${p.recamaras?' · '+p.recamaras+' rec':''}${p.banos?' · '+p.banos+' baños':''}${p.m2c?' · '+p.m2c+'m² const':''}${(p.fotos&&p.fotos.length)?' · '+p.fotos.length+' foto(s)':''}</div>
+        ${faltantes.length ? `<div class="cita-meta" style="color:var(--amber);">⚠ Falta: ${faltantes.join(', ')}</div>` : `<div class="cita-meta" style="color:var(--green);">✓ Ficha completa</div>`}
       </div>
       <div style="display:flex;gap:6px;">
         <button class="btn btn-sm" data-action="toggle-prop" data-id="${p.id}">${p.activo===false?'Activar':'Desactivar'}</button>
         <button class="btn btn-sm" data-action="del-prop" data-id="${p.id}" style="color:var(--red);">Eliminar</button>
       </div>
     </div>
-  `).join('');
+  `;
+  }).join('');
 
   list.querySelectorAll('[data-action="toggle-prop"]').forEach(btn=>{
     btn.addEventListener('click', ()=>{
@@ -1366,13 +1387,25 @@ function renderPropiedadesAdmin(obj){
   });
 }
 
+function actualizarAvisoPropiedadesIncompletas(n){
+  const badge = document.getElementById('propiedades-tab-badge');
+  const card = document.getElementById('stat-propiedades-incompletas-card');
+  const num = document.getElementById('stat-propiedades-incompletas');
+  if(badge){ badge.style.display = n>0 ? 'inline-block' : 'none'; badge.textContent = n; }
+  if(card){ card.style.display = n>0 ? 'block' : 'none'; }
+  if(num){ num.textContent = n; }
+}
+document.getElementById('stat-propiedades-incompletas-card')?.addEventListener('click', ()=>{
+  document.querySelector('.admin-tab-btn[data-tab="propiedades"]')?.click();
+});
+
 function renderManualPropiedadSelect(){
   const sel = document.getElementById('m-propiedad');
   if(!sel) return;
   const prevVal = sel.value;
   const activas = Object.entries(propiedades).filter(([id,p])=>p.activo!==false);
   sel.innerHTML = `<option value="">Sin propiedad</option>` +
-    activas.map(([id,p])=>`<option value="${id}">${escapeHtml(p.nombre)}</option>`).join('');
+    activas.map(([id,p])=>`<option value="${id}">${propiedadFaltantes(p).length?'⚠ ':''}${escapeHtml(p.nombre)}</option>`).join('');
   if(activas.some(([id])=>id===prevVal)) sel.value = prevVal;
 }
 
