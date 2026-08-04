@@ -100,6 +100,15 @@
   .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
   @media(max-width:520px){.row2{grid-template-columns:1fr;}}
 
+  .prop-lead-preview{border:1px solid var(--line);border-radius:8px;padding:10px;margin-top:8px;display:none;}
+  .prop-lead-preview.show{display:block;}
+  .prop-lead-preview .pp-fotos{display:flex;gap:6px;overflow-x:auto;margin-bottom:8px;}
+  .prop-lead-preview .pp-fotos img{height:70px;width:100px;object-fit:cover;border-radius:6px;border:1px solid var(--line);flex-shrink:0;background:var(--bg);}
+  .prop-lead-preview .pp-precio{font-family:'JetBrains Mono',monospace;font-size:14px;color:var(--green);font-weight:700;margin-bottom:4px;}
+  .prop-lead-preview .pp-ficha{display:flex;gap:8px;flex-wrap:wrap;font-size:11px;color:var(--muted);margin-bottom:6px;}
+  .prop-lead-preview .pp-ficha span{background:var(--bg);border:1px solid var(--line);border-radius:5px;padding:3px 7px;}
+  .prop-lead-preview .pp-desc{font-size:12px;color:var(--muted);line-height:1.5;}
+
   .stage-objetivo{color:var(--muted);font-size:13px;line-height:1.6;margin-bottom:16px;}
   .sla-badge{font-family:'JetBrains Mono',monospace;font-size:10px;padding:4px 9px;border-radius:5px;border:1px solid var(--amber);color:var(--amber);display:inline-block;margin-bottom:14px;}
   .acciones{list-style:none;margin:0 0 16px;padding:0;}
@@ -417,6 +426,11 @@
       </div>
       <div class="field"><label>Presupuesto</label><input type="text" id="f-presupuesto" placeholder="$1,800,000 - $2,200,000 (o $8,000/mes si es renta)"></div>
       <div class="field"><label>Ubicación preferida / enlace de Maps</label><input type="text" id="f-ubicacion" placeholder="Col. Centro, Tehuacán o link de Google Maps"></div>
+      <div class="field">
+        <label>Propiedad de interés</label>
+        <select id="f-propiedad-lead"><option value="">Sin propiedad asignada</option></select>
+        <div class="prop-lead-preview" id="propiedad-lead-preview"></div>
+      </div>
       <div class="row2">
         <div class="field"><label>Valor estimado (MXN)</label><input type="number" id="f-valor" placeholder="2000000"></div>
         <div class="field"><label>Probabilidad %</label><input type="number" id="f-prob" min="0" max="100" placeholder="40"></div>
@@ -810,7 +824,7 @@ function renderList(){
       <div class="lc-top">
         <div>
           <div class="lc-name">${escapeHtml(l.nombre||'(sin nombre)')}</div>
-          <div class="lc-meta">${escapeHtml(l.telefono||'')} ${l.tipo?'· '+l.tipo:''}${l.operacion==='Renta'?' · Renta':''} ${l.fuente?'· '+l.fuente:''}</div>
+          <div class="lc-meta">${escapeHtml(l.telefono||'')} ${l.tipo?'· '+l.tipo:''}${l.operacion==='Renta'?' · Renta':''} ${l.fuente?'· '+l.fuente:''}${l.propiedadNombre?' · 🏠 '+escapeHtml(l.propiedadNombre):''}</div>
         </div>
         <div class="badge st-${l.etapa}">${stage.label}</div>
       </div>
@@ -857,6 +871,8 @@ function openModal(id){
   updateRolOptions(operacionLead, lead?.tipo);
   document.getElementById('f-presupuesto').value = lead?.presupuesto || '';
   document.getElementById('f-ubicacion').value = lead?.ubicacion || '';
+  document.getElementById('f-propiedad-lead').value = lead?.propiedadId || '';
+  renderPropiedadLeadPreview();
   document.getElementById('f-valor').value = lead?.valorEstimado || '';
   document.getElementById('f-prob').value = lead?.probabilidad || '';
   document.getElementById('f-accion').value = lead?.proximaAccion || '';
@@ -979,6 +995,8 @@ document.getElementById('btn-save').addEventListener('click', ()=>{
     tipo: document.getElementById('f-tipo').value,
     presupuesto: document.getElementById('f-presupuesto').value.trim(),
     ubicacion: document.getElementById('f-ubicacion').value.trim(),
+    propiedadId: document.getElementById('f-propiedad-lead').value || null,
+    propiedadNombre: document.getElementById('f-propiedad-lead').value && propiedades[document.getElementById('f-propiedad-lead').value] ? propiedades[document.getElementById('f-propiedad-lead').value].nombre : null,
     valorEstimado: Number(document.getElementById('f-valor').value)||0,
     probabilidad: Number(document.getElementById('f-prob').value)||0,
     proximaAccion: document.getElementById('f-accion').value.trim(),
@@ -1237,8 +1255,44 @@ function loadAdminData(){
     renderPropiedadesAdmin(propiedades);
     renderManualPropiedadSelect();
     renderResumenStats();
+    renderPropiedadLeadSelect();
   });
 }
+
+/* ---------- Propiedad de interés dentro de la ficha del lead ---------- */
+function renderPropiedadLeadSelect(){
+  const sel = document.getElementById('f-propiedad-lead');
+  if(!sel) return;
+  const prevValue = sel.value;
+  const activas = Object.entries(propiedades||{}).filter(([id,p])=>p.activo!==false);
+  sel.innerHTML = `<option value="">Sin propiedad asignada</option>` +
+    activas.map(([id,p])=>`<option value="${id}">${escapeHtml(p.nombre||'(sin nombre)')}${p.precio?' · $'+Number(p.precio).toLocaleString('es-MX'):''}</option>`).join('');
+  if(prevValue && propiedades[prevValue]) sel.value = prevValue;
+  renderPropiedadLeadPreview();
+}
+
+function renderPropiedadLeadPreview(){
+  const sel = document.getElementById('f-propiedad-lead');
+  const box = document.getElementById('propiedad-lead-preview');
+  if(!sel || !box) return;
+  const p = sel.value ? propiedades[sel.value] : null;
+  if(!p){ box.classList.remove('show'); box.innerHTML = ''; return; }
+  const fotos = (p.fotos||'').split('\n').map(f=>f.trim()).filter(Boolean);
+  box.classList.add('show');
+  box.innerHTML = `
+    ${fotos.length ? `<div class="pp-fotos">${fotos.map(f=>`<img src="${escapeHtml(f)}" loading="lazy">`).join('')}</div>` : ''}
+    ${p.precio ? `<div class="pp-precio">$${Number(p.precio).toLocaleString('es-MX')}${p.operacion==='Renta'?'/mes':''}</div>` : ''}
+    <div class="pp-ficha">
+      ${p.recamaras?`<span>${p.recamaras} rec.</span>`:''}
+      ${p.banos?`<span>${p.banos} baños</span>`:''}
+      ${p.m2c?`<span>${p.m2c} m² const.</span>`:''}
+      ${p.m2t?`<span>${p.m2t} m² terreno</span>`:''}
+    </div>
+    ${p.descripcion ? `<div class="pp-desc">${escapeHtml(p.descripcion)}</div>` : ''}
+    ${p.direccion ? `<div class="pp-desc">📍 ${escapeHtml(p.direccion)}</div>` : ''}
+  `;
+}
+document.getElementById('f-propiedad-lead')?.addEventListener('change', renderPropiedadLeadPreview);
 
 /* ---------- Pestañas del panel ---------- */
 document.querySelectorAll('.admin-tab-btn').forEach(btn=>{
