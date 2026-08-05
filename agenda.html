@@ -72,6 +72,8 @@
   .prop-fotos img{height:120px;width:170px;object-fit:cover;border-radius:8px;border:1px solid var(--line);flex-shrink:0;background:var(--bg);}
   .prop-precio{font-family:'JetBrains Mono',monospace;font-size:18px;color:var(--green);font-weight:700;margin-bottom:6px;}
   .prop-ficha{display:flex;gap:14px;flex-wrap:wrap;font-size:12.5px;color:var(--muted);margin-bottom:8px;}
+  .prop-enlace-externo{display:block;background:var(--green-dim);border:1px solid var(--green);color:var(--green);text-align:center;padding:11px;border-radius:8px;font-weight:600;font-size:13.5px;text-decoration:none;margin-bottom:12px;}
+  .prop-enlace-externo:hover{opacity:.85;}
   .prop-ficha span{background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:4px 9px;}
   .prop-desc{font-size:13px;color:var(--text);line-height:1.5;}
   .seg-item{border:1px solid var(--line);border-radius:8px;padding:12px;margin-bottom:10px;}
@@ -120,6 +122,7 @@
       <div class="sub" id="propiedad-direccion-hint" style="margin-top:8px;"></div>
     </div>
     <div class="card" id="propiedad-detalle-card" style="display:none;">
+      <a id="propiedad-enlace-externo" href="#" target="_blank" rel="noopener" style="display:none;"></a>
       <div class="prop-fotos" id="propiedad-fotos"></div>
       <div class="prop-precio" id="propiedad-precio"></div>
       <div class="prop-ficha" id="propiedad-ficha"></div>
@@ -249,9 +252,19 @@ function renderPropiedadDetalle(p){
   const card = document.getElementById('propiedad-detalle-card');
   if(!p){ card.style.display = 'none'; return; }
 
-  const tieneFicha = p.precio || p.recamaras || p.banos || p.m2c || p.m2t || p.descripcion || (p.fotos && p.fotos.length);
+  const tieneFicha = p.enlaceExterno || p.precio || p.recamaras || p.banos || p.m2c || p.m2t || p.descripcion || (p.fotos && p.fotos.length);
   if(!tieneFicha){ card.style.display = 'none'; return; }
   card.style.display = 'block';
+
+  const enlaceEl = document.getElementById('propiedad-enlace-externo');
+  if(p.enlaceExterno){
+    enlaceEl.style.display = 'block';
+    enlaceEl.className = 'prop-enlace-externo';
+    enlaceEl.href = p.enlaceExterno;
+    enlaceEl.textContent = '🔗 Ver ficha completa de la propiedad →';
+  } else {
+    enlaceEl.style.display = 'none';
+  }
 
   const fotosEl = document.getElementById('propiedad-fotos');
   if(p.fotos && p.fotos.length){

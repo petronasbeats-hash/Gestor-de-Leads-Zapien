@@ -313,6 +313,7 @@
           <input type="text" id="p-lng" placeholder="Longitud (ej. -97.3928)">
         </div>
         <input type="text" id="p-direccion" placeholder="Dirección completa" style="width:100%;background:var(--bg);border:1px solid var(--line);color:var(--text);padding:9px 11px;border-radius:6px;font-size:13.5px;margin-top:8px;">
+        <input type="text" id="p-enlace" placeholder="Enlace externo (ej. ficha de la inmobiliaria) — opcional, si lo pones no hace falta cargar fotos/descripción" style="width:100%;background:var(--bg);border:1px solid var(--line);color:var(--text);padding:9px 11px;border-radius:6px;font-size:13.5px;margin-top:8px;">
         <div class="row2" style="grid-template-columns:1fr 1fr 1fr;margin-top:8px;">
           <select id="p-operacion" style="background:var(--bg);border:1px solid var(--line);color:var(--text);padding:9px 11px;border-radius:6px;font-size:13.5px;">
             <option value="Venta">Venta</option>
@@ -1395,13 +1396,16 @@ function renderResumenStats(){
 /* ---------- Catálogo de propiedades ---------- */
 function propiedadFaltantes(p){
   const falta = [];
+  const tieneEnlace = p.enlaceExterno && p.enlaceExterno.trim();
   if(!p.precio) falta.push('precio');
-  if(!p.descripcion || !p.descripcion.trim()) falta.push('descripción');
-  const fotos = Array.isArray(p.fotos) ? p.fotos.filter(Boolean) : (typeof p.fotos === 'string' ? p.fotos.split('\n').map(f=>f.trim()).filter(Boolean) : []);
-  if(!fotos.length) falta.push('fotos');
+  if(!tieneEnlace){
+    if(!p.descripcion || !p.descripcion.trim()) falta.push('descripción');
+    const fotos = Array.isArray(p.fotos) ? p.fotos.filter(Boolean) : (typeof p.fotos === 'string' ? p.fotos.split('\n').map(f=>f.trim()).filter(Boolean) : []);
+    if(!fotos.length) falta.push('fotos');
+    if(!p.recamaras && !p.banos) falta.push('recámaras/baños');
+  }
   if(!p.direccion || !p.direccion.trim()) falta.push('dirección');
   if(p.lat==null || p.lng==null) falta.push('coordenadas');
-  if(!p.recamaras && !p.banos) falta.push('recámaras/baños');
   return falta;
 }
 
@@ -1423,7 +1427,7 @@ function renderPropiedadesAdmin(obj){
       <div>
         <b>${escapeHtml(p.nombre)}</b> ${p.activo===false?'<span class="cita-meta">(inactiva)</span>':''}
         <div class="cita-meta">${escapeHtml(p.direccion||'')}${(p.lat!=null&&p.lng!=null)?' · '+p.lat+', '+p.lng:' · sin coordenadas'}</div>
-        <div class="cita-meta">${p.operacion?p.operacion+' · ':''}${p.precio?'$'+Number(p.precio).toLocaleString('es-MX')+(p.operacion==='Renta'?'/mes':''):'sin precio'}${p.recamaras?' · '+p.recamaras+' rec':''}${p.banos?' · '+p.banos+' baños':''}${p.m2c?' · '+p.m2c+'m² const':''}${(p.fotos&&p.fotos.length)?' · '+p.fotos.length+' foto(s)':''}</div>
+        <div class="cita-meta">${p.operacion?p.operacion+' · ':''}${p.precio?'$'+Number(p.precio).toLocaleString('es-MX')+(p.operacion==='Renta'?'/mes':''):'sin precio'}${p.recamaras?' · '+p.recamaras+' rec':''}${p.banos?' · '+p.banos+' baños':''}${p.m2c?' · '+p.m2c+'m² const':''}${(p.fotos&&p.fotos.length)?' · '+p.fotos.length+' foto(s)':''}${p.enlaceExterno?' · 🔗 con enlace externo':''}</div>
         ${faltantes.length ? `<div class="cita-meta" style="color:var(--amber);">⚠ Falta: ${faltantes.join(', ')}</div>` : `<div class="cita-meta" style="color:var(--green);">✓ Ficha completa</div>`}
       </div>
       <div style="display:flex;gap:6px;">
@@ -1636,6 +1640,7 @@ document.getElementById('p-fotos-file').addEventListener('change', async (e)=>{
 document.getElementById('btn-add-propiedad').addEventListener('click', ()=>{
   const nombre = document.getElementById('p-nombre').value.trim();
   const direccion = document.getElementById('p-direccion').value.trim();
+  const enlaceExterno = document.getElementById('p-enlace').value.trim();
   const latRaw = document.getElementById('p-lat').value.trim();
   const lngRaw = document.getElementById('p-lng').value.trim();
   const operacion = document.getElementById('p-operacion').value;
@@ -1647,6 +1652,7 @@ document.getElementById('btn-add-propiedad').addEventListener('click', ()=>{
   const descripcion = document.getElementById('p-descripcion').value.trim();
   const fotos = document.getElementById('p-fotos').value.split('\n').map(s=>s.trim()).filter(Boolean);
   if(!nombre){ alert('Ponle un nombre a la propiedad.'); return; }
+  if(enlaceExterno && !/^https?:\/\//i.test(enlaceExterno)){ alert('El enlace externo debe empezar con http:// o https://'); return; }
   const lat = latRaw ? Number(latRaw) : null;
   const lng = lngRaw ? Number(lngRaw) : null;
   if((latRaw && isNaN(lat)) || (lngRaw && isNaN(lng))){ alert('Latitud/longitud inválida.'); return; }
@@ -1655,12 +1661,13 @@ document.getElementById('btn-add-propiedad').addEventListener('click', ()=>{
   btn.disabled = true; btn.textContent = 'Guardando…';
   const propId = db.ref('propiedades').push().key;
   db.ref('propiedades/'+propId).set({
-    nombre, direccion, lat, lng, activo: true,
+    nombre, direccion, enlaceExterno, lat, lng, activo: true,
     operacion, precio, recamaras, banos, m2c, m2t, descripcion, fotos
   })
     .then(()=>{
       document.getElementById('p-nombre').value = '';
       document.getElementById('p-direccion').value = '';
+      document.getElementById('p-enlace').value = '';
       document.getElementById('p-lat').value = '';
       document.getElementById('p-lng').value = '';
       document.getElementById('p-precio').value = '';
