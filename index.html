@@ -271,6 +271,11 @@
         <h2 class="mono" style="font-size:14px;color:var(--green);margin:0 0 12px;">Próximas citas agendadas</h2>
         <div id="citas-list"></div>
       </div>
+      <div class="card" id="fantasmas-card" style="display:none;">
+        <h2 class="mono" style="font-size:14px;color:var(--red);margin:0 0 12px;">⚠️ Horarios ocupados sin cita registrada</h2>
+        <div class="sub" style="margin-bottom:10px;">Esto pasa cuando alguien empezó a agendar y no terminó (se le cayó el internet, cerró la página a medias, etc.) — el horario quedó bloqueado pero no hay cita ni lead detrás. Libéralo para que vuelva a estar disponible.</div>
+        <div id="horarios-fantasma"></div>
+      </div>
     </div>
 
     <div class="tab-panel" data-tab-panel="disponibilidad">
@@ -1314,13 +1319,17 @@ function loadAdminData(){
     horario = snap.val();
     renderHorarioEditor(horario);
   });
-  db.ref('citas_publicas').on('value', snap=>{ ocupados = snap.val() || {}; });
+  db.ref('citas_publicas').on('value', snap=>{
+    ocupados = snap.val() || {};
+    renderHorariosFantasma();
+  });
   db.ref('citas').orderByChild('fecha').on('value', snap=>{
     ultimasCitas = snap.val() || {};
     renderCitasList(ultimasCitas);
     renderSeguimientoList(ultimasCitas);
     renderCalendario(ultimasCitas);
     renderResumenStats();
+    renderHorariosFantasma();
   });
   db.ref('propiedades').on('value', snap=>{
     propiedades = snap.val() || {};
@@ -1689,6 +1698,26 @@ document.getElementById('btn-add-propiedad').addEventListener('click', ()=>{
 });
 
 /* ---------- Lista de próximas citas (Resumen) ---------- */
+function renderHorariosFantasma(){
+  const card = document.getElementById('fantasmas-card');
+  const el = document.getElementById('horarios-fantasma');
+  if(!card || !el) return;
+  const citasKeys = new Set(Object.values(ultimasCitas||{}).map(c=>`${c.fecha}_${c.hora}`));
+  const fantasmas = Object.keys(ocupados||{}).filter(k=> !citasKeys.has(k));
+  card.style.display = fantasmas.length ? 'block' : 'none';
+  if(fantasmas.length === 0) return;
+  el.innerHTML = fantasmas.map(k=>{
+    const [fecha,hora] = k.split('_');
+    return `<div class="cita-item"><div>📅 ${escapeHtml(fecha)} ${escapeHtml(hora)} <span class="cita-meta">— ocupado, sin cita ni lead detrás</span></div><button class="btn btn-sm" data-action="liberar-fantasma" data-key="${escapeHtml(k)}" style="color:var(--red);">Liberar</button></div>`;
+  }).join('');
+  el.querySelectorAll('[data-action="liberar-fantasma"]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      if(!confirm('¿Liberar este horario? Vuelve a quedar disponible para agendar.')) return;
+      db.ref('citas_publicas/'+btn.dataset.key).remove();
+    });
+  });
+}
+
 function renderCitasList(citasObj){
   const list = document.getElementById('citas-list');
   const today = dateKey(new Date());

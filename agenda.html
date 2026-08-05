@@ -552,16 +552,17 @@ document.getElementById('btn-confirm-booking').addEventListener('click', async (
   btn.disabled = true; btn.textContent = 'Agendando…';
 
   try{
-    // 1. marcar el slot como ocupado (público, escritura única) — se guarda la propiedad para poder validar traslados
-    await db.ref('citas_publicas/'+slotFlagKey).set({ propiedadId: propiedadId || null });
-
-    // 2. crear/actualizar el lead en el Gestor ANTES de guardar la cita, para poder enlazarla
+    // 1. crear/actualizar el lead PRIMERO — si esto falla, no se toca el horario todavía
     const nombreCompleto = apellido ? `${nombre} ${apellido}` : nombre;
     const leadIdFinal = await upsertLeadParaCita({nombre, apellido, telefono, notas, propiedadId, propiedadNombre});
 
-    // 3. guardar el detalle completo de la cita (solo admin puede leerlo)
+    // 2. marcar el horario ocupado Y guardar la cita como UNA sola operación atómica:
+    // o se guardan las dos juntas, o no se guarda ninguna — así no puede quedar
+    // un horario "fantasma" ocupado sin que exista su cita.
     const citaId = db.ref('citas').push().key;
-    await db.ref('citas/'+citaId).set({
+    const updates = {};
+    updates['citas_publicas/'+slotFlagKey] = { propiedadId: propiedadId || null };
+    updates['citas/'+citaId] = {
       nombre: nombreCompleto, telefono, notas,
       propiedadId, propiedadNombre,
       fecha: selectedSlot.dateKey,
@@ -569,7 +570,8 @@ document.getElementById('btn-confirm-booking').addEventListener('click', async (
       leadId: leadIdFinal || null,
       estado: 'pendiente',
       creado: new Date().toISOString()
-    });
+    };
+    await db.ref().update(updates);
 
     const propObj = propiedadId ? propiedades[propiedadId] : null;
     const mapsLink = mapsLinkFor(propObj);
