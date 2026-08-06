@@ -445,6 +445,11 @@
         <select id="f-propiedad-lead"><option value="">Sin propiedad asignada</option></select>
         <div class="prop-lead-preview" id="propiedad-lead-preview"></div>
       </div>
+      <div class="field">
+        <label>Lead relacionado (contraparte del mismo contrato — ej. arrendador ↔ inquilino, vendedor ↔ comprador)</label>
+        <select id="f-lead-relacionado"><option value="">Sin lead relacionado</option></select>
+        <div class="prop-lead-preview" id="lead-relacionado-preview"></div>
+      </div>
       <div class="row2">
         <div class="field"><label>Valor estimado (MXN)</label><input type="number" id="f-valor" placeholder="2000000"></div>
         <div class="field"><label>Probabilidad %</label><input type="number" id="f-prob" min="0" max="100" placeholder="40"></div>
@@ -738,6 +743,7 @@ function startListening(){
     statusWrapEl.classList.remove('err');
     renderAll();
     renderManualLeadSelect();
+    renderLeadRelacionadoSelect();
     if(!backfillHecho){
       backfillHecho = true;
       backfillIndiceTelefonos();
@@ -770,9 +776,13 @@ function saveLead(id, data){
 }
 function deleteLeadRemote(id){
   const tel = leads[id] && leads[id].telefono;
+  const relId = leads[id] && leads[id].leadRelacionadoId;
   return db.ref('leads/'+id).remove().then(()=>{
     const tn = normalizarTelefono(tel);
     if(tn) db.ref('telefonos_index/'+tn).remove().catch(()=>{});
+    if(relId && leads[relId] && leads[relId].leadRelacionadoId === id){
+      db.ref('leads/'+relId+'/leadRelacionadoId').set(null).catch(()=>{});
+    }
   });
 }
 
@@ -872,7 +882,7 @@ function renderList(){
       <div class="lc-top">
         <div>
           <div class="lc-name">${escapeHtml(l.nombre||'(sin nombre)')}</div>
-          <div class="lc-meta">${escapeHtml(l.telefono||'')} ${l.tipo?'· '+escapeHtml(l.tipo):''}${l.operacion==='Renta'?' · Renta':''} ${l.fuente?'· '+escapeHtml(l.fuente):''}${l.propiedadNombre?' · 🏠 '+escapeHtml(l.propiedadNombre):''}</div>
+          <div class="lc-meta">${escapeHtml(l.telefono||'')} ${l.tipo?'· '+escapeHtml(l.tipo):''}${l.operacion==='Renta'?' · Renta':''} ${l.fuente?'· '+escapeHtml(l.fuente):''}${l.propiedadNombre?' · 🏠 '+escapeHtml(l.propiedadNombre):''}${(l.leadRelacionadoId && leads[l.leadRelacionadoId])?' · 🔗 '+escapeHtml(leads[l.leadRelacionadoId].nombre||''):''}</div>
         </div>
         <div class="badge st-${l.etapa}">${stage.label}</div>
       </div>
@@ -921,6 +931,8 @@ function openModal(id){
   document.getElementById('f-ubicacion').value = lead?.ubicacion || '';
   document.getElementById('f-propiedad-lead').value = lead?.propiedadId || '';
   renderPropiedadLeadPreview();
+  document.getElementById('f-lead-relacionado').value = lead?.leadRelacionadoId || '';
+  renderLeadRelacionadoPreview();
   document.getElementById('f-valor').value = lead?.valorEstimado || '';
   document.getElementById('f-prob').value = lead?.probabilidad || '';
   document.getElementById('f-accion').value = lead?.proximaAccion || '';
@@ -1045,6 +1057,7 @@ document.getElementById('btn-save').addEventListener('click', ()=>{
     ubicacion: document.getElementById('f-ubicacion').value.trim(),
     propiedadId: document.getElementById('f-propiedad-lead').value || null,
     propiedadNombre: document.getElementById('f-propiedad-lead').value && propiedades[document.getElementById('f-propiedad-lead').value] ? propiedades[document.getElementById('f-propiedad-lead').value].nombre : null,
+    leadRelacionadoId: document.getElementById('f-lead-relacionado').value || null,
     valorEstimado: Number(document.getElementById('f-valor').value)||0,
     probabilidad: Number(document.getElementById('f-prob').value)||0,
     proximaAccion: document.getElementById('f-accion').value.trim(),
@@ -1058,7 +1071,18 @@ document.getElementById('btn-save').addEventListener('click', ()=>{
   };
 
   saveLead(id, data).then(()=>{
-    closeModal();
+    // Sincroniza el vínculo en ambos sentidos: si cambió el lead relacionado,
+    // actualiza también al otro lead para que apunte de vuelta a este.
+    const nuevoRelId = data.leadRelacionadoId;
+    const viejoRelId = existing?.leadRelacionadoId || null;
+    const promesas = [];
+    if(viejoRelId && viejoRelId !== nuevoRelId && leads[viejoRelId] && leads[viejoRelId].leadRelacionadoId === id){
+      promesas.push(db.ref('leads/'+viejoRelId+'/leadRelacionadoId').set(null).catch(()=>{}));
+    }
+    if(nuevoRelId){
+      promesas.push(db.ref('leads/'+nuevoRelId+'/leadRelacionadoId').set(id).catch(()=>{}));
+    }
+    Promise.all(promesas).finally(closeModal);
   });
 });
 
@@ -1373,6 +1397,38 @@ function renderPropiedadLeadPreview(){
     ${p.direccion ? `<div class="pp-desc">📍 ${escapeHtml(p.direccion)}</div>` : ''}
   `;
 }
+
+/* ---------- Lead relacionado (contraparte del mismo contrato) ---------- */
+function renderLeadRelacionadoSelect(){
+  const sel = document.getElementById('f-lead-relacionado');
+  if(!sel) return;
+  const prevValue = sel.value;
+  const otros = Object.entries(leads||{}).filter(([id])=> id !== currentLeadId);
+  sel.innerHTML = `<option value="">Sin lead relacionado</option>` +
+    otros.map(([id,l])=>`<option value="${id}">${escapeHtml(l.nombre||'(sin nombre)')}${l.tipo?' — '+escapeHtml(l.tipo):''}${l.operacion?' · '+escapeHtml(l.operacion):''}</option>`).join('');
+  if(prevValue && leads[prevValue]) sel.value = prevValue;
+  renderLeadRelacionadoPreview();
+}
+
+function renderLeadRelacionadoPreview(){
+  const sel = document.getElementById('f-lead-relacionado');
+  const box = document.getElementById('lead-relacionado-preview');
+  if(!sel || !box) return;
+  const l = sel.value ? leads[sel.value] : null;
+  if(!l){ box.classList.remove('show'); box.innerHTML = ''; return; }
+  const etapaLabel = (STAGES.find(s=>s.id===l.etapa) || STAGES_RENTA.find(s=>s.id===l.etapa) || {}).label || l.etapa || '';
+  box.classList.add('show');
+  box.innerHTML = `
+    <div class="pp-desc">${escapeHtml(l.telefono||'')}${l.tipo?' · '+escapeHtml(l.tipo):''}${etapaLabel?' · '+escapeHtml(etapaLabel):''}</div>
+    <button type="button" class="btn btn-sm" id="btn-abrir-lead-relacionado" style="margin-top:6px;">Abrir ficha de ${escapeHtml(l.nombre||'este lead')} →</button>
+  `;
+  document.getElementById('btn-abrir-lead-relacionado').addEventListener('click', ()=>{
+    const idDestino = sel.value;
+    closeModal();
+    setTimeout(()=> openModal(idDestino), 50);
+  });
+}
+document.getElementById('f-lead-relacionado')?.addEventListener('change', renderLeadRelacionadoPreview);
 document.getElementById('f-propiedad-lead')?.addEventListener('change', renderPropiedadLeadPreview);
 
 /* ---------- Pestañas del panel ---------- */
