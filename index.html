@@ -208,6 +208,9 @@
     </div>
     <div id="login-error"></div>
     <button class="btn btn-primary" id="btn-login">Entrar</button>
+    <div style="margin-top:10px;text-align:center;">
+      <a href="#" id="forgot-password-link" style="font-size:12px;">¿Olvidaste tu contraseña?</a>
+    </div>
   </div>
 </div>
 
@@ -563,6 +566,24 @@ function doLogin(){
 
 document.getElementById('btn-logout').addEventListener('click', ()=>{
   firebase.auth().signOut();
+});
+
+document.getElementById('forgot-password-link').addEventListener('click', function(e){
+  e.preventDefault();
+  const email = document.getElementById('login-email').value.trim();
+  loginError.textContent = '';
+  if(!email){
+    loginError.textContent = 'Escribe tu correo arriba y luego dale click a "¿Olvidaste tu contraseña?".';
+    return;
+  }
+  firebase.auth().sendPasswordResetEmail(email)
+    .then(()=>{
+      loginError.style.color = '';
+      loginError.textContent = 'Te enviamos un correo a ' + email + ' con instrucciones para restablecer tu contraseña.';
+    })
+    .catch(err=>{
+      loginError.textContent = 'No se pudo enviar el correo: ' + err.message;
+    });
 });
 
 firebase.auth().onAuthStateChanged(user=>{
