@@ -1,0 +1,630 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Habitat — Reserva tu conexión | Synapse Core</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600;700&display=swap');
+  :root{
+    --bg:#0a0d0c; --bg-panel:#111613; --line:#223028;
+    --green:#00ffa3; --green-dim:#0a3d2b; --amber:#ffb020;
+    --red:#ff5c5c; --red-dim:#3a1414; --grey:#8a8a8a;
+    --text:#eaf5ee; --muted:#7c9188; --muted-2:#4d5f57;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;-webkit-font-smoothing:antialiased;}
+  .mono{font-family:'JetBrains Mono',monospace;}
+  button{font-family:inherit;cursor:pointer;}
+  input,select,textarea{font-family:inherit;}
+  .wrap{max-width:720px;margin:0 auto;padding:0 16px 60px;}
+  header{padding:28px 0 20px;border-bottom:1px solid var(--line);margin-bottom:22px;}
+  .eyebrow{font-family:'JetBrains Mono',monospace;font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--green);margin-bottom:10px;display:flex;align-items:center;gap:8px;}
+  .eyebrow .dot{width:6px;height:6px;border-radius:50%;background:var(--green);box-shadow:0 0 8px var(--green);animation:pulse 2s infinite;}
+  @keyframes pulse{0%,100%{opacity:1;}50%{opacity:.35;}}
+  h1{font-family:'JetBrains Mono',monospace;font-size:clamp(20px,4vw,26px);font-weight:700;margin:0 0 4px;}
+  header .sub{color:var(--muted);font-size:13px;}
+  .btn{background:var(--bg-panel);border:1px solid var(--line);color:var(--text);padding:9px 14px;border-radius:7px;font-size:13px;font-weight:500;white-space:nowrap;transition:all .15s;}
+  .btn:hover{border-color:var(--muted);}
+  .btn-primary{background:var(--green-dim);border-color:var(--green);color:var(--green);font-weight:600;}
+  .btn-primary:hover{box-shadow:0 0 12px rgba(0,255,163,.25);}
+  .btn-sm{padding:6px 10px;font-size:11.5px;}
+  .btn:disabled{opacity:.4;cursor:not-allowed;}
+  .card{background:var(--bg-panel);border:1px solid var(--line);border-radius:10px;padding:16px;margin-bottom:14px;}
+  .field{margin-bottom:12px;}
+  .field label{display:block;font-size:11px;color:var(--muted);margin-bottom:5px;font-family:'JetBrains Mono',monospace;letter-spacing:.03em;text-transform:uppercase;}
+  .field input,.field select{width:100%;background:var(--bg);border:1px solid var(--line);color:var(--text);padding:9px 11px;border-radius:6px;font-size:13.5px;}
+  .day-block{margin-bottom:16px;}
+  .day-title{font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px;}
+  .slots{display:flex;flex-wrap:wrap;gap:8px;}
+  .slot-btn{background:var(--bg);border:1px solid var(--line);color:var(--text);padding:9px 13px;border-radius:7px;font-size:13px;font-family:'JetBrains Mono',monospace;}
+  .slot-btn:hover{border-color:var(--green);color:var(--green);}
+  .slot-btn.selected{background:var(--green-dim);border-color:var(--green);color:var(--green);}
+  .empty{color:var(--muted-2);text-align:center;padding:30px 0;font-size:13px;}
+  .overlay{position:fixed;inset:0;background:rgba(0,0,0,.65);display:none;align-items:center;justify-content:center;padding:16px;z-index:60;}
+  .overlay.open{display:flex;}
+  .modal{background:var(--bg-panel);border:1px solid var(--line);border-radius:12px;max-width:420px;width:100%;padding:22px;}
+  .modal h2{font-family:'JetBrains Mono',monospace;font-size:15px;color:var(--green);margin:0 0 14px;}
+  .confirm-box{background:var(--bg);border:1px solid var(--green);border-radius:8px;padding:14px;font-size:13px;line-height:1.6;margin-bottom:10px;}
+  #toggle-admin{position:fixed;bottom:14px;right:14px;font-size:10.5px;opacity:.35;}
+  #toggle-admin:hover{opacity:1;}
+  .admin-tabs{position:sticky;top:0;z-index:40;display:flex;gap:6px;background:var(--bg);padding:10px 0;margin-bottom:14px;border-bottom:1px solid var(--line);overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;}
+  .admin-tabs::-webkit-scrollbar{display:none;}
+  .admin-tab-btn{flex:0 0 auto;background:transparent;border:1px solid var(--line);color:var(--muted);padding:8px 14px;border-radius:20px;font-size:12.5px;font-weight:600;font-family:'JetBrains Mono',monospace;white-space:nowrap;transition:all .15s;}
+  .admin-tab-btn .tab-icon{margin-right:5px;}
+  .admin-tab-btn.active{background:var(--green-dim);border-color:var(--green);color:var(--green);}
+  .tab-panel{display:none;}
+  .tab-panel.active{display:block;}
+  .resumen-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px;}
+  .resumen-stat{background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:12px;text-align:center;}
+  .resumen-stat .num{font-family:'JetBrains Mono',monospace;font-size:22px;font-weight:700;color:var(--green);}
+  .resumen-stat .label{font-size:10.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin-top:2px;}
+  @media(max-width:480px){.admin-tab-btn{padding:8px 11px;font-size:11.5px;}}
+  .admin-wrap{display:none;}
+  .row2{display:grid;grid-template-columns:auto 1fr 1fr;gap:8px;align-items:center;margin-bottom:8px;}
+  .cita-item{border-bottom:1px solid var(--line);padding:10px 0;font-size:13px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;}
+  .cita-item:last-child{border-bottom:none;}
+  .cita-meta{color:var(--muted);font-size:11.5px;}
+  #login-error, #sync-msg{font-size:12px;color:var(--red);min-height:14px;margin-top:4px;}
+  .status-line{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--muted-2);margin-top:6px;}
+  .status-line.ok{color:var(--green);}
+  .prop-fotos{display:flex;gap:8px;overflow-x:auto;margin-bottom:12px;}
+  .prop-fotos img{height:120px;width:170px;object-fit:cover;border-radius:8px;border:1px solid var(--line);flex-shrink:0;background:var(--bg);}
+  .prop-precio{font-family:'JetBrains Mono',monospace;font-size:18px;color:var(--green);font-weight:700;margin-bottom:6px;}
+  .prop-ficha{display:flex;gap:14px;flex-wrap:wrap;font-size:12.5px;color:var(--muted);margin-bottom:8px;}
+  .prop-enlace-externo{display:block;background:var(--green-dim);border:1px solid var(--green);color:var(--green);text-align:center;padding:11px;border-radius:8px;font-weight:600;font-size:13.5px;text-decoration:none;margin-bottom:12px;}
+  .prop-enlace-externo:hover{opacity:.85;}
+  .prop-ficha span{background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:4px 9px;}
+  .prop-desc{font-size:13px;color:var(--text);line-height:1.5;}
+  .seg-item{border:1px solid var(--line);border-radius:8px;padding:12px;margin-bottom:10px;}
+  .seg-top{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap;}
+  .seg-estado{background:var(--bg);border:1px solid var(--line);color:var(--text);padding:6px 9px;border-radius:6px;font-size:12.5px;}
+  .seg-estado.est-confirmada{border-color:var(--green);color:var(--green);}
+  .seg-estado.est-realizada{border-color:var(--green);color:var(--green);}
+  .seg-estado.est-no_asistio{border-color:var(--red);color:var(--red);}
+  .seg-estado.est-cancelada{border-color:var(--red);color:var(--red);}
+  .seg-notas{margin-top:8px;display:flex;flex-direction:column;gap:4px;}
+  .seg-nota-item{font-size:12px;color:var(--muted);background:var(--bg);border-radius:6px;padding:6px 9px;}
+  .seg-add-row{display:flex;gap:6px;margin-top:8px;}
+  .seg-add-row input{flex:1;background:var(--bg);border:1px solid var(--line);color:var(--text);padding:8px 10px;border-radius:6px;font-size:13px;}
+  .cal-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;}
+  .cal-weekdays{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;font-size:11px;color:var(--muted);text-align:center;margin-bottom:4px;}
+  .cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;}
+  .cal-day{min-height:64px;border:1px solid var(--line);border-radius:6px;padding:5px;cursor:pointer;background:var(--bg);transition:border-color .15s;}
+  .cal-day:hover{border-color:var(--green);}
+  .cal-day.empty{visibility:hidden;pointer-events:none;}
+  .cal-day.today{border-color:var(--green);}
+  .cal-day.selected{background:rgba(0,200,120,0.08);border-color:var(--green);}
+  .cal-day-num{font-size:12px;color:var(--text);font-family:'JetBrains Mono',monospace;}
+  .cal-dots{display:flex;flex-wrap:wrap;gap:3px;margin-top:5px;}
+  .cal-dot{width:7px;height:7px;border-radius:50%;background:var(--muted);}
+  .cal-dot.est-confirmada,.cal-dot.est-realizada{background:var(--green);}
+  .cal-dot.est-no_asistio,.cal-dot.est-cancelada{background:var(--red);}
+  .cal-more{font-size:10px;color:var(--muted);margin-top:2px;}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow"><span class="dot"></span>IRÉ INMOBILIARIA · TEHUACÁN, PUE.</div>
+    <h1 id="page-title">Habitat</h1>
+
+    <div class="sub" id="page-sub">Elige el día y hora que mejor te acomode.</div>
+  </header>
+
+  <!-- ============ VISTA PÚBLICA ============ -->
+  <div id="public-view">
+    <div class="card" id="propiedad-picker-card" style="display:none;">
+      <div class="field" style="margin-bottom:0;">
+        <label>¿Qué propiedad quieres visitar?</label>
+        <select id="f-propiedad-publico"></select>
+      </div>
+      <div class="sub" id="propiedad-direccion-hint" style="margin-top:8px;"></div>
+    </div>
+    <div class="card" id="propiedad-detalle-card" style="display:none;">
+      <a id="propiedad-enlace-externo" href="#" target="_blank" rel="noopener" style="display:none;"></a>
+      <div class="prop-fotos" id="propiedad-fotos"></div>
+      <div class="prop-precio" id="propiedad-precio"></div>
+      <div class="prop-ficha" id="propiedad-ficha"></div>
+      <div class="prop-desc" id="propiedad-desc"></div>
+    </div>
+    <div id="slots-container"></div>
+  </div>
+
+</div>
+
+<!-- ============ MODAL DE CONFIRMACIÓN ============ -->
+<div class="overlay" id="overlay">
+  <div class="modal" id="modal-content">
+    <h2>Confirma tu cita</h2>
+    <div class="field"><label>Nombre</label><input type="text" id="f-nombre"></div>
+    <div class="field"><label>Apellido (opcional)</label><input type="text" id="f-apellido"></div>
+    <div class="field"><label>Teléfono (WhatsApp)</label><input type="text" id="f-telefono"></div>
+   <div class="field">
+  <label>¿Qué estás buscando?</label>
+  <select id="f-intencion">
+    <option value="">Selecciona una opción</option>
+    <option value="hogar">🏠 Encontrar un hogar</option>
+    <option value="renta">🔑 Rentar una propiedad</option>
+    <option value="venta">📍 Vender una propiedad</option>
+    <option value="inversion">📈 Buscar inversión</option>
+  </select>
+</div>
+
+<div class="field"><label>Notas (opcional)</label><input type="text" id="f-notas" placeholder="Ej. propiedad de interés"></div>
+ <div class="field"><label>Notas (opcional)</label><input type="text" 
+id="f-notas" placeholder="Ej. propiedad de interés"></div>
+    <input type="hidden" id="f-propiedad-id"><input type="hidden" id="f-propiedad-nombre">
+    <div class="confirm-box mono" id="confirm-summary"></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;">
+      <button class="btn" id="btn-cancel-modal">Cancelar</button>
+      <button class="btn btn-primary" id="btn-confirm-booking">Confirmar cita</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+
+<script>
+/* =========================================================
+   CONFIG
+   ========================================================= */
+const firebaseConfig = {
+  apiKey: "AIzaSyCCWAH2ceWogd_gw9fr1nNyd8whIh2L9kI",
+  authDomain: "gestor-leads-zapien.firebaseapp.com",
+  databaseURL: "https://gestor-leads-zapien-default-rtdb.firebaseio.com",
+  projectId: "gestor-leads-zapien",
+  storageBucket: "gestor-leads-zapien.firebasestorage.app",
+  messagingSenderId: "604443413324",
+  appId: "1:604443413324:web:b5e7da34a6f40aa2769de9"
+};
+const GOOGLE_CLIENT_ID = "856006955419-firc8kbakkt7tde4582jq3u00q1jpsru.apps.googleusercontent.com";
+const GOOGLE_SCOPE = "https://www.googleapis.com/auth/calendar";
+
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+const auth = firebase.auth();
+
+const DAY_KEYS = ["dom","lun","mar","mie","jue","vie","sab"];
+const DAY_LABELS = {dom:"Domingo",lun:"Lunes",mar:"Martes",mie:"Miércoles",jue:"Jueves",vie:"Viernes",sab:"Sábado"};
+
+/* =========================================================
+   PARÁMETROS DE URL (link personalizado por lead)
+   ========================================================= */
+const params = new URLSearchParams(location.search);
+const prefillNombre = params.get('nombre') || '';
+const prefillTelefono = params.get('telefono') || '';
+const leadId = params.get('leadId') || null;
+
+if(prefillNombre){
+  document.getElementById('page-title').textContent = `Hola, ${prefillNombre} 👋`;
+  document.getElementById('page-sub').textContent = 'Elige el día y hora que mejor te acomode para tu visita.';
+}
+
+/* =========================================================
+   ESTADO
+   ========================================================= */
+let horario = null; // { lun:{activo,inicio,fin}, ... duracionMin, velocidadKmH, bufferMin }
+let bloqueos = {};  // { "2026-07-20": ["09:00","09:30"] }
+let ocupados = {};  // desde citas_publicas: { "2026-07-20_09:00": {propiedadId} }
+let selectedSlot = null; // {dateKey, timeKey, label}
+let propiedades = {}; // { id: {nombre, direccion, lat, lng, activo} }
+let selectedPropiedadId = null;
+let ultimasCitas = {};
+
+/* =========================================================
+   CARGAR DISPONIBILIDAD (público)
+   ========================================================= */
+function loadPublicAvailability(){
+  db.ref('disponibilidad/horarios').on('value', snap=>{
+    horario = snap.val();
+    renderSlots();
+  });
+  db.ref('disponibilidad/bloqueos').on('value', snap=>{
+    bloqueos = snap.val() || {};
+    renderSlots();
+  });
+  db.ref('citas_publicas').on('value', snap=>{
+    ocupados = snap.val() || {};
+    renderSlots();
+  });
+  db.ref('propiedades').on('value', snap=>{
+    propiedades = snap.val() || {};
+    renderPropiedadPicker();
+    renderManualPropiedadSelect();
+    renderSlots();
+  });
+}
+
+/* =========================================================
+   PROPIEDADES — selector público + cálculo de traslado
+   ========================================================= */
+function renderPropiedadPicker(){
+  const card = document.getElementById('propiedad-picker-card');
+  const sel = document.getElementById('f-propiedad-publico');
+  const activas = Object.entries(propiedades).filter(([id,p])=>p.activo!==false);
+  if(activas.length === 0){
+    card.style.display = 'none';
+    selectedPropiedadId = null;
+    return;
+  }
+  card.style.display = 'block';
+  if(!selectedPropiedadId || !propiedades[selectedPropiedadId]){
+    selectedPropiedadId = activas[0][0];
+  }
+  sel.innerHTML = activas.map(([id,p])=>`<option value="${id}" ${id===selectedPropiedadId?'selected':''}>${escapeHtml(p.nombre)}</option>`).join('');
+  const p = propiedades[selectedPropiedadId];
+  document.getElementById('propiedad-direccion-hint').textContent = p && p.direccion ? '📍 ' + p.direccion : '';
+  renderPropiedadDetalle(p);
+}
+
+function renderPropiedadDetalle(p){
+  const card = document.getElementById('propiedad-detalle-card');
+  if(!p){ card.style.display = 'none'; return; }
+
+  const tieneFicha = p.enlaceExterno || p.precio || p.recamaras || p.banos || p.m2c || p.m2t || p.descripcion || (p.fotos && p.fotos.length);
+  if(!tieneFicha){ card.style.display = 'none'; return; }
+  card.style.display = 'block';
+
+  const enlaceEl = document.getElementById('propiedad-enlace-externo');
+  if(p.enlaceExterno){
+    enlaceEl.style.display = 'block';
+    enlaceEl.className = 'prop-enlace-externo';
+    enlaceEl.href = p.enlaceExterno;
+    enlaceEl.textContent = '🔗 Ver ficha completa de la propiedad →';
+  } else {
+    enlaceEl.style.display = 'none';
+  }
+
+  const fotosEl = document.getElementById('propiedad-fotos');
+  if(p.fotos && p.fotos.length){
+    fotosEl.style.display = 'flex';
+    fotosEl.innerHTML = p.fotos.map(url=>`<img src="${escapeHtml(url)}" loading="lazy" onerror="this.style.display='none'">`).join('');
+  } else {
+    fotosEl.style.display = 'none';
+    fotosEl.innerHTML = '';
+  }
+
+  const precioEl = document.getElementById('propiedad-precio');
+  if(p.precio){
+    precioEl.style.display = 'block';
+    precioEl.textContent = `$${Number(p.precio).toLocaleString('es-MX')}${p.operacion==='Renta' ? ' / mes' : ''}`;
+  } else {
+    precioEl.style.display = 'none';
+  }
+
+  const fichaEl = document.getElementById('propiedad-ficha');
+  const fichaItems = [];
+  if(p.operacion) fichaItems.push(p.operacion);
+  if(p.recamaras) fichaItems.push(p.recamaras + ' rec');
+  if(p.banos) fichaItems.push(p.banos + ' baños');
+  if(p.m2c) fichaItems.push(p.m2c + ' m² const.');
+  if(p.m2t) fichaItems.push(p.m2t + ' m² terreno');
+  fichaEl.style.display = fichaItems.length ? 'flex' : 'none';
+  fichaEl.innerHTML = fichaItems.map(t=>`<span>${escapeHtml(String(t))}</span>`).join('');
+
+  const descEl = document.getElementById('propiedad-desc');
+  descEl.style.display = p.descripcion ? 'block' : 'none';
+  descEl.textContent = p.descripcion || '';
+}
+document.getElementById('f-propiedad-publico').addEventListener('change', (e)=>{
+  selectedPropiedadId = e.target.value;
+  const p = propiedades[selectedPropiedadId];
+  document.getElementById('propiedad-direccion-hint').textContent = p && p.direccion ? '📍 ' + p.direccion : '';
+  renderPropiedadDetalle(p);
+  renderSlots();
+});
+
+function mapsLinkFor(p){
+  if(!p) return null;
+  if(p.lat!=null && p.lng!=null && p.lat!=='' && p.lng!=='') return `https://www.google.com/maps?q=${p.lat},${p.lng}`;
+  if(p.direccion) return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(p.direccion)}`;
+  return null;
+}
+
+function haversineKm(lat1,lng1,lat2,lng2){
+  const R = 6371;
+  const dLat = (lat2-lat1)*Math.PI/180;
+  const dLng = (lng2-lng1)*Math.PI/180;
+  const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLng/2)**2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+
+// Minutos estimados de traslado entre dos propiedades (línea recta + velocidad promedio + margen)
+function travelMinutes(propA, propB){
+  if(!propA || !propB || propA===propB) return 0;
+  if(propA.lat==null || propA.lng==null || propB.lat==null || propB.lng==null) return 0; // sin coordenadas, no se valida
+  const km = haversineKm(Number(propA.lat), Number(propA.lng), Number(propB.lat), Number(propB.lng));
+  const speed = (horario && horario.velocidadKmH) || 25;
+  const buffer = (horario && horario.bufferMin) || 10;
+  return Math.ceil((km / speed) * 60 + buffer);
+}
+
+function pad(n){ return n<10 ? '0'+n : ''+n; }
+function dateKey(d){ return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`; }
+
+// Normaliza un día a formato { activo, rangos:[{inicio,fin},...] }
+// (compatible con el formato viejo que solo tenía un rango inicio/fin)
+function normalizarDia(cfg){
+  if(!cfg) return { activo:false, rangos:[{inicio:'09:00', fin:'18:00'}] };
+  if(cfg.rangos) return cfg;
+  return { activo: cfg.activo, rangos: [{inicio: cfg.inicio || '09:00', fin: cfg.fin || '18:00'}] };
+}
+
+function generateSlotsForDay(date){
+  const dayKey = DAY_KEYS[date.getDay()];
+  const cfgRaw = horario && horario[dayKey];
+  const cfg = normalizarDia(cfgRaw);
+  if(!cfg.activo) return [];
+  const dur = (horario.duracionMin) || 30;
+  const dKey = dateKey(date);
+  const blocked = bloqueos[dKey] || [];
+  const slots = [];
+  const now = new Date();
+
+  // Citas ya agendadas ese día (con su propiedad), para validar traslado
+  const citasDelDia = Object.entries(ocupados)
+    .filter(([k])=>k.startsWith(dKey+'_'))
+    .map(([k,v])=>{
+      const hora = k.split('_')[1];
+      const [h,m] = hora.split(':').map(Number);
+      const propId = (v && typeof v === 'object') ? v.propiedadId : null;
+      return { startMin: h*60+m, endMin: h*60+m+dur, propId };
+    });
+
+  const propiedadElegida = selectedPropiedadId ? propiedades[selectedPropiedadId] : null;
+
+  (cfg.rangos || []).forEach(rango=>{
+    if(!rango.inicio || !rango.fin) return;
+    const [hI,mI] = rango.inicio.split(':').map(Number);
+    const [hF,mF] = rango.fin.split(':').map(Number);
+    let startMin = hI*60+mI;
+    const endMin = hF*60+mF;
+    while(startMin + dur <= endMin){
+      const h = Math.floor(startMin/60), m = startMin%60;
+      const timeLabel = `${pad(h)}:${pad(m)}`;
+      const slotDate = new Date(date); slotDate.setHours(h,m,0,0);
+      const isPast = slotDate <= now;
+      const isBlocked = blocked.includes(timeLabel);
+      const isTaken = ocupados[`${dKey}_${timeLabel}`];
+
+      let isBlockedByTravel = false;
+      if(propiedadElegida){
+        const candStart = startMin, candEnd = startMin + dur;
+        for(const c of citasDelDia){
+          if(c.startMin === candStart) continue; // ya cubierto por isTaken
+          const otraProp = c.propId ? propiedades[c.propId] : null;
+          const t = travelMinutes(propiedadElegida, otraProp);
+          if(t <= 0) continue;
+          if(c.endMin <= candStart){
+            if(candStart - c.endMin < t){ isBlockedByTravel = true; break; }
+          } else if(candEnd <= c.startMin){
+            if(c.startMin - candEnd < t){ isBlockedByTravel = true; break; }
+          }
+        }
+      }
+
+      if(!isPast && !isBlocked && !isTaken && !isBlockedByTravel && !slots.includes(timeLabel)){
+        slots.push(timeLabel);
+      }
+      startMin += dur;
+    }
+  });
+  slots.sort();
+  return slots;
+}
+
+function renderSlots(){
+  const container = document.getElementById('slots-container');
+  if(!horario){
+    container.innerHTML = `<div class="empty">Cargando disponibilidad…</div>`;
+    return;
+  }
+  const days = [];
+  const today = new Date();
+  // Anticipación mínima: 1 día (no se muestran horarios de hoy, solo de mañana en adelante)
+  for(let i=1;i<=14;i++){
+    const d = new Date(today);
+    d.setDate(today.getDate()+i);
+    const slots = generateSlotsForDay(d);
+    if(slots.length > 0) days.push({date:d, slots});
+  }
+  if(days.length === 0){
+    container.innerHTML = `<div class="empty">No hay horarios disponibles en los próximos días. Escríbenos directo por WhatsApp.</div>`;
+    return;
+  }
+  container.innerHTML = days.map(({date,slots})=>{
+    const dKey = dateKey(date);
+    const label = date.toLocaleDateString('es-MX', {weekday:'long', day:'numeric', month:'long'});
+    return `
+    <div class="day-block">
+      <div class="day-title">${label}</div>
+      <div class="slots">
+        ${slots.map(t=>`<button class="slot-btn" data-date="${dKey}" data-time="${t}">${t}</button>`).join('')}
+      </div>
+    </div>`;
+  }).join('');
+
+  container.querySelectorAll('.slot-btn').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const dKey = btn.dataset.date;
+      const t = btn.dataset.time;
+      const d = new Date(dKey+'T00:00:00');
+      const label = d.toLocaleDateString('es-MX', {weekday:'long', day:'numeric', month:'long'}) + ' — ' + t;
+      openBookingModal(dKey, t, label);
+    });
+  });
+}
+
+/* =========================================================
+   MODAL DE RESERVA
+   ========================================================= */
+const overlay = document.getElementById('overlay');
+function openBookingModal(dateKey_, timeKey, label){
+  selectedSlot = {dateKey: dateKey_, timeKey, label};
+  document.getElementById('f-nombre').value = prefillNombre;
+  document.getElementById('f-apellido').value = '';
+  document.getElementById('f-telefono').value = prefillTelefono;
+  document.getElementById('f-notas').value = '';
+  const p = selectedPropiedadId ? propiedades[selectedPropiedadId] : null;
+  document.getElementById('f-propiedad-id').value = selectedPropiedadId || '';
+  document.getElementById('f-propiedad-nombre').value = p ? p.nombre : '';
+  document.getElementById('confirm-summary').innerHTML = p ? `📅 ${escapeHtml(label)}<br>🏠 ${escapeHtml(p.nombre)}` : `📅 ${escapeHtml(label)}`;
+  overlay.classList.add('open');
+}
+document.getElementById('btn-cancel-modal').addEventListener('click', ()=> overlay.classList.remove('open'));
+overlay.addEventListener('click', e=>{ if(e.target===overlay) overlay.classList.remove('open'); });
+
+function bitacoraKey(){
+  return new Date().toISOString().slice(0,16).replace('T',' ') + '__' + Math.random().toString(36).slice(2,6);
+}
+
+// Crea o actualiza el lead correspondiente en el Gestor de Leads para que la cita
+// aparezca ahí automáticamente (el Gestor escucha /leads en tiempo real).
+function normalizarTelefono(tel){
+  return String(tel||'').replace(/\D/g,'').slice(-10);
+}
+
+async function upsertLeadParaCita({nombre, apellido, telefono, notas, propiedadId, propiedadNombre}){
+  const propTxt = propiedadNombre ? ` — ${propiedadNombre}` : '';
+  const propObj = propiedadId ? propiedades[propiedadId] : null;
+  const telNorm = normalizarTelefono(telefono);
+
+  let idParaActualizar = leadId || null;
+
+  // Si no vino leadId en el link, buscamos si ya existe un lead con este teléfono
+  // (para no duplicarlo si ya lo tenías capturado).
+  if(!idParaActualizar && telNorm){
+    try{
+      const idxSnap = await db.ref('telefonos_index/'+telNorm).once('value');
+      if(idxSnap.exists()) idParaActualizar = idxSnap.val();
+    }catch(e){ /* si no se puede consultar, seguimos y se crea uno nuevo */ }
+  }
+
+  if(idParaActualizar){
+    try{
+      await db.ref('leads/'+idParaActualizar).update({
+        proximaAccion: `Visita programada${propTxt}`,
+        fechaProximaAccion: selectedSlot.dateKey
+      });
+      await db.ref('leads/'+idParaActualizar+'/bitacora/'+bitacoraKey())
+        .set(`Cliente agendó su visita para ${selectedSlot.label}${propTxt} desde la agenda pública.`);
+      return idParaActualizar;
+    }catch(e){
+      // El lead ya no existe o el índice estaba desactualizado — seguimos y creamos uno nuevo.
+    }
+  }
+
+  // No había lead previo: se crea uno nuevo con lo capturado en la agenda pública.
+  const nombreCompleto = apellido ? `${nombre} ${apellido}` : nombre;
+  const operacionProp = (propObj && propObj.operacion) || 'Compra';
+  const tipoDefault = operacionProp === 'Renta' ? 'Inquilino' : 'Comprador';
+  const newLeadId = db.ref('leads').push().key;
+
+  await db.ref('leads/'+newLeadId).set({
+    nombre: nombreCompleto,
+    telefono,
+    
+intencion: document.getElementById('f-intencion')?.value || '',
+    email: '',
+    fuente: 'Agenda pública',
+    operacion: operacionProp,
+    tipo: tipoDefault,
+    presupuesto: '',
+    ubicacion: (propObj && propObj.direccion) || '',
+    valorEstimado: (propObj && Number(propObj.precio)) || 0,
+    probabilidad: 30,
+    proximaAccion: `Visita programada${propTxt}`,
+    fechaProximaAccion: selectedSlot.dateKey,
+    notas: notas || '',
+    
+etapa: 'visita_programada',
+    fechaCreacion: dateKey(new Date()),
+    fechaCierre: null,
+    checklist: {},
+    bitacora: { [bitacoraKey()]: `Nodo creado desde agenda pública. Intención: ${document.getElementById('f-intencion')?.value || 'No especificada'}. Cita: ${selectedSlot.label}${propTxt}.` }
+ }
+  });
+  if(telNorm){
+    db.ref('telefonos_index/'+telNorm).set(newLeadId).catch(()=>{});
+  }
+  return newLeadId;
+}
+
+document.getElementById('btn-confirm-booking').addEventListener('click', async ()=>{
+  const nombre = document.getElementById('f-nombre').value.trim();
+  const apellido = document.getElementById('f-apellido').value.trim();
+  const telefono = document.getElementById('f-telefono').value.trim();
+  const notas = document.getElementById('f-notas').value.trim();
+  const propiedadId = document.getElementById('f-propiedad-id').value || null;
+  const propiedadNombre = document.getElementById('f-propiedad-nombre').value || null;
+  if(!nombre || !telefono){ alert('Pon tu nombre y teléfono para poder confirmarte la cita.'); return; }
+  if(!selectedSlot) return;
+
+  const slotFlagKey = `${selectedSlot.dateKey}_${selectedSlot.timeKey}`;
+  const btn = document.getElementById('btn-confirm-booking');
+  btn.disabled = true; btn.textContent = 'Agendando…';
+
+  try{
+    // 1. crear/actualizar el lead PRIMERO — si esto falla, no se toca el horario todavía
+    const nombreCompleto = apellido ? `${nombre} ${apellido}` : nombre;
+    const leadIdFinal = await upsertLeadParaCita({nombre, apellido, telefono, notas, propiedadId, propiedadNombre});
+
+    // 2. marcar el horario ocupado Y guardar la cita como UNA sola operación atómica:
+    // o se guardan las dos juntas, o no se guarda ninguna — así no puede quedar
+    // un horario "fantasma" ocupado sin que exista su cita.
+    const citaId = db.ref('citas').push().key;
+    const updates = {};
+    updates['citas_publicas/'+slotFlagKey] = { propiedadId: propiedadId || null };
+    updates['citas/'+citaId] = {
+      nombre: nombreCompleto, telefono, notas,
+      propiedadId, propiedadNombre,
+      fecha: selectedSlot.dateKey,
+      hora: selectedSlot.timeKey,
+      leadId: leadIdFinal || null,
+      estado: 'pendiente',
+      creado: new Date().toISOString()
+    };
+    await db.ref().update(updates);
+
+    const propObj = propiedadId ? propiedades[propiedadId] : null;
+    const mapsLink = mapsLinkFor(propObj);
+    const direccionBlock = (propObj && (propObj.direccion || mapsLink)) ? `
+      <div class="sub" style="margin:10px 0;text-align:left;">
+        ${propObj.direccion ? '📍 ' + escapeHtml(propObj.direccion) + '<br>' : ''}
+        ${mapsLink ? `<a href="${mapsLink}" target="_blank" style="color:var(--green);">Ver ubicación en Google Maps →</a>` : ''}
+      </div>` : '';
+    document.getElementById('modal-content').innerHTML = `
+      <h2>🔗 Conexión creada</h2>
+      <div class="confirm-box mono">📅 ${selectedSlot.label}${propiedadNombre?'<br>🏠 '+escapeHtml(propiedadNombre):''}<br>👤 ${escapeHtml(nombreCompleto)}</div>
+      ${direccionBlock}
+      <div class="sub" style="margin-bottom:14px;">Tu intención ya está conectada con Habitat. Te acompañaremos en el siguiente paso por WhatsApp.</div>
+      <button class="btn btn-primary" onclick="location.reload()">Listo</button>
+    `;
+  }catch(err){
+    console.error(err);
+    alert('Ese horario ya no está disponible, elige otro.');
+    btn.disabled = false; btn.textContent = 'Confirmar cita';
+    overlay.classList.remove('open');
+  }
+});
+
+
+
+function escapeHtml(s){
+  return String(s).replace(/[&<>"']/g, ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+}
+
+/* =========================================================
+   INIT
+   ========================================================= */
+loadPublicAvailability();
+</script>
+</body>
+</html>
+
+
