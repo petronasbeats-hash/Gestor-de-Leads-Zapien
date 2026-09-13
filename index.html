@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-<title>Gestor de Leads — Iré Inmobiliaria</title>
+<title>Synapse Core — Iré Inmobiliaria</title>
 <link rel="manifest" href="data:application/manifest+json,{}">
 <style>
   @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600;700&display=swap');
@@ -195,8 +195,8 @@
 
 <div class="login-wrap" id="login-wrap">
   <div class="login-box">
-    <div class="eyebrow"><span class="dot"></span>IRÉ INMOBILIARIA · TEHUACÁN, PUE.</div>
-    <h1 class="mono">Gestor de Leads</h1>
+    <div class="eyebrow"><span class="dot"></span>SYNAPSE CORE · IRÉ INMOBILIARIA</div>
+    <h1 class="mono">Synapse Core</h1>
     <div class="sub">Inicia sesión con tu correo y contraseña para continuar.</div>
     <div class="field">
       <label>Correo</label>
@@ -216,8 +216,8 @@
 
 <div class="app" id="app-root" style="display:none;">
   <header>
-    <div class="eyebrow"><span class="dot"></span>IRÉ INMOBILIARIA · TEHUACÁN, PUE.</div>
-    <h1>Gestor de Leads</h1>
+    <div class="eyebrow"><span class="dot"></span>SYNAPSE CORE · IRÉ INMOBILIARIA · TEHUACÁN, PUE.</div>
+    <h1>Synapse Core</h1>
     <div class="sub">Pipeline de 9 etapas, con checklist de calidad y bitácora por lead.</div>
     <div id="sync-status" class="mono">
       <span id="sync-status-text">conectando…</span>
@@ -404,7 +404,7 @@
   </div>
 </div>
 
-<footer class="appfoot" id="app-footer" style="display:none;">GESTOR_LEADS · v1 · Sebastián Zapién</footer>
+<footer class="appfoot" id="app-footer" style="display:none;">SYNAPSE_CORE · Iré Inmobiliaria · Sebastián Zapién</footer>
 
 <div class="overlay" id="overlay">
   <div class="modal">
@@ -734,6 +734,14 @@ const STAGES_RENTA = [
 const STAGE_BY_ID_RENTA = Object.fromEntries(STAGES_RENTA.map(s=>[s.id,s]));
 
 function stagesForOperacion(op){ return op === 'Renta' ? STAGES_RENTA : STAGES; }
+// NEXT ACTION para LEADS: misma filosofía EVENTO→ESTADO→NEXT ACTION que ya usamos en citas.
+// Synapse SUGIERE la próxima acción a partir de la primera acción definida para la etapa
+// (contenido que ya existía en el protocolo — no se inventa nada nuevo). Nunca sobrescribe
+// una "próxima acción" que el humano ya haya escrito — ver los dos puntos donde se usa.
+function sugerenciaAccionPara(operacion, etapaId){
+  const s = stageByIdForOperacion(operacion, etapaId);
+  return (s && s.acciones && s.acciones[0]) || '';
+}
 function stageByIdForOperacion(op, etapaId){
   const map = op === 'Renta' ? STAGE_BY_ID_RENTA : STAGE_BY_ID;
   return map[etapaId] || stagesForOperacion(op)[0];
@@ -753,8 +761,14 @@ function updateRolOptions(operacion, rolActual){
 document.getElementById('f-operacion').addEventListener('change', (e)=>{
   updateRolOptions(e.target.value, null);
   currentStageId = stagesForOperacion(e.target.value)[0].id;
+  const accionEl = document.getElementById('f-accion');
+  if(accionEsSugerida || !accionEl.value.trim()){
+    accionEl.value = sugerenciaAccionPara(e.target.value, currentStageId);
+    accionEsSugerida = true;
+  }
   renderStagePane();
 });
+document.getElementById('f-accion').addEventListener('input', ()=>{ accionEsSugerida = false; });
 updateRolOptions('Compra', null);
 
 function startListening(){
@@ -768,6 +782,11 @@ function startListening(){
     renderAll();
     renderManualLeadSelect();
     renderLeadRelacionadoSelect();
+    // Context Layer V1: si el teléfono/nombre de un lead cambia, las citas que lo referencian
+    // (vía leadId) deben reflejarlo de inmediato en todas las pantallas de citas.
+    renderCitasList(ultimasCitas);
+    renderSeguimientoList(ultimasCitas);
+    renderCalendario(ultimasCitas);
     if(!backfillHecho){
       backfillHecho = true;
       backfillIndiceTelefonos();
@@ -812,6 +831,10 @@ function deleteLeadRemote(id){
 
 let currentLeadId = null;
 let currentStageId = "nuevo";
+// true mientras el texto de "próxima acción" siga siendo la sugerencia de Synapse
+// (aún no tocada por el humano) — así el cambio de etapa la puede seguir actualizando;
+// en cuanto el humano escribe algo, pasa a false y Synapse ya no la vuelve a pisar.
+let accionEsSugerida = false;
 let currentTab = "datos";
 
 function uid(){ return 'L' + Date.now().toString(36) + Math.random().toString(36).slice(2,6); }
@@ -959,7 +982,9 @@ function openModal(id){
   renderLeadRelacionadoPreview();
   document.getElementById('f-valor').value = lead?.valorEstimado || '';
   document.getElementById('f-prob').value = lead?.probabilidad || '';
-  document.getElementById('f-accion').value = lead?.proximaAccion || '';
+  const accionGuardada = lead?.proximaAccion || '';
+  accionEsSugerida = !accionGuardada; // vacío/lead nuevo → sugerencia viva; texto ya guardado → se trata como decisión humana
+  document.getElementById('f-accion').value = accionGuardada || sugerenciaAccionPara(operacionLead, currentStageId);
   document.getElementById('f-fecha-accion').value = lead?.fechaProximaAccion || '';
   document.getElementById('f-notas').value = lead?.notas || '';
 
@@ -989,7 +1014,17 @@ function renderStagePane(){
     <button class="stage-pill ${s.lost?'lost-pill':''} ${s.id===currentStageId?'current':''}" data-id="${s.id}">${s.num} ${s.label}</button>
   `).join('');
   pillsEl.querySelectorAll('.stage-pill').forEach(p=>{
-    p.addEventListener('click', ()=>{ currentStageId = p.dataset.id; renderStagePane(); });
+    p.addEventListener('click', ()=>{
+      currentStageId = p.dataset.id;
+      // Synapse sugiere la próxima acción para la nueva etapa — pero jamás pisa
+      // una próxima acción que el humano ya escribió (override humano).
+      const accionEl = document.getElementById('f-accion');
+      if(accionEsSugerida || !accionEl.value.trim()){
+        accionEl.value = sugerenciaAccionPara(operacionActual, currentStageId);
+        accionEsSugerida = true;
+      }
+      renderStagePane();
+    });
   });
 
   const s = stageByIdForOperacion(operacionActual, currentStageId);
@@ -1187,6 +1222,27 @@ document.getElementById('import-file').addEventListener('change', (e)=>{
 const DAY_KEYS = ["dom","lun","mar","mie","jue","vie","sab"];
 const DAY_LABELS = {dom:"Domingo",lun:"Lunes",mar:"Martes",mie:"Miércoles",jue:"Jueves",vie:"Viernes",sab:"Sábado"};
 const ESTADOS_CITA = { pendiente:'Pendiente', confirmada:'Confirmada', realizada:'Realizada', no_asistio:'No asistió', cancelada:'Cancelada' };
+// NEXT ACTION: cada estado de una cita implica una siguiente acción lógica que Synapse ya entiende,
+// aunque hoy todavía la ejecute una persona (ver /areas/ire-lead-tracker.md — filosofía Synapse Core).
+function registrarTraceCita(citaId, trace){
+  const traceId = db.ref('citas/'+citaId+'/historial').push().key;
+  const entry = {
+    tipo: trace.tipo,
+    fecha: trace.fecha || new Date().toISOString(),
+    origen: trace.origen || 'synapse'
+  };
+  if(trace.anterior !== undefined) entry.anterior = trace.anterior;
+  if(trace.nuevo !== undefined) entry.nuevo = trace.nuevo;
+  if(trace.fechaAnterior !== undefined) entry.fechaAnterior = trace.fechaAnterior;
+  if(trace.horaAnterior !== undefined) entry.horaAnterior = trace.horaAnterior;
+  if(trace.fechaNueva !== undefined) entry.fechaNueva = trace.fechaNueva;
+  if(trace.horaNueva !== undefined) entry.horaNueva = trace.horaNueva;
+  if(trace.resultadoAnterior !== undefined) entry.resultadoAnterior = trace.resultadoAnterior;
+  if(trace.resultadoNuevo !== undefined) entry.resultadoNuevo = trace.resultadoNuevo;
+  if(trace.seguimientoId !== undefined) entry.seguimientoId = trace.seguimientoId;
+  return { traceId, entry };
+}
+const NEXT_ACTION_POR_ESTADO = { pendiente:'Confirmar visita', confirmada:'Preparar visita', realizada:'Dar seguimiento', no_asistio:'Reprogramar', cancelada:'Reprogramar' };
 const MESES_ES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 const ETAPAS_PRE_VISITA = ['nuevo','contactado','calificado','requisitos','visita_programada'];
 
@@ -1385,6 +1441,12 @@ function loadAdminData(){
     renderManualPropiedadSelect();
     renderResumenStats();
     renderPropiedadLeadSelect();
+    // Context Layer V1: si el nombre de una propiedad cambia, las citas Y las tarjetas de
+    // lead que ya la referencian (badge 🏠 en el pipeline) deben reflejarlo de inmediato.
+    renderCitasList(ultimasCitas);
+    renderSeguimientoList(ultimasCitas);
+    renderCalendario(ultimasCitas);
+    renderAll();
   });
 }
 
@@ -1712,15 +1774,20 @@ document.getElementById('btn-add-manual').addEventListener('click', ()=>{
     })
     .then(()=>{
       const citaId = db.ref('citas').push().key;
-      return db.ref('citas/'+citaId).set({
+      const creado = new Date().toISOString();
+      const trace = registrarTraceCita(citaId, { tipo: 'creacion', fecha: creado, origen: 'synapse' });
+      const updates = {};
+      updates['citas/'+citaId] = {
         nombre, telefono, notas,
         propiedadId, propiedadNombre,
         fecha, hora,
         leadId,
         estado: 'pendiente',
         manual: true,
-        creado: new Date().toISOString()
-      });
+        creado
+      };
+      updates['citas/'+citaId+'/historial/'+trace.traceId] = trace.entry;
+      return db.ref().update(updates);
     })
     .then(()=> leadId ? sincronizarLeadPorNuevaCita(leadId, fecha, hora, propiedadNombre) : null)
     .then(()=>{
@@ -1871,6 +1938,50 @@ function renderHorariosFantasma(){
   });
 }
 
+/* ---------- CONTEXT LAYER V1 ---------- */
+// Reconstruye el contexto de una interacción (persona+propiedad+cita+estado+nextAction+lead)
+// a partir de datos que YA están en memoria (leads, propiedades). No lee ni escribe Firebase,
+// no inventa campos nuevos: solo interpreta las relaciones que ya existen vía leadId/propiedadId.
+function buildContext(cita){
+  const lead = cita.leadId ? (leads[cita.leadId] || null) : null;
+  const propiedadViva = cita.propiedadId ? (propiedades[cita.propiedadId] || null) : null;
+  return {
+    persona: {
+      nombre: (lead && lead.nombre) || cita.nombre || '',
+      telefono: (lead && lead.telefono) || cita.telefono || ''
+    },
+    propiedad: {
+      id: cita.propiedadId || null,
+      // Preferimos el nombre VIVO de la propiedad (por si se editó/renombró después);
+      // si ya no existe (borrada) o nunca hubo propiedadId, caemos al nombre cacheado en la cita.
+      nombre: (propiedadViva && propiedadViva.nombre) || cita.propiedadNombre || null
+    },
+    cita: { id: cita.id || null, fecha: cita.fecha, hora: cita.hora },
+    estado: cita.estado || 'pendiente',
+    // Respeta cualquier nextAction ya guardado (manual o del mapa); si la cita es vieja y
+    // nunca tuvo nextAction, lo deriva del estado — así nunca rompe citas creadas antes de este campo.
+    nextAction: cita.nextAction || NEXT_ACTION_POR_ESTADO[cita.estado || 'pendiente'] || '',
+    lead: lead ? { etapa: lead.etapa || null, proximaAccion: lead.proximaAccion || null } : null
+  };
+}
+
+// Acción de WhatsApp para una cita — ÚNICA implementación, reutilizada tanto en
+// "Próximas citas" (Resumen) como en el tab Citas (Seguimiento/Calendario).
+// Usa siempre el contexto actual (persona/propiedad vivos), no snapshots viejos.
+function telefonoValidoParaWhatsApp(tel){ const d = (tel||'').replace(/\D/g,''); return d.length >= 8 ? d : ''; }
+function abrirWhatsAppParaCita(cita){
+  const ctx = buildContext(cita);
+  const phone = telefonoValidoParaWhatsApp(ctx.persona.telefono);
+  if(!phone){ alert('Esta cita no tiene un teléfono válido para WhatsApp.'); return; }
+  const p = ctx.propiedad.id ? propiedades[ctx.propiedad.id] : null;
+  const mapsLink = mapsLinkFor(p);
+  let msg = `Hola ${ctx.persona.nombre}, confirmamos tu visita el ${ctx.cita.fecha} a las ${ctx.cita.hora}.`;
+  if(p && p.direccion) msg += ` Dirección: ${p.direccion}.`;
+  if(mapsLink) msg += ` Ubicación en Maps: ${mapsLink}`;
+  msg += ' ¡Nos vemos!';
+  window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`,'_blank');
+}
+
 function renderCitasList(citasObj){
   const list = document.getElementById('citas-list');
   const today = dateKey(new Date());
@@ -1882,11 +1993,14 @@ function renderCitasList(citasObj){
     list.innerHTML = `<div class="empty">Sin citas próximas.</div>`;
     return;
   }
-  list.innerHTML = arr.map(c=>`
+  list.innerHTML = arr.map(c=>{
+    const ctx = buildContext(c);
+    return `
     <div class="cita-item">
       <div>
-        <b>${escapeHtml(c.nombre)}</b> — ${c.fecha} ${c.hora} ${c.propiedadNombre?'· 🏠 '+escapeHtml(c.propiedadNombre):''} ${c.manual?'<span class="cita-meta" style="color:var(--green);">· manual</span>':''}
-        <div class="cita-meta">${escapeHtml(c.telefono||'')} ${c.notas?'· '+escapeHtml(c.notas):''}</div>
+        <b>${escapeHtml(ctx.persona.nombre)}</b> — ${c.fecha} ${c.hora} ${ctx.propiedad.nombre?'· 🏠 '+escapeHtml(ctx.propiedad.nombre):''} ${c.manual?'<span class="cita-meta" style="color:var(--green);">· manual</span>':''}
+        <div class="cita-meta">${escapeHtml(ctx.persona.telefono)} ${c.notas?'· '+escapeHtml(c.notas):''}</div>
+        <div class="cita-meta" style="color:var(--amber);">→ Siguiente: ${escapeHtml(ctx.nextAction)}</div>
       </div>
       <div style="display:flex;gap:6px;">
         <button class="btn btn-sm" data-action="gcal" data-id="${c.id}">+ Google Calendar</button>
@@ -1894,28 +2008,29 @@ function renderCitasList(citasObj){
         <button class="btn btn-sm" data-action="del" data-id="${c.id}" style="color:var(--red);">Cancelar</button>
       </div>
     </div>
-  `).join('');
+  `;
+  }).join('');
 
   list.querySelectorAll('[data-action="del"]').forEach(btn=>{
     btn.addEventListener('click', ()=>{
       const c = arr.find(x=>x.id===btn.dataset.id);
       if(!confirm('¿Cancelar esta cita?')) return;
-      db.ref('citas/'+c.id).remove();
-      db.ref('citas_publicas/'+c.fecha+'_'+c.hora).remove();
+      const estadoAnterior = c.estado || 'pendiente';
+      const trace = registrarTraceCita(c.id, { tipo: 'estado', anterior: estadoAnterior, nuevo: 'cancelada', origen: 'synapse' });
+      const updates = {};
+      updates['citas/'+c.id+'/estado'] = 'cancelada';
+      updates['citas/'+c.id+'/nextAction'] = NEXT_ACTION_POR_ESTADO.cancelada || 'Reprogramar';
+      updates['citas/'+c.id+'/historial/'+trace.traceId] = trace.entry;
+      updates['citas_publicas/'+c.fecha+'_'+c.hora] = null;
+      db.ref().update(updates)
+        .then(()=> sincronizarLeadPorEstadoCita(c, 'cancelada'))
+        .catch(err=> alert('No se pudo cancelar la cita.\n\nError: ' + err.message));
     });
   });
   list.querySelectorAll('[data-action="wa"]').forEach(btn=>{
     btn.addEventListener('click', ()=>{
       const c = arr.find(x=>x.id===btn.dataset.id);
-      const phone = (c.telefono||'').replace(/\D/g,'');
-      const p = c.propiedadId ? propiedades[c.propiedadId] : null;
-      const mapsLink = mapsLinkFor(p);
-      let msg = `Hola ${c.nombre}, confirmamos tu visita el ${c.fecha} a las ${c.hora}.`;
-      if(p && p.direccion) msg += ` Dirección: ${p.direccion}.`;
-      if(mapsLink) msg += ` Ubicación en Maps: ${mapsLink}`;
-      msg += ' ¡Nos vemos!';
-      const text = encodeURIComponent(msg);
-      window.open(`https://wa.me/${phone}?text=${text}`,'_blank');
+      abrirWhatsAppParaCita(c);
     });
   });
   list.querySelectorAll('[data-action="gcal"]').forEach(btn=>{
@@ -1928,19 +2043,22 @@ function renderCitasList(citasObj){
 
 /* ---------- Seguimiento de citas ---------- */
 function citaSeguimientoItemHtml(c){
-  const estadoActual = c.estado || 'pendiente';
+  const ctx = buildContext(c);
+  const estadoActual = ctx.estado;
   const notas = c.seguimiento ? Object.entries(c.seguimiento).sort((a,b)=>a[1].fecha.localeCompare(b[1].fecha)) : [];
   return `
     <div class="seg-item" data-cita-id="${c.id}">
       <div class="seg-top">
         <div>
-          <b>${escapeHtml(c.nombre)}</b> — ${c.fecha} ${c.hora} ${c.propiedadNombre?'· 🏠 '+escapeHtml(c.propiedadNombre):''}
-          <div class="cita-meta">${escapeHtml(c.telefono||'')}</div>
+          <b>${escapeHtml(ctx.persona.nombre)}</b> — ${c.fecha} ${c.hora} ${ctx.propiedad.nombre?'· 🏠 '+escapeHtml(ctx.propiedad.nombre):''}
+          <div class="cita-meta">${escapeHtml(ctx.persona.telefono)}</div>
+          <div class="cita-meta" style="color:var(--amber);">→ Siguiente: ${escapeHtml(ctx.nextAction)}</div>
         </div>
         <select class="seg-estado est-${estadoActual}" data-action="seg-estado" data-id="${c.id}">
           ${Object.entries(ESTADOS_CITA).map(([val,label])=>`<option value="${val}" ${val===estadoActual?'selected':''}>${label}</option>`).join('')}
         </select>
       </div>
+      ${telefonoValidoParaWhatsApp(ctx.persona.telefono) ? `<div style="margin-top:6px;"><button class="btn btn-sm" data-action="seg-wa" data-id="${c.id}">WhatsApp</button></div>` : ''}
       <div class="seg-notas">
         ${notas.length ? notas.map(([nid,n])=>`<div class="seg-nota-item">🗒️ ${new Date(n.fecha).toLocaleString('es-MX',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})} — ${escapeHtml(n.texto)}</div>`).join('') : ''}
       </div>
@@ -1957,12 +2075,27 @@ function attachSeguimientoHandlers(container){
     sel.addEventListener('change', ()=>{
       const id = sel.dataset.id;
       const cita = ultimasCitas[id];
-      db.ref('citas/'+id+'/estado').set(sel.value)
+      const estadoAnterior = cita.estado || 'pendiente';
+      const estadoNuevo = sel.value;
+      if(estadoAnterior === estadoNuevo) return;
+      const trace = registrarTraceCita(id, { tipo: 'estado', anterior: estadoAnterior, nuevo: estadoNuevo, origen: 'synapse' });
+      const updates = {};
+      updates['citas/'+id+'/estado'] = estadoNuevo;
+      updates['citas/'+id+'/nextAction'] = NEXT_ACTION_POR_ESTADO[estadoNuevo] || '';
+      updates['citas/'+id+'/historial/'+trace.traceId] = trace.entry;
+      db.ref().update(updates)
         .then(()=>{
-          sel.className = 'seg-estado est-' + sel.value;
-          return sincronizarLeadPorEstadoCita(cita, sel.value);
+          sel.className = 'seg-estado est-' + estadoNuevo;
+          return sincronizarLeadPorEstadoCita(cita, estadoNuevo);
         })
         .catch(err=> alert('No se pudo actualizar el estado.\n\nError: ' + err.message));
+    });
+  });
+
+  container.querySelectorAll('[data-action="seg-wa"]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const cita = ultimasCitas[btn.dataset.id];
+      if(cita) abrirWhatsAppParaCita(cita);
     });
   });
 
