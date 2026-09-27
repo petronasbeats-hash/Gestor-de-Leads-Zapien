@@ -801,8 +801,8 @@ function normalizarTelefono(tel){
   return String(tel||'').replace(/\D/g,'').slice(-10);
 }
 
-// Backfill: asegura que todo lead con teléfono tenga su entrada en telefonos_index,
-// para que la agenda pública pueda detectar duplicados incluso en leads viejos.
+// Backfill autenticado: mantiene el índice interno de teléfonos para operaciones
+// administrativas y futura deduplicación sin exponer existencia de clientes al flujo público.
 function backfillIndiceTelefonos(){
   Object.entries(leads).forEach(([id,l])=>{
     const tn = normalizarTelefono(l.telefono);
@@ -1373,8 +1373,8 @@ function bitacoraKeyCitas(){
 
 const ETAPAS_ANTES_DE_VISITA_PROGRAMADA = ['nuevo','contactado','calificado','requisitos'];
 
-// Sincroniza el lead cuando se agenda una cita nueva (manual o pública) — sin que Sebas
-// tenga que mover la tarjeta a mano. Respeta la etapa según venta o renta porque
+// Sincroniza el lead cuando se agenda una cita manual desde el panel autenticado.
+// Respeta la etapa según venta o renta porque
 // "visita_programada" y "visita_realizada" son ids compartidos en ambos flujos.
 async function sincronizarLeadPorNuevaCita(leadId, fecha, hora, propiedadNombre){
   if(!leadId) return;
