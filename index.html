@@ -2149,10 +2149,22 @@ function attachSeguimientoHandlers(container){
       if(!auth.currentUser){ alert('Tu sesión se cerró, vuelve a iniciar sesión.'); return; }
       btn.disabled = true;
       const notaId = db.ref('citas/'+id+'/seguimiento').push().key;
-      db.ref('citas/'+id+'/seguimiento/'+notaId).set({
+      const fechaSeguimiento = new Date().toISOString();
+      const trace = registrarTraceCita(id, {
+        tipo: 'seguimiento',
+        fecha: fechaSeguimiento,
+        origen: 'synapse',
+        eventType: 'APPOINTMENT_FOLLOWUP_ADDED',
+        seguimientoId: notaId,
+        metadata: { seguimientoId: notaId }
+      });
+      const updates = {};
+      updates['citas/'+id+'/seguimiento/'+notaId] = {
         texto,
-        fecha: new Date().toISOString()
-      })
+        fecha: fechaSeguimiento
+      };
+      updates['citas/'+id+'/historial/'+trace.traceId] = trace.entry;
+      db.ref().update(updates)
         .then(()=>{ input.value = ''; })
         .catch(err=> alert('No se pudo guardar la nota.\n\nError: ' + err.message))
         .finally(()=>{ btn.disabled = false; });
