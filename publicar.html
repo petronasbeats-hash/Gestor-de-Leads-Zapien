@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Publica tu propiedad — Iré Inmobiliaria</title>
+<style>
+:root{--bg:#0a0d0c;--panel:#111613;--line:#223028;--green:#00ffa3;--text:#eaf5ee;--muted:#7c9188}*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:Inter,Arial,sans-serif}.wrap{max-width:720px;margin:auto;padding:34px 18px 70px}.ey{color:var(--green);font:11px monospace;letter-spacing:.14em}.hero{margin:10px 0 26px}h1{font-size:30px;margin:6px 0}.sub{color:var(--muted);line-height:1.55}.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:20px;margin-top:14px}.field{margin:13px 0}.field label{display:block;color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px}.field input,.field select,.field textarea{width:100%;background:var(--bg);border:1px solid var(--line);border-radius:7px;color:var(--text);padding:11px;font-size:14px}.field textarea{min-height:85px}.row{display:grid;grid-template-columns:1fr 1fr;gap:12px}@media(max-width:560px){.row{grid-template-columns:1fr}}button{width:100%;padding:12px;border-radius:7px;border:1px solid var(--green);background:#0a3d2b;color:var(--green);font-weight:700;cursor:pointer}.ok{display:none;text-align:center}.code{font:700 20px monospace;color:var(--green);margin:12px}.small{font-size:12px;color:var(--muted)}
+</style>
+</head><body><div class="wrap">
+<div class="hero"><div class="ey">IRÉ INMOBILIARIA · SYNAPSE</div><h1>¿Tienes una propiedad?</h1><div class="sub">Cuéntanos qué quieres lograr. Si quieres vender o poner en renta tu casa, departamento, local o terreno, podemos ayudarte a revisar el inmueble y acompañarte en el proceso.</div></div>
+<div class="card" id="form-card">
+<div class="field"><label>¿Cómo podemos ayudarte?</label><select id="intencion"><option value="rentar">Quiero poner mi propiedad en renta</option><option value="vender">Quiero vender mi propiedad</option></select></div>
+<div class="row"><div class="field"><label>Tu nombre</label><input id="nombre" autocomplete="name"></div><div class="field"><label>WhatsApp</label><input id="telefono" inputmode="tel"></div></div>
+<div class="row"><div class="field"><label>Tipo de propiedad</label><select id="tipo"><option>Casa</option><option>Departamento</option><option>Local</option><option>Terreno</option><option>Edificio</option><option>Otro</option></select></div><div class="field"><label>Ubicación / colonia</label><input id="ubicacion" placeholder="Ej. Centro, Tehuacán"></div></div>
+<div class="row"><div class="field"><label>Precio esperado (opcional)</label><input id="precio" inputmode="decimal" placeholder="$"></div><div class="field"><label>¿Está disponible actualmente?</label><select id="disponible"><option value="si">Sí</option><option value="no">No</option><option value="por_confirmar">Por confirmar</option></select></div></div>
+<div class="field"><label>Cuéntanos sobre la propiedad</label><textarea id="descripcion" placeholder="Recámaras, baños, superficie aproximada, estado, características importantes..."></textarea></div>
+<div class="field"><label>¿Qué necesitas de nosotros? (opcional)</label><textarea id="necesidad" placeholder="Ej. quiero encontrar un inquilino responsable / quiero saber en cuánto podría venderla"></textarea></div>
+<button id="send">Enviar solicitud de propiedad</button><div class="small" style="margin-top:10px">Enviar esta solicitud no publica automáticamente el inmueble. Primero revisaremos la información contigo.</div>
+</div>
+<div class="card ok" id="ok"><div class="ey">SOLICITUD RECIBIDA</div><h2>Gracias. Ya tenemos tu solicitud.</h2><div class="sub">Nuestro equipo revisará la información y te contactará para conocer mejor la propiedad y explicarte el siguiente paso.</div><div class="code" id="code"></div><div class="small">Conserva este código para seguimiento.</div></div>
+</div>
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script><script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+<script>
+firebase.initializeApp({apiKey:"AIzaSyC35pWmI4HUp5P8bKt9FeJnX0V9dxB4o_Y",authDomain:"gestor-leads-zapien.firebaseapp.com",databaseURL:"https://gestor-leads-zapien-default-rtdb.firebaseio.com",projectId:"gestor-leads-zapien"});
+const db=firebase.database();
+const $=id=>document.getElementById(id);
+function code(){const a='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';return 'INM-'+new Date().getFullYear().toString().slice(-2)+'-'+Array.from({length:6},()=>a[Math.floor(Math.random()*a.length)]).join('')}
+$('send').onclick=async()=>{const nombre=$('nombre').value.trim(),telefono=$('telefono').value.trim();if(!nombre||!telefono){alert('Necesitamos tu nombre y un teléfono para poder ayudarte.');return}const codigo=code(),intencion=$('intencion').value,tipo=$('tipo').value,ubicacion=$('ubicacion').value.trim(),descripcion=$('descripcion').value.trim(),necesidad=$('necesidad').value.trim();const data={codigoSolicitud:codigo,tipoSolicitud:'registro_inmueble',estadoSolicitud:'nueva',intencion,rol:'propietario',nombre,telefono,tipoPropiedad:tipo,ubicacion,precioEsperado:$('precio').value.trim(),disponible:$('disponible').value,descripcion,necesidad,necesidadHumana:nombre+' es propietario y quiere '+(intencion==='vender'?'vender':'poner en renta')+' su '+tipo.toLowerCase()+(ubicacion?' en '+ubicacion:'')+'.',slaRevisionMin:60,creado:new Date().toISOString()};const id=db.ref('solicitudes_propiedad').push().key;await db.ref('solicitudes_propiedad/'+id).set(data);$('form-card').style.display='none';$('code').textContent=codigo;$('ok').style.display='block'}
+</script></body></html>
