@@ -1684,6 +1684,29 @@ function propiedadFaltantes(p){
   return falta;
 }
 
+function registrarTracePropiedad(propiedadId, trace){
+  const eventId = db.ref('propiedades/'+propiedadId+'/historial').push().key;
+  const timestamp = trace.timestamp || new Date().toISOString();
+  const entry = {
+    eventId,
+    eventType: trace.eventType,
+    entityType: 'PROPERTY',
+    entityId: propiedadId,
+    timestamp,
+    actor: trace.actor || {
+      type: auth.currentUser ? 'USER' : 'SYSTEM',
+      id: auth.currentUser ? auth.currentUser.uid : null,
+      name: null
+    },
+    source: trace.source || { type: 'ADMIN', page: 'index.html' },
+    previousState: trace.previousState !== undefined ? trace.previousState : null,
+    newState: trace.newState !== undefined ? trace.newState : null,
+    metadata: trace.metadata || {},
+    traceVersion: '1.1'
+  };
+  return { eventId, entry };
+}
+
 function renderPropiedadesAdmin(obj){
   const list = document.getElementById('propiedades-list');
   const arr = Object.entries(obj).map(([id,p])=>({id,...p}));
@@ -1723,13 +1746,34 @@ function renderPropiedadesAdmin(obj){
   list.querySelectorAll('[data-action="toggle-prop"]').forEach(btn=>{
     btn.addEventListener('click', ()=>{
       const p = arr.find(x=>x.id===btn.dataset.id);
-      db.ref('propiedades/'+p.id+'/activo').set(p.activo===false ? true : false);
+      const nuevoActivo = p.activo===false ? true : false;
+      const trace = registrarTracePropiedad(p.id, {
+        eventType: nuevoActivo ? 'PROPERTY_ACTIVATED' : 'PROPERTY_DEACTIVATED',
+        previousState: p.activo!==false,
+        newState: nuevoActivo
+      });
+      const updates = {};
+      updates['propiedades/'+p.id+'/activo'] = nuevoActivo;
+      updates['propiedades/'+p.id+'/historial/'+trace.eventId] = trace.entry;
+      updates['event_trace/'+trace.eventId] = trace.entry;
+      db.ref().update(updates);
     });
   });
   list.querySelectorAll('[data-action="del-prop"]').forEach(btn=>{
     btn.addEventListener('click', ()=>{
       if(!confirm('¿Eliminar esta propiedad del catálogo?')) return;
-      db.ref('propiedades/'+btn.dataset.id).remove();
+      const propiedadId = btn.dataset.id;
+      const p = propiedades[propiedadId] || {};
+      const trace = registrarTracePropiedad(propiedadId, {
+        eventType: 'PROPERTY_DELETED',
+        previousState: { activo: p.activo!==false },
+        newState: null,
+        metadata: { nombre: p.nombre || null }
+      });
+      const updates = {};
+      updates['propiedades/'+propiedadId] = null;
+      updates['event_trace/'+trace.eventId] = trace.entry;
+      db.ref().update(updates);
     });
   });
 }
@@ -2026,7 +2070,16 @@ document.getElementById('btn-add-propiedad').addEventListener('click', ()=>{
     // CREAR: nuevo registro con push().key
     payload.activo = true;
     const propId = db.ref('propiedades').push().key;
-    writePromise = db.ref('propiedades/'+propId).set(payload);
+    const trace = registrarTracePropiedad(propId, {
+      eventType: 'PROPERTY_CREATED',
+      newState: { activo: true },
+      metadata: { nombre: payload.nombre || null, operacion: payload.operacion || null }
+    });
+    const updates = {};
+    updates['propiedades/'+propId] = payload;
+    updates['propiedades/'+propId+'/historial/'+trace.eventId] = trace.entry;
+    updates['event_trace/'+trace.eventId] = trace.entry;
+    writePromise = db.ref().update(updates);
   }
 
   writePromise
