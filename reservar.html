@@ -548,9 +548,7 @@ document.getElementById('btn-confirm-booking').addEventListener('click', async (
   btn.disabled = true; btn.textContent = 'Agendando…';
 
   const citaId = db.ref('citas').push().key;
-  const lockToken = citaId;
   const slotRef = db.ref('citas_publicas/'+slotFlagKey);
-  let slotAdquirido = false;
 
   try{
     // Slot Transaction V1: compare-and-set real. Solo una tentativa puede adquirir el horario.
@@ -559,15 +557,12 @@ document.getElementById('btn-confirm-booking').addEventListener('click', async (
       return {
         propiedadId: propiedadId || null,
         citaId,
-        lockToken,
         reservadoEn: new Date().toISOString()
       };
     }, undefined, false);
     if(!tx.committed){
       throw new Error('SLOT_TAKEN');
     }
-    slotAdquirido = true;
-
     // El Lead se crea/actualiza únicamente después de adquirir el horario.
     const nombreCompleto = apellido ? `${nombre} ${apellido}` : nombre;
     const leadPlan = await prepararLeadParaCita({nombre, apellido, telefono, notas, propiedadId, propiedadNombre});
@@ -603,7 +598,6 @@ document.getElementById('btn-confirm-booking').addEventListener('click', async (
       creado
     };
     updates['citas/'+citaId+'/historial/'+traceId] = eventEntry;
-    updates['event_trace/'+traceId] = eventEntry;
     await db.ref().update(updates);
 
     const propObj = propiedadId ? propiedades[propiedadId] : null;
@@ -623,16 +617,10 @@ document.getElementById('btn-confirm-booking').addEventListener('click', async (
   }catch(err){
     console.error(err);
 
-    // Rollback seguro: libera solo el lock de ESTA tentativa; nunca borra el de otro cliente.
-    if(slotAdquirido){
-      try{
-        await slotRef.transaction(actual=>{
-          return actual && actual.lockToken === lockToken ? null : actual;
-        }, undefined, false);
-      }catch(rollbackErr){
-        console.error('No se pudo liberar el slot reservado:', rollbackErr);
-      }
-    }
+    // No se libera el slot desde un cliente anónimo: citas_publicas es público y
+    // no existe una prueba de propiedad secreta segura en este modelo. Si la
+    // confirmación falla, el lock huérfano queda visible para la limpieza
+    // administrativa de horarios fantasma.
 
     alert(err && err.message === 'SLOT_TAKEN'
       ? 'Ese horario acaba de ser reservado. Elige otro.'
