@@ -1388,9 +1388,21 @@ async function sincronizarLeadPorNuevaCita(leadId, fecha, hora, propiedadNombre)
   if(ETAPAS_ANTES_DE_VISITA_PROGRAMADA.includes(lead.etapa)){
     updates.etapa = 'visita_programada';
   }
-  await db.ref('leads/'+leadId).update(updates);
-  await db.ref('leads/'+leadId+'/bitacora/'+bitacoraKeyCitas())
-    .set(`Cita agendada para ${cuando}${propTxt} — etapa sincronizada automáticamente.`);
+  const bitacoraId = bitacoraKeyCitas();
+  const trace = registrarTraceLead(leadId, {
+    eventType: 'LEAD_APPOINTMENT_SYNCED',
+    actor: { type: 'AUTOMATION', id: 'synapse', name: 'Synapse' },
+    source: { type: 'AUTOMATION', page: null },
+    previousState: lead.etapa || null,
+    newState: updates.etapa || lead.etapa || null,
+    metadata: { appointmentDate: fecha, appointmentTime: hora, bitacoraId }
+  });
+  const rootUpdates = {};
+  Object.entries(updates).forEach(([k,v])=>{ rootUpdates['leads/'+leadId+'/'+k] = v; });
+  rootUpdates['leads/'+leadId+'/bitacora/'+bitacoraId] = `Cita agendada para ${cuando}${propTxt} — etapa sincronizada automáticamente.`;
+  rootUpdates['leads/'+leadId+'/historial/'+trace.eventId] = trace.entry;
+  rootUpdates['event_trace/'+trace.eventId] = trace.entry;
+  await db.ref().update(rootUpdates);
 }
 
 // Sincroniza el lead en el Gestor cuando cambia el estado de una cita.
@@ -1403,32 +1415,51 @@ async function sincronizarLeadPorEstadoCita(cita, nuevoEstado){
   const lead = snap.val();
   if(!lead) return;
 
+  let updates = null;
+  let bitacoraTexto = null;
   if(nuevoEstado === 'realizada'){
-    const updates = {
+    updates = {
       proximaAccion: `Dar seguimiento — feedback de la visita${propTxt}`,
       fechaProximaAccion: todayStr()
     };
-    if(ETAPAS_PRE_VISITA.includes(lead.etapa)){
-      updates.etapa = 'visita_realizada';
-    }
-    await db.ref('leads/'+cita.leadId).update(updates);
-    await db.ref('leads/'+cita.leadId+'/bitacora/'+bitacoraKeyCitas())
-      .set(`Visita realizada el ${cuando}${propTxt}. Próxima acción: pedir feedback.`);
+    if(ETAPAS_PRE_VISITA.includes(lead.etapa)) updates.etapa = 'visita_realizada';
+    bitacoraTexto = `Visita realizada el ${cuando}${propTxt}. Próxima acción: pedir feedback.`;
   } else if(nuevoEstado === 'no_asistio'){
-    await db.ref('leads/'+cita.leadId).update({
+    updates = {
       proximaAccion: `Reagendar visita — no se presentó${propTxt}`,
       fechaProximaAccion: todayStr()
-    });
-    await db.ref('leads/'+cita.leadId+'/bitacora/'+bitacoraKeyCitas())
-      .set(`No se presentó a la cita del ${cuando}${propTxt}. Próxima acción: reagendar.`);
+    };
+    bitacoraTexto = `No se presentó a la cita del ${cuando}${propTxt}. Próxima acción: reagendar.`;
   } else if(nuevoEstado === 'cancelada'){
-    await db.ref('leads/'+cita.leadId).update({
+    updates = {
       proximaAccion: `Reagendar visita — cita cancelada${propTxt}`,
       fechaProximaAccion: todayStr()
-    });
-    await db.ref('leads/'+cita.leadId+'/bitacora/'+bitacoraKeyCitas())
-      .set(`Cita cancelada — era el ${cuando}${propTxt}. Próxima acción: reagendar.`);
+    };
+    bitacoraTexto = `Cita cancelada — era el ${cuando}${propTxt}. Próxima acción: reagendar.`;
   }
+  if(!updates) return;
+
+  const bitacoraId = bitacoraKeyCitas();
+  const trace = registrarTraceLead(cita.leadId, {
+    eventType: 'LEAD_APPOINTMENT_STATUS_SYNCED',
+    actor: { type: 'AUTOMATION', id: 'synapse', name: 'Synapse' },
+    source: { type: 'AUTOMATION', page: null },
+    previousState: lead.etapa || null,
+    newState: updates.etapa || lead.etapa || null,
+    metadata: {
+      appointmentId: cita.id || null,
+      appointmentStatus: nuevoEstado,
+      appointmentDate: cita.fecha || null,
+      appointmentTime: cita.hora || null,
+      bitacoraId
+    }
+  });
+  const rootUpdates = {};
+  Object.entries(updates).forEach(([k,v])=>{ rootUpdates['leads/'+cita.leadId+'/'+k] = v; });
+  rootUpdates['leads/'+cita.leadId+'/bitacora/'+bitacoraId] = bitacoraTexto;
+  rootUpdates['leads/'+cita.leadId+'/historial/'+trace.eventId] = trace.entry;
+  rootUpdates['event_trace/'+trace.eventId] = trace.entry;
+  await db.ref().update(rootUpdates);
 }
 
 /* ---------- Horario semanal ---------- */
