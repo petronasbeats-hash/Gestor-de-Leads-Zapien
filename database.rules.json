@@ -15,11 +15,8 @@
       }
     },
     "telefonos_index": {
-      ".read": false,
-      "$telefono": {
-        ".read": true,
-        ".write": "(auth != null && auth.uid == 'v4wFRvNlwNPY4HtEqozpcHvjXI52') || !data.exists()"
-      }
+      ".read": "auth != null && auth.uid == 'v4wFRvNlwNPY4HtEqozpcHvjXI52'",
+      ".write": "auth != null && auth.uid == 'v4wFRvNlwNPY4HtEqozpcHvjXI52'"
     },
     "disponibilidad": {
       ".read": true,
