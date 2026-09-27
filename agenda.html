@@ -475,66 +475,53 @@ function normalizarTelefono(tel){
   return String(tel||'').replace(/\D/g,'').slice(-10);
 }
 
-async function upsertLeadParaCita({nombre, apellido, telefono, notas, propiedadId, propiedadNombre}){
+async function prepararLeadParaCita({nombre, apellido, telefono, notas, propiedadId, propiedadNombre}){
   const propTxt = propiedadNombre ? ` — ${propiedadNombre}` : '';
   const propObj = propiedadId ? propiedades[propiedadId] : null;
   const telNorm = normalizarTelefono(telefono);
+  let leadIdFinal = leadId || null;
 
-  let idParaActualizar = leadId || null;
-
-  // Si no vino leadId en el link, buscamos si ya existe un lead con este teléfono
-  // (para no duplicarlo si ya lo tenías capturado).
-  if(!idParaActualizar && telNorm){
+  if(!leadIdFinal && telNorm){
     try{
       const idxSnap = await db.ref('telefonos_index/'+telNorm).once('value');
-      if(idxSnap.exists()) idParaActualizar = idxSnap.val();
-    }catch(e){ /* si no se puede consultar, seguimos y se crea uno nuevo */ }
+      if(idxSnap.exists()) leadIdFinal = idxSnap.val();
+    }catch(e){}
   }
 
-  if(idParaActualizar){
-    try{
-      await db.ref('leads/'+idParaActualizar).update({
-        proximaAccion: `Visita programada${propTxt}`,
-        fechaProximaAccion: selectedSlot.dateKey
-      });
-      await db.ref('leads/'+idParaActualizar+'/bitacora/'+bitacoraKey())
-        .set(`Cliente agendó su visita para ${selectedSlot.label}${propTxt} desde la agenda pública.`);
-      return idParaActualizar;
-    }catch(e){
-      // El lead ya no existe o el índice estaba desactualizado — seguimos y creamos uno nuevo.
+  if(leadIdFinal){
+    const snap = await db.ref('leads/'+leadIdFinal).once('value');
+    if(snap.exists()){
+      const bitId = bitacoraKey();
+      return {
+        leadId: leadIdFinal,
+        updates: {
+          ['leads/'+leadIdFinal+'/proximaAccion']: `Visita programada${propTxt}`,
+          ['leads/'+leadIdFinal+'/fechaProximaAccion']: selectedSlot.dateKey,
+          ['leads/'+leadIdFinal+'/bitacora/'+bitId]: `Cliente agendó su visita para ${selectedSlot.label}${propTxt} desde la agenda pública.`
+        }
+      };
     }
   }
 
-  // No había lead previo: se crea uno nuevo con lo capturado en la agenda pública.
   const nombreCompleto = apellido ? `${nombre} ${apellido}` : nombre;
   const operacionProp = (propObj && propObj.operacion) || 'Compra';
   const tipoDefault = operacionProp === 'Renta' ? 'Inquilino' : 'Comprador';
   const newLeadId = db.ref('leads').push().key;
-
-  await db.ref('leads/'+newLeadId).set({
-    nombre: nombreCompleto,
-    telefono,
-    email: '',
-    fuente: 'Agenda pública',
-    operacion: operacionProp,
-    tipo: tipoDefault,
-    presupuesto: '',
+  const nuevoLead = {
+    nombre: nombreCompleto, telefono, email: '', fuente: 'Agenda pública',
+    operacion: operacionProp, tipo: tipoDefault, presupuesto: '',
     ubicacion: (propObj && propObj.direccion) || '',
     valorEstimado: (propObj && Number(propObj.precio)) || 0,
     probabilidad: 30,
     proximaAccion: `Visita programada${propTxt}`,
     fechaProximaAccion: selectedSlot.dateKey,
-    notas: notas || '',
-    etapa: 'visita_programada',
-    fechaCreacion: dateKey(new Date()),
-    fechaCierre: null,
-    checklist: {},
+    notas: notas || '', etapa: 'visita_programada',
+    fechaCreacion: dateKey(new Date()), fechaCierre: null, checklist: {},
     bitacora: { [bitacoraKey()]: `Lead creado automáticamente desde la agenda pública. Cita: ${selectedSlot.label}${propTxt}.` }
-  });
-  if(telNorm){
-    db.ref('telefonos_index/'+telNorm).set(newLeadId).catch(()=>{});
-  }
-  return newLeadId;
+  };
+  const updates = { ['leads/'+newLeadId]: nuevoLead };
+  if(telNorm) updates['telefonos_index/'+telNorm] = newLeadId;
+  return { leadId: newLeadId, updates };
 }
 
 document.getElementById('btn-confirm-booking').addEventListener('click', async ()=>{
@@ -574,7 +561,8 @@ document.getElementById('btn-confirm-booking').addEventListener('click', async (
 
     // El Lead se crea/actualiza únicamente después de adquirir el horario.
     const nombreCompleto = apellido ? `${nombre} ${apellido}` : nombre;
-    const leadIdFinal = await upsertLeadParaCita({nombre, apellido, telefono, notas, propiedadId, propiedadNombre});
+    const leadPlan = await prepararLeadParaCita({nombre, apellido, telefono, notas, propiedadId, propiedadNombre});
+    const leadIdFinal = leadPlan.leadId;
 
     // Cita + Event Trace se escriben juntos. El lock ya contiene citaId para trazabilidad.
     const creado = new Date().toISOString();
@@ -595,7 +583,7 @@ document.getElementById('btn-confirm-booking').addEventListener('click', async (
       metadata: { propiedadId: propiedadId || null, leadId: leadIdFinal || null },
       traceVersion: '1.1'
     };
-    const updates = {};
+    const updates = { ...leadPlan.updates };
     updates['citas/'+citaId] = {
       nombre: nombreCompleto, telefono, notas,
       propiedadId, propiedadNombre,
