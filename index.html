@@ -154,6 +154,16 @@
   .v2-home-card .num{font-family:'JetBrains Mono',monospace;font-size:24px;font-weight:700;color:var(--green);}
   .v2-home-card .label{font-size:11px;color:var(--muted);margin-top:3px;}
   @media(max-width:600px){.v2-home-grid{grid-template-columns:1fr 1fr;}}
+  .property-group{background:var(--bg-panel);border:1px solid var(--line);border-radius:10px;margin-bottom:10px;overflow:hidden;}
+  .property-group-head{display:flex;justify-content:space-between;gap:12px;align-items:center;padding:14px 16px;cursor:pointer;}
+  .property-group-head:hover{background:var(--bg-panel-2);}
+  .property-group-title{font-weight:700;font-size:14px;}
+  .property-group-meta{color:var(--muted);font-size:11.5px;margin-top:3px;}
+  .property-units{display:none;border-top:1px solid var(--line);padding:0 14px;}
+  .property-group.open .property-units{display:block;}
+  .property-group-arrow{color:var(--green);font-family:'JetBrains Mono',monospace;font-size:12px;}
+  .property-unit{padding-left:10px;border-left:2px solid var(--green-dim);}
+  .property-standalone{background:var(--bg-panel);border:1px solid var(--line);border-radius:10px;padding:0 14px;margin-bottom:10px;}
   #citas-view .row2{grid-template-columns:auto 1fr 1fr;gap:8px;align-items:center;margin-bottom:8px;}
   .admin-tabs{position:sticky;top:0;z-index:40;display:flex;gap:6px;background:var(--bg);padding:10px 0;margin-bottom:14px;border-bottom:1px solid var(--line);overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;}
   .admin-tabs::-webkit-scrollbar{display:none;}
@@ -1636,43 +1646,56 @@ function renderPropiedadesAdmin(obj){
   const incompletasActivas = arr.filter(p=>p.activo!==false && propiedadFaltantes(p).length>0).length;
   actualizarAvisoPropiedadesIncompletas(incompletasActivas);
 
-  list.innerHTML = arr.map(p=>{
-    const faltantes = propiedadFaltantes(p);
+  const grupos = {};
+  const individuales = [];
+  arr.forEach(p=>{
+    if(p.propertyGroupId){
+      if(!grupos[p.propertyGroupId]) grupos[p.propertyGroupId]={id:p.propertyGroupId,name:p.propertyName||p.propertyGroupId,units:[]};
+      grupos[p.propertyGroupId].units.push(p);
+    } else individuales.push(p);
+  });
+
+  const propertyRow = (p, unit=false)=>{
+    const faltantes=propiedadFaltantes(p);
     return `
-    <div class="cita-item">
-      <div>
-        <b>${escapeHtml(p.nombre)}</b> ${p.activo===false?'<span class="cita-meta">(inactiva)</span>':''}
-        <div class="cita-meta">${escapeHtml(p.direccion||'')}${(p.lat!=null&&p.lng!=null)?' · '+p.lat+', '+p.lng:' · sin coordenadas'}</div>
-        <div class="cita-meta">${p.operacion?p.operacion+' · ':''}${p.precio?'
-        ${faltantes.length ? `<div class="cita-meta" style="color:var(--amber);">⚠ Falta: ${faltantes.join(', ')}</div>` : `<div class="cita-meta" style="color:var(--green);">✓ Ficha completa</div>`}
+      <div class="cita-item ${unit?'property-unit':''}">
+        <div>
+          <b>${escapeHtml(p.nombre||'Sin nombre')}</b> ${p.activo===false?'<span class="cita-meta">(inactiva)</span>':''}
+          <div class="cita-meta">${p.category?escapeHtml(p.category)+' · ':''}${p.operacion?escapeHtml(p.operacion)+' · ':''}${p.precio?'$'+Number(p.precio).toLocaleString('es-MX')+(String(p.operacion).toLowerCase()==='renta'?'/mes':''):'sin precio'}</div>
+          <div class="cita-meta">${escapeHtml(p.direccion||'Sin dirección')}</div>
+          ${faltantes.length?`<div class="cita-meta" style="color:var(--amber);">⚠ Falta: ${faltantes.join(', ')}</div>`:'<div class="cita-meta" style="color:var(--green);">✓ Ficha completa</div>'}
+        </div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;">
+          <button class="btn btn-sm" data-action="edit-prop" data-id="${p.id}">Editar</button>
+          <button class="btn btn-sm" data-action="toggle-prop" data-id="${p.id}">${p.activo===false?'Activar':'Desactivar'}</button>
+          <button class="btn btn-sm" data-action="del-prop" data-id="${p.id}" style="color:var(--red);">Eliminar</button>
+        </div>
+      </div>`;
+  };
+
+  const groupsHtml=Object.values(grupos).sort((a,b)=>a.name.localeCompare(b.name)).map(g=>{
+    const active=g.units.filter(p=>p.activo!==false).length;
+    const incomplete=g.units.filter(p=>p.activo!==false&&propiedadFaltantes(p).length).length;
+    return `<div class="property-group" data-property-group="${escapeHtml(g.id)}">
+      <div class="property-group-head" data-action="toggle-group">
+        <div><div class="property-group-title">◇ ${escapeHtml(g.name)}</div>
+        <div class="property-group-meta">${g.units.length} unidad${g.units.length===1?'':'es'} · ${active} activa${active===1?'':'s'}${incomplete?' · '+incomplete+' por completar':''}</div></div>
+        <span class="property-group-arrow">VER UNIDADES ↓</span>
       </div>
-      <div style="display:flex;gap:6px;">
-        <button class="btn btn-sm" data-action="edit-prop" data-id="${p.id}">✏️ Editar</button>
-        <button class="btn btn-sm" data-action="toggle-prop" data-id="${p.id}">${p.activo===false?'Activar':'Desactivar'}</button>
-        <button class="btn btn-sm" data-action="del-prop" data-id="${p.id}" style="color:var(--red);">Eliminar</button>
-      </div>
-    </div>
-  `;
+      <div class="property-units">${g.units.sort((a,b)=>String(a.unitNumber||a.nombre).localeCompare(String(b.unitNumber||b.nombre),undefined,{numeric:true})).map(p=>propertyRow(p,true)).join('')}</div>
+    </div>`;
   }).join('');
 
-  list.querySelectorAll('[data-action="edit-prop"]').forEach(btn=>{
-    btn.addEventListener('click', ()=>{
-      const p = arr.find(x=>x.id===btn.dataset.id);
-      if(p) cargarPropiedadEnFormulario(p);
-    });
-  });
-  list.querySelectorAll('[data-action="toggle-prop"]').forEach(btn=>{
-    btn.addEventListener('click', ()=>{
-      const p = arr.find(x=>x.id===btn.dataset.id);
-      db.ref('propiedades/'+p.id+'/activo').set(p.activo===false ? true : false);
-    });
-  });
-  list.querySelectorAll('[data-action="del-prop"]').forEach(btn=>{
-    btn.addEventListener('click', ()=>{
-      if(!confirm('¿Eliminar esta propiedad del catálogo?')) return;
-      db.ref('propiedades/'+btn.dataset.id).remove();
-    });
-  });
+  const individualHtml=individuales.length?`<div class="mono" style="font-size:10px;color:var(--muted);letter-spacing:.08em;margin:16px 0 8px;">PROPIEDADES INDIVIDUALES</div>${individuales.map(p=>`<div class="property-standalone">${propertyRow(p)}</div>`).join('')}`:'';
+  list.innerHTML=groupsHtml+individualHtml;
+
+  list.querySelectorAll('[data-action="toggle-group"]').forEach(head=>head.addEventListener('click',()=>{
+    const group=head.closest('.property-group'); group.classList.toggle('open');
+    head.querySelector('.property-group-arrow').textContent=group.classList.contains('open')?'OCULTAR ↑':'VER UNIDADES ↓';
+  }));
+  list.querySelectorAll('[data-action="edit-prop"]').forEach(btn=>btn.addEventListener('click',()=>{const p=arr.find(x=>x.id===btn.dataset.id);if(p)cargarPropiedadEnFormulario(p);}));
+  list.querySelectorAll('[data-action="toggle-prop"]').forEach(btn=>btn.addEventListener('click',()=>{const p=arr.find(x=>x.id===btn.dataset.id);db.ref('propiedades/'+p.id+'/activo').set(p.activo===false?true:false);}));
+  list.querySelectorAll('[data-action="del-prop"]').forEach(btn=>btn.addEventListener('click',()=>{if(confirm('¿Eliminar esta propiedad del catálogo?'))db.ref('propiedades/'+btn.dataset.id).remove();}));
 }
 
 /* ---------- Edición real de propiedad (Property Engine V1 — mismo ID, sin duplicar) ---------- */
