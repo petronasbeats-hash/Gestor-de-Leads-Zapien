@@ -953,7 +953,7 @@ function renderList(){
 
   let arr = Object.entries(leads).map(([id,l])=>({id,...l}));
   arr = arr.filter(l=>{
-    if(search && !(`${l.nombre||''} ${l.telefono||''}`.toLowerCase().includes(search))) return false;
+    if(search && !(`${l.nombre||''} ${l.telefono||''} ${l.necesidadHumana||''}`.toLowerCase().includes(search))) return false;
     if(filterEtapa && l.etapa !== filterEtapa) return false;
     if(filterOperacion && (l.operacion||'Compra') !== filterOperacion) return false;
     if(onlyOverdue && !isOverdue(l)) return false;
@@ -991,6 +991,7 @@ function renderList(){
         </div>
         <div class="badge st-${l.etapa}">${stage.label}</div>
       </div>
+      ${l.necesidadHumana?`<div style="font-size:12.5px;line-height:1.45;margin:8px 0;color:var(--text);">${escapeHtml(l.necesidadHumana)}</div>`:''}
       <div class="lc-next">
         <span>${escapeHtml(l.proximaAccion || 'Sin próxima acción definida')}</span>
         <span class="date ${overdue?'overdue':''}">${escapeHtml(l.fechaProximaAccion || '')}</span>
