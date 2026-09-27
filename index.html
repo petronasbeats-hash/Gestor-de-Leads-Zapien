@@ -1108,9 +1108,15 @@ document.getElementById('btn-add-bitacora').addEventListener('click', ()=>{
   }
   const key = new Date().toISOString().slice(0,16).replace('T',' ') + '__' + Math.random().toString(36).slice(2,6);
   const lead = leads[currentLeadId] || {};
-  const bitacora = lead.bitacora || {};
-  bitacora[key] = txt;
-  saveLead(currentLeadId, {...lead, bitacora});
+  const trace = registrarTraceLead(currentLeadId, {
+    eventType: 'LEAD_INTERACTION_ADDED',
+    metadata: { bitacoraId: key }
+  });
+  const updates = {};
+  updates['leads/'+currentLeadId+'/bitacora/'+key] = txt;
+  updates['leads/'+currentLeadId+'/historial/'+trace.eventId] = trace.entry;
+  updates['event_trace/'+trace.eventId] = trace.entry;
+  db.ref().update(updates);
   document.getElementById('bitacora-text').value = '';
   setTimeout(renderBitacoraPane, 150);
 });
