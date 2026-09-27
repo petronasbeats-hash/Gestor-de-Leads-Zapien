@@ -1641,6 +1641,25 @@ function mensajeConfirmacionReserva(c){
   const prop=c.propiedadNombre?(' para '+c.propiedadNombre):'';
   return `Hola ${c.nombre||''} 👋 Ya revisamos tu solicitud${prop}. Tu visita queda confirmada para el ${c.fecha||''} a las ${c.hora||''}. Código de reserva: ${codigo}. Si necesitas hacer algún cambio, respóndenos por este medio. — Iré Inmobiliaria`;
 }
+function mensajeRecordatorioReserva(c, tipo){
+  const prop=c.propiedadNombre?(' para '+c.propiedadNombre):'';
+  const codigo=c.codigoReserva?(' Código '+c.codigoReserva+'.'):'';
+  if(tipo==='recordatorio_24h') return `Hola ${c.nombre||''} 👋 Te recordamos que mañana tienes tu visita${prop} a las ${c.hora||''}.${codigo} Si necesitas ajustar el horario, escríbenos y te ayudamos. — Iré Inmobiliaria`;
+  if(tipo==='recordatorio_2h') return `Hola ${c.nombre||''} 👋 Tu visita${prop} es hoy a las ${c.hora||''}. Te esperamos.${codigo} Si surge algún imprevisto, avísanos por aquí. — Iré Inmobiliaria`;
+  return `Hola ${c.nombre||''} 👋 Estamos preparando tu visita${prop} de las ${c.hora||''}.${codigo} Nos vemos pronto. — Iré Inmobiliaria`;
+}
+async function enviarRecordatorioReserva(id, tipo){
+  const c=ultimasCitas[id]; if(!c) return;
+  const tel=telefonoValidoParaWhatsApp(c.telefono);
+  if(!tel){ alert('Esta reserva no tiene un teléfono válido para WhatsApp.'); return; }
+  const ahora=new Date().toISOString();
+  const updates={};
+  updates['citas/'+id+'/recordatorios/'+tipo+'/preparado']=ahora;
+  updates['citas/'+id+'/recordatorios/'+tipo+'/canal']='whatsapp_manual';
+  await db.ref().update(updates);
+  window.open('https://wa.me/52'+tel+'?text='+encodeURIComponent(mensajeRecordatorioReserva(c,tipo)),'_blank','noopener');
+}
+
 function whatsappReserva(c){
   const tel=telefonoValidoParaWhatsApp(c.telefono);
   if(!tel){ alert('Esta reserva no tiene un teléfono válido para WhatsApp.'); return; }
@@ -2183,9 +2202,11 @@ function renderCitasList(citasObj){
       <div>
         <b>${escapeHtml(ctx.persona.nombre)}</b> — ${c.fecha} ${c.hora} ${ctx.propiedad.nombre?'· 🏠 '+escapeHtml(ctx.propiedad.nombre):''} ${c.manual?'<span class="cita-meta" style="color:var(--green);">· manual</span>':''}
         <div class="cita-meta">${escapeHtml(ctx.persona.telefono)} ${c.notas?'· '+escapeHtml(c.notas):''}</div>
-        <div class="cita-meta" style="color:var(--amber);">→ Siguiente: ${escapeHtml(ctx.nextAction)}</div>
+        <div class="cita-meta" style="color:var(--amber);">→ Siguiente: ${escapeHtml(c.siguienteCompromisoLabel||ctx.nextAction)}</div>
+        ${c.codigoReserva?`<div class="cita-meta" style="color:var(--green);">${escapeHtml(c.codigoReserva)} · ${escapeHtml(c.estadoReserva||'solicitada')}</div>`:''}
       </div>
-      <div style="display:flex;gap:6px;">
+      <div style="display:flex;gap:6px;flex-wrap:wrap;">
+        ${c.tipoEvento==='reserva_visita' && c.estadoReserva==='confirmada' && c.siguienteCompromiso?.startsWith('recordatorio_') ? `<button class="btn btn-primary btn-sm" data-action="reminder" data-id="${c.id}" data-tipo="${c.siguienteCompromiso}">Enviar recordatorio</button>` : ''}
         <button class="btn btn-sm" data-action="gcal" data-id="${c.id}">+ Google Calendar</button>
         <button class="btn btn-sm" data-action="wa" data-id="${c.id}">WhatsApp</button>
         <button class="btn btn-sm" data-action="del" data-id="${c.id}" style="color:var(--red);">Cancelar</button>
@@ -2194,6 +2215,9 @@ function renderCitasList(citasObj){
   `;
   }).join('');
 
+  list.querySelectorAll('[data-action="reminder"]').forEach(btn=>{
+    btn.addEventListener('click', ()=>enviarRecordatorioReserva(btn.dataset.id, btn.dataset.tipo));
+  });
   list.querySelectorAll('[data-action="del"]').forEach(btn=>{
     btn.addEventListener('click', ()=>{
       const c = arr.find(x=>x.id===btn.dataset.id);
