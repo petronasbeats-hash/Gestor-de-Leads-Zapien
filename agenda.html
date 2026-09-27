@@ -489,18 +489,17 @@ async function prepararLeadParaCita({nombre, apellido, telefono, notas, propieda
   }
 
   if(leadIdFinal){
-    const snap = await db.ref('leads/'+leadIdFinal).once('value');
-    if(snap.exists()){
-      const bitId = bitacoraKey();
-      return {
+    // Privacidad: la página pública nunca lee /leads. telefonos_index aporta
+    // únicamente la referencia; Firebase Rules limita qué campos se actualizan.
+    const bitId = bitacoraKey();
+    return {
         leadId: leadIdFinal,
         updates: {
           ['leads/'+leadIdFinal+'/proximaAccion']: `Visita programada${propTxt}`,
           ['leads/'+leadIdFinal+'/fechaProximaAccion']: selectedSlot.dateKey,
           ['leads/'+leadIdFinal+'/bitacora/'+bitId]: `Cliente agendó su visita para ${selectedSlot.label}${propTxt} desde la agenda pública.`
         }
-      };
-    }
+      };;
   }
 
   const nombreCompleto = apellido ? `${nombre} ${apellido}` : nombre;
