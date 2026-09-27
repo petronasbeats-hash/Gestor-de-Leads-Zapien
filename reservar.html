@@ -490,23 +490,8 @@ function normalizarTelefono(tel){
 async function prepararLeadParaCita({nombre, apellido, telefono, notas, propiedadId, propiedadNombre}){
   const propTxt = propiedadNombre ? ` — ${propiedadNombre}` : '';
   const propObj = propiedadId ? propiedades[propiedadId] : null;
-  const telNorm = normalizarTelefono(telefono);
-  let leadIdFinal = leadId || null;
-
-  if(!leadIdFinal && telNorm){
-    try{
-      const idxSnap = await db.ref('telefonos_index/'+telNorm).once('value');
-      if(idxSnap.exists()) leadIdFinal = idxSnap.val();
-    }catch(e){}
-  }
-
-  if(leadIdFinal){
-    // Un cliente público puede vincular la cita a un Lead existente mediante
-    // telefonos_index, pero no modifica el expediente del Lead. La sincronización
-    // de Next Action/bitácora queda en el contexto autenticado de Synapse.
-    return { leadId: leadIdFinal, updates: {} };
-  }
-
+  // Privacidad V1: el flujo público no consulta telefonos_index ni /leads.
+  // Cada reserva pública crea su propio Lead; la deduplicación queda en Synapse autenticado.
   const nombreCompleto = apellido ? `${nombre} ${apellido}` : nombre;
   const operacionProp = (propObj && propObj.operacion) || 'Compra';
   const tipoDefault = operacionProp === 'Renta' ? 'Inquilino' : 'Comprador';
@@ -524,7 +509,6 @@ async function prepararLeadParaCita({nombre, apellido, telefono, notas, propieda
     bitacora: { [bitacoraKey()]: `Nodo creado desde agenda pública. Intención: ${intencion || 'No especificada'}. Cita: ${selectedSlot.label}${propTxt}.` }
   };
   const updates = { ['leads/'+newLeadId]: nuevoLead };
-  if(telNorm) updates['telefonos_index/'+telNorm] = newLeadId;
   return { leadId: newLeadId, updates };
 }
 
