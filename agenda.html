@@ -606,7 +606,8 @@ document.getElementById('btn-confirm-booking').addEventListener('click', async (
       newState: 'pendiente',
       metadata: { propiedadId: propiedadId || null, leadId: leadIdFinal || null },
       traceVersion: '1.1'
-    };\n    await db.ref().update(updates);
+    };
+    await db.ref().update(updates);
 
     const propObj = propiedadId ? propiedades[propiedadId] : null;
     const mapsLink = mapsLinkFor(propObj);
