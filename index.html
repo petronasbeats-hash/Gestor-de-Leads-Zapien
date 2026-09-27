@@ -2300,6 +2300,18 @@ function timelineCitaHtml(c){
   `;
 }
 
+function contextSignalsHtml(c){
+  const op = buildOperationalContext(c);
+  if(!op.signals.length) return '';
+  const labels = {
+    MISSING_LEAD: 'Sin lead vinculado',
+    MISSING_PROPERTY: 'Propiedad no disponible',
+    RESCHEDULE_NEEDED: 'Requiere reprogramación',
+    FOLLOWUP_NEEDED: 'Requiere seguimiento'
+  };
+  return `<div class="cita-meta" style="margin-top:4px;color:var(--amber);">Contexto · ${op.signals.map(s=>escapeHtml(labels[s.type] || s.type)).join(' · ')}</div>`;
+}
+
 function citaSeguimientoItemHtml(c){
   const ctx = buildContext(c);
   const estadoActual = ctx.estado;
@@ -2311,6 +2323,7 @@ function citaSeguimientoItemHtml(c){
           <b>${escapeHtml(ctx.persona.nombre)}</b> — ${c.fecha} ${c.hora} ${ctx.propiedad.nombre?'· 🏠 '+escapeHtml(ctx.propiedad.nombre):''}
           <div class="cita-meta">${escapeHtml(ctx.persona.telefono)}</div>
           <div class="cita-meta" style="color:var(--amber);">→ Siguiente: ${escapeHtml(ctx.nextAction)}</div>
+          ${contextSignalsHtml(c)}
         </div>
         <select class="seg-estado est-${estadoActual}" data-action="seg-estado" data-id="${c.id}">
           ${Object.entries(ESTADOS_CITA).map(([val,label])=>`<option value="${val}" ${val===estadoActual?'selected':''}>${label}</option>`).join('')}
