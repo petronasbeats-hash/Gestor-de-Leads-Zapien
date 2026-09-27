@@ -5,9 +5,13 @@
       ".write": "auth != null && auth.uid == 'v4wFRvNlwNPY4HtEqozpcHvjXI52'",
       "$leadId": {
         ".write": "!data.exists() && newData.child('fuente').val() == 'Agenda pública'",
-        "proximaAccion": { ".write": "data.parent().exists()" },
-        "fechaProximaAccion": { ".write": "data.parent().exists()" },
-        "bitacora": { "$notaId": { ".write": "!data.exists() && data.parent().parent().exists()" } }
+        "proximaAccion": { ".write": "auth != null && auth.uid == 'v4wFRvNlwNPY4HtEqozpcHvjXI52'" },
+        "fechaProximaAccion": { ".write": "auth != null && auth.uid == 'v4wFRvNlwNPY4HtEqozpcHvjXI52'" },
+        "bitacora": {
+          "$notaId": {
+            ".write": "auth != null && auth.uid == 'v4wFRvNlwNPY4HtEqozpcHvjXI52'"
+          }
+        }
       }
     },
     "telefonos_index": {
