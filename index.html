@@ -2249,6 +2249,47 @@ function renderCitasList(citasObj){
 }
 
 /* ---------- Seguimiento de citas ---------- */
+function siguienteAccionPorFeedback(valor, propiedadNombre){
+  const p=propiedadNombre?' — '+propiedadNombre:'';
+  const mapa={
+    interesado:'Avanzar requisitos y condiciones'+p,
+    comparar:'Proponer alternativas comparables',
+    pensarlo:'Contactar en 24 h para resolver dudas'+p,
+    no_encaja:'Buscar una propiedad que encaje mejor',
+    no_asistio:'Reprogramar visita'
+  };
+  return mapa[valor]||'Dar seguimiento personalizado';
+}
+async function guardarFeedbackVisita(id){
+  const c=ultimasCitas[id]; if(!c) return;
+  const box=document.querySelector(`[data-cita-id="${id}"]`);
+  const select=box?.querySelector('[data-feedback]');
+  const nota=box?.querySelector('[data-feedback-nota]')?.value.trim()||'';
+  const valor=select?.value||'';
+  if(!valor){ alert('Selecciona cómo resultó la visita.'); return; }
+  const accion=siguienteAccionPorFeedback(valor,c.propiedadNombre);
+  const ahora=new Date().toISOString();
+  const updates={};
+  updates['citas/'+id+'/feedback']={resultado:valor,nota,fecha:ahora};
+  updates['citas/'+id+'/nextAction']=accion;
+  updates['citas/'+id+'/estadoReserva']='visitada';
+  if(c.leadId){
+    updates['leads/'+c.leadId+'/proximaAccion']=accion;
+    updates['leads/'+c.leadId+'/fechaProximaAccion']=valor==='pensarlo'?dateKey(new Date(Date.now()+86400000)):dateKey(new Date());
+    updates['leads/'+c.leadId+'/bitacora/'+bitacoraKeyCitas()]=`Feedback de visita: ${valor}. ${nota||''} Próxima acción: ${accion}.`;
+  }
+  await db.ref().update(updates);
+}
+function mensajePostVisita(c){
+  const prop=c.propiedadNombre?(' '+c.propiedadNombre):' la propiedad';
+  return `Hola ${c.nombre||''} 👋 Gracias por visitar${prop}. Queremos ayudarte a tomar una decisión con calma. ¿Cómo te sentiste con el espacio? Puedes decirnos si te interesa avanzar, si quieres comparar otras opciones o si hay algo que no terminó de encajar. — Iré Inmobiliaria`;
+}
+function whatsappPostVisita(c){
+  const tel=telefonoValidoParaWhatsApp(c.telefono);
+  if(!tel){ alert('Esta visita no tiene un teléfono válido para WhatsApp.'); return; }
+  window.open('https://wa.me/52'+tel+'?text='+encodeURIComponent(mensajePostVisita(c)),'_blank','noopener');
+}
+
 function citaSeguimientoItemHtml(c){
   const ctx = buildContext(c);
   const estadoActual = ctx.estado;
@@ -2266,6 +2307,19 @@ function citaSeguimientoItemHtml(c){
         </select>
       </div>
       ${telefonoValidoParaWhatsApp(ctx.persona.telefono) ? `<div style="margin-top:6px;"><button class="btn btn-sm" data-action="seg-wa" data-id="${c.id}">WhatsApp</button></div>` : ''}
+      ${estadoActual==='realizada' ? `
+      <div style="margin-top:10px;padding:10px;border:1px solid var(--line);border-radius:8px;">
+        <div class="cita-meta" style="margin-bottom:7px;color:var(--green);">¿Cómo resultó la visita?</div>
+        <select data-feedback="${c.id}" style="width:100%;margin-bottom:7px;">
+          <option value="">Seleccionar resultado</option>
+          <option value="interesado" ${c.feedback?.resultado==='interesado'?'selected':''}>Le interesa avanzar</option>
+          <option value="comparar" ${c.feedback?.resultado==='comparar'?'selected':''}>Quiere comparar otras opciones</option>
+          <option value="pensarlo" ${c.feedback?.resultado==='pensarlo'?'selected':''}>Quiere pensarlo</option>
+          <option value="no_encaja" ${c.feedback?.resultado==='no_encaja'?'selected':''}>La propiedad no encaja</option>
+        </select>
+        <input type="text" data-feedback-nota="${c.id}" value="${escapeHtml(c.feedback?.nota||'')}" placeholder="¿Qué le gustó, qué necesita o qué faltó?" style="width:100%;margin-bottom:7px;">
+        <div style="display:flex;gap:6px;flex-wrap:wrap;"><button class="btn btn-primary btn-sm" data-action="guardar-feedback" data-id="${c.id}">Guardar siguiente paso</button><button class="btn btn-sm" data-action="post-wa" data-id="${c.id}">Preguntar por WhatsApp</button></div>
+      </div>` : ''}
       <div class="seg-notas">
         ${notas.length ? notas.map(([nid,n])=>`<div class="seg-nota-item">🗒️ ${new Date(n.fecha).toLocaleString('es-MX',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})} — ${escapeHtml(n.texto)}</div>`).join('') : ''}
       </div>
@@ -2297,6 +2351,13 @@ function attachSeguimientoHandlers(container){
         })
         .catch(err=> alert('No se pudo actualizar el estado.\n\nError: ' + err.message));
     });
+  });
+
+  container.querySelectorAll('[data-action="guardar-feedback"]').forEach(btn=>{
+    btn.addEventListener('click',()=>guardarFeedbackVisita(btn.dataset.id));
+  });
+  container.querySelectorAll('[data-action="post-wa"]').forEach(btn=>{
+    btn.addEventListener('click',()=>{const cita=ultimasCitas[btn.dataset.id]; if(cita) whatsappPostVisita(cita);});
   });
 
   container.querySelectorAll('[data-action="seg-wa"]').forEach(btn=>{
