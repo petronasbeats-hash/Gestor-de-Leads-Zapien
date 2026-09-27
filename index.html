@@ -495,8 +495,10 @@
       <div class="row2">
         <div class="field"><label>Operación</label>
           <select id="f-operacion">
-            <option value="Compra">Compra / Venta</option>
+            <option value="Compra">Comprar propiedad</option>
+            <option value="Venta">Vender propiedad</option>
             <option value="Renta">Renta / Alquiler</option>
+            <option value="Inversion">Inversión</option>
           </select>
         </div>
         <div class="field"><label>Rol</label>
@@ -806,9 +808,33 @@ function stageByIdForOperacion(op, etapaId){
   return map[etapaId] || stagesForOperacion(op)[0];
 }
 
+// Classification Layer V2 — reusable Core, independent from any implementation.
+const FLUJOS_SYNAPSE={
+  RENTA_BUSCA:{operacion:'Renta',rol:'Inquilino',lado:'demanda',label:'RENTA · BUSCA'},
+  RENTA_OFRECE:{operacion:'Renta',rol:'Arrendador',lado:'oferta',label:'RENTA · OFRECE'},
+  COMPRA_BUSCA:{operacion:'Compra',rol:'Comprador',lado:'demanda',label:'COMPRA · BUSCA'},
+  VENTA_OFRECE:{operacion:'Venta',rol:'Vendedor',lado:'oferta',label:'VENTA · OFRECE'},
+  INVERSION_BUSCA:{operacion:'Inversion',rol:'Inversionista',lado:'demanda',label:'INVERSIÓN · BUSCA'},
+  INVERSION_CAPITAL:{operacion:'Inversion',rol:'Promotor',lado:'oferta',label:'INVERSIÓN · BUSCA CAPITAL'}
+};
+function flujoSynapse(operacion,rol){
+  if(operacion==='Renta') return rol==='Arrendador'?'RENTA_OFRECE':'RENTA_BUSCA';
+  if(operacion==='Venta') return 'VENTA_OFRECE';
+  if(operacion==='Inversion') return rol==='Promotor'?'INVERSION_CAPITAL':'INVERSION_BUSCA';
+  // Legacy compatibility: old seller records used operacion=Compra + tipo=Vendedor.
+  return rol==='Vendedor'?'VENTA_OFRECE':'COMPRA_BUSCA';
+}
+function clasificacionSynapse(lead){
+  const rol=lead?.rol||lead?.tipo;
+  const flujo=lead?.flujo||flujoSynapse(lead?.operacion||'Compra',rol);
+  return {flujo,...(FLUJOS_SYNAPSE[flujo]||FLUJOS_SYNAPSE.COMPRA_BUSCA)};
+}
+
 const ROLES_POR_OPERACION = {
-  Compra: ['Comprador','Vendedor','Inversor'],
-  Renta:  ['Inquilino','Arrendador']
+  Compra: ['Comprador'],
+  Venta: ['Vendedor'],
+  Renta: ['Inquilino','Arrendador'],
+  Inversion: ['Inversionista','Promotor']
 };
 
 function updateRolOptions(operacion, rolActual){
@@ -1193,6 +1219,9 @@ document.getElementById('btn-save').addEventListener('click', ()=>{
     fuente: document.getElementById('f-fuente').value,
     operacion: document.getElementById('f-operacion').value,
     tipo: document.getElementById('f-tipo').value,
+      rol: document.getElementById('f-tipo').value,
+      flujo: flujoSynapse(document.getElementById('f-operacion').value, document.getElementById('f-tipo').value),
+      ladoMercado: FLUJOS_SYNAPSE[flujoSynapse(document.getElementById('f-operacion').value, document.getElementById('f-tipo').value)]?.lado || null,
     presupuesto: document.getElementById('f-presupuesto').value.trim(),
     ubicacion: document.getElementById('f-ubicacion').value.trim(),
     propiedadId: document.getElementById('f-propiedad-lead').value || null,
