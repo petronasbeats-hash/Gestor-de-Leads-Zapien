@@ -141,10 +141,19 @@
   footer.appfoot{max-width:1080px;margin:40px auto 0;padding:16px;color:var(--muted-2);font-size:11px;font-family:'JetBrains Mono',monospace;text-align:center;}
 
   /* ===== Vista de Citas (portado del panel admin de agenda.html) ===== */
-  .view-tabs{display:flex;gap:8px;margin-top:14px;}
-  .view-tab{background:var(--bg-panel);border:1px solid var(--line);color:var(--muted);padding:9px 16px;border-radius:7px;font-size:13px;font-weight:600;font-family:'JetBrains Mono',monospace;}
+  .view-tabs{display:flex;gap:6px;margin-top:16px;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;}
+  .view-tabs::-webkit-scrollbar{display:none;}
+  .view-tab{flex:0 0 auto;background:transparent;border:1px solid var(--line);color:var(--muted);padding:9px 14px;border-radius:20px;font-size:12.5px;font-weight:600;font-family:'JetBrains Mono',monospace;white-space:nowrap;}
   .view-tab.active{background:var(--green-dim);border-color:var(--green);color:var(--green);}
-  #citas-view{display:none;}
+  .view-section{display:none;}
+  .view-section.active{display:block;}
+  #citas-view{display:block;}
+  .v2-home-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px;}
+  .v2-home-card{background:var(--bg-panel);border:1px solid var(--line);border-radius:10px;padding:14px;cursor:pointer;}
+  .v2-home-card:hover{border-color:var(--green);}
+  .v2-home-card .num{font-family:'JetBrains Mono',monospace;font-size:24px;font-weight:700;color:var(--green);}
+  .v2-home-card .label{font-size:11px;color:var(--muted);margin-top:3px;}
+  @media(max-width:600px){.v2-home-grid{grid-template-columns:1fr 1fr;}}
   #citas-view .row2{grid-template-columns:auto 1fr 1fr;gap:8px;align-items:center;margin-bottom:8px;}
   .admin-tabs{position:sticky;top:0;z-index:40;display:flex;gap:6px;background:var(--bg);padding:10px 0;margin-bottom:14px;border-bottom:1px solid var(--line);overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;}
   .admin-tabs::-webkit-scrollbar{display:none;}
@@ -218,18 +227,34 @@
   <header>
     <div class="eyebrow"><span class="dot"></span>SYNAPSE CORE · IRÉ INMOBILIARIA · TEHUACÁN, PUE.</div>
     <h1>Synapse Core</h1>
-    <div class="sub">Pipeline de 9 etapas, con checklist de calidad y bitácora por lead.</div>
+    <div class="sub">Personas, propiedades y agenda conectadas en un solo flujo.</div>
     <div id="sync-status" class="mono">
       <span id="sync-status-text">conectando…</span>
       <button class="btn btn-sm" id="btn-logout">Cerrar sesión</button>
     </div>
-    <div class="view-tabs">
-      <button class="view-tab active" id="view-tab-leads">📋 Leads</button>
-      <button class="view-tab" id="view-tab-citas">📅 Citas</button>
+    <div class="view-tabs" id="main-nav">
+      <button class="view-tab active" data-main-view="inicio">⌂ Inicio</button>
+      <button class="view-tab" data-main-view="personas">◎ Personas</button>
+      <button class="view-tab" data-main-view="propiedades">◇ Propiedades</button>
+      <button class="view-tab" data-main-view="agenda">▦ Agenda</button>
+      <button class="view-tab" data-main-view="mas">••• Más</button>
     </div>
   </header>
 
-  <div id="leads-view">
+  <div id="inicio-view" class="view-section active">
+    <div class="v2-home-grid">
+      <div class="v2-home-card" data-go-view="agenda"><div class="num" id="v2-stat-citas-hoy">0</div><div class="label">Visitas hoy</div></div>
+      <div class="v2-home-card" data-go-view="personas"><div class="num" id="v2-stat-acciones">0</div><div class="label">Acciones pendientes</div></div>
+      <div class="v2-home-card" data-go-view="propiedades"><div class="num" id="v2-stat-props">0</div><div class="label">Propiedades activas</div></div>
+    </div>
+    <div class="card">
+      <h2 class="mono" style="font-size:14px;color:var(--green);margin:0 0 12px;">Lo siguiente</h2>
+      <div class="sub" style="margin-bottom:10px;">Synapse concentra aquí lo que requiere atención inmediata.</div>
+      <div id="v2-next-action"></div>
+    </div>
+  </div>
+
+  <div id="leads-view" class="view-section">
     <div class="dash" id="dash"></div>
 
     <div class="toolbar">
@@ -253,11 +278,11 @@
   </div>
 
   <div id="citas-view">
-    <div class="admin-tabs">
-      <button class="admin-tab-btn active" data-tab="resumen"><span class="tab-icon">📊</span>Resumen</button>
-      <button class="admin-tab-btn" data-tab="propiedades"><span class="tab-icon">🏠</span>Propiedades<span id="propiedades-tab-badge" style="display:none;background:var(--red);color:#fff;font-family:'JetBrains Mono',monospace;font-size:10px;border-radius:10px;padding:1px 6px;margin-left:6px;"></span></button>
-      <button class="admin-tab-btn" data-tab="disponibilidad"><span class="tab-icon">🗓️</span>Disponibilidad</button>
-      <button class="admin-tab-btn" data-tab="citas"><span class="tab-icon">📋</span>Citas</button>
+    <div class="admin-tabs" style="display:none;">
+      <button class="admin-tab-btn active" data-tab="resumen">Resumen</button>
+      <button class="admin-tab-btn" data-tab="propiedades">Propiedades<span id="propiedades-tab-badge" style="display:none;background:var(--red);color:#fff;font-family:'JetBrains Mono',monospace;font-size:10px;border-radius:10px;padding:1px 6px;margin-left:6px;"></span></button>
+      <button class="admin-tab-btn" data-tab="disponibilidad">Disponibilidad</button>
+      <button class="admin-tab-btn" data-tab="citas">Citas</button>
     </div>
 
     <div class="tab-panel active" data-tab-panel="resumen">
@@ -624,20 +649,20 @@ firebase.auth().onAuthStateChanged(user=>{
 });
 
 /* =========================================================
-   TOGGLE DE VISTA: Leads / Citas
+   SYNAPSE PANEL V2 · Navegación por intención
    ========================================================= */
-document.getElementById('view-tab-leads').addEventListener('click', ()=>{
-  document.getElementById('view-tab-leads').classList.add('active');
-  document.getElementById('view-tab-citas').classList.remove('active');
-  document.getElementById('leads-view').style.display = 'block';
-  document.getElementById('citas-view').style.display = 'none';
-});
-document.getElementById('view-tab-citas').addEventListener('click', ()=>{
-  document.getElementById('view-tab-citas').classList.add('active');
-  document.getElementById('view-tab-leads').classList.remove('active');
-  document.getElementById('leads-view').style.display = 'none';
-  document.getElementById('citas-view').style.display = 'block';
-});
+function openMainView(view){
+  document.querySelectorAll('#main-nav .view-tab').forEach(b=>b.classList.toggle('active', b.dataset.mainView===view));
+  document.getElementById('inicio-view').classList.toggle('active', view==='inicio');
+  document.getElementById('leads-view').classList.toggle('active', view==='personas');
+  document.querySelectorAll('#citas-view .tab-panel').forEach(p=>p.classList.remove('active'));
+
+  if(view==='propiedades') document.querySelector('#citas-view [data-tab-panel="propiedades"]')?.classList.add('active');
+  if(view==='agenda') document.querySelector('#citas-view [data-tab-panel="citas"]')?.classList.add('active');
+  if(view==='mas') document.querySelector('#citas-view [data-tab-panel="disponibilidad"]')?.classList.add('active');
+}
+document.querySelectorAll('#main-nav .view-tab').forEach(btn=>btn.addEventListener('click', ()=>openMainView(btn.dataset.mainView)));
+document.querySelectorAll('[data-go-view]').forEach(card=>card.addEventListener('click', ()=>openMainView(card.dataset.goView)));
 
 const STAGES = [
   { id:"nuevo", num:"01", label:"Nuevo", sla:"< 15 min",
@@ -1564,6 +1589,24 @@ function renderResumenStats(){
 
   const pendientes = Object.values(ultimasCitas||{}).filter(c=>c.fecha < todayKey && (c.estado||'pendiente')==='pendiente').length;
   document.getElementById('stat-pendientes').textContent = pendientes;
+  const citasHoy = Object.values(ultimasCitas||{}).filter(c=>c.fecha===todayKey && !['cancelada'].includes(c.estado||'pendiente')).length;
+  const accionesPendientes = Object.values(leads||{}).filter(l=>l.fechaProximaAccion && l.fechaProximaAccion<=todayKey && !['ganado','perdido'].includes(l.etapa)).length;
+  const elHoy=document.getElementById('v2-stat-citas-hoy'); if(elHoy) elHoy.textContent=citasHoy;
+  const elAcc=document.getElementById('v2-stat-acciones'); if(elAcc) elAcc.textContent=accionesPendientes;
+  const elProps=document.getElementById('v2-stat-props'); if(elProps) elProps.textContent=propActivas;
+  renderV2NextAction(todayKey);
+}
+
+function renderV2NextAction(todayKey){
+  const box=document.getElementById('v2-next-action'); if(!box) return;
+  const citas=Object.entries(ultimasCitas||{}).map(([id,c])=>({id,...c})).filter(c=>c.fecha>=todayKey && !['cancelada','realizada'].includes(c.estado||'pendiente')).sort((a,b)=>(a.fecha+a.hora).localeCompare(b.fecha+b.hora));
+  if(citas.length){
+    const c=citas[0], ctx=buildContext(c);
+    box.innerHTML=`<div class="cita-item"><div><b>${escapeHtml(ctx.persona.nombre||'Visita')}</b><div class="cita-meta">${escapeHtml(ctx.propiedad.nombre||'Sin propiedad')} · ${escapeHtml(c.fecha)} ${escapeHtml(c.hora||'')}</div><div class="cita-meta" style="color:var(--green);margin-top:3px;">→ ${escapeHtml(ctx.nextAction||'Revisar visita')}</div></div><button class="btn btn-sm" data-v2-open-agenda>Ver agenda</button></div>`;
+    box.querySelector('[data-v2-open-agenda]')?.addEventListener('click',()=>openMainView('agenda'));
+    return;
+  }
+  box.innerHTML='<div class="empty">No hay visitas próximas que requieran atención.</div>';
 }
 
 /* ---------- Catálogo de propiedades ---------- */
