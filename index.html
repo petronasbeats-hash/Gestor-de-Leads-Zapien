@@ -2338,7 +2338,10 @@ function timelineCitaHtml(c){
 function contextActionsHtml(c){
   const op = buildOperationalContext(c);
   if(!op.actionProposals.length) return '';
-  return `<div style="margin-top:6px;">${op.actionProposals.map(a=>`<button class="btn btn-sm" type="button" disabled title="${escapeHtml(a.reason)}">Sugerencia · ${escapeHtml(a.label)}</button>`).join(' ')}</div>`;
+  return `<div style="margin-top:6px;">${op.actionProposals.map(a=>{
+    const enabled = a.actionType === 'CONTACT_LEAD' && telefonoValidoParaWhatsApp(op.current.persona.telefono);
+    return `<button class="btn btn-sm" type="button" ${enabled ? `data-action="context-contact" data-id="${escapeHtml(c.id)}"` : 'disabled'} title="${escapeHtml(a.reason)}">Sugerencia · ${escapeHtml(a.label)}</button>`;
+  }).join(' ')}</div>`;
 }
 
 function contextSignalsHtml(c){
@@ -2406,6 +2409,25 @@ function attachSeguimientoHandlers(container){
           return sincronizarLeadPorEstadoCita(cita, estadoNuevo);
         })
         .catch(err=> alert('No se pudo actualizar el estado.\n\nError: ' + err.message));
+    });
+  });
+
+  container.querySelectorAll('[data-action="context-contact"]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const cita = ultimasCitas[btn.dataset.id];
+      if(!cita || !auth.currentUser) return;
+      const trace = registrarTraceCita(cita.id, {
+        tipo: 'accion_confirmada',
+        origen: 'synapse',
+        eventType: 'ACTION_CONFIRMED',
+        metadata: { actionType: 'CONTACT_LEAD', channel: 'WHATSAPP' }
+      });
+      const updates = {};
+      updates['citas/'+cita.id+'/historial/'+trace.traceId] = trace.entry;
+      updates['event_trace/'+trace.traceId] = trace.entry;
+      db.ref().update(updates)
+        .then(()=> abrirWhatsAppParaCita(cita))
+        .catch(err=> alert('No se pudo registrar la acción.\n\nError: ' + err.message));
     });
   });
 
