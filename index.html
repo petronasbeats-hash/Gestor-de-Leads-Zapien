@@ -835,7 +835,9 @@ function registrarTraceLead(leadId, trace){
 }
 
 function saveLead(id, data){
-  return db.ref('leads/'+id).set(data).then(()=>{
+  // update() preserva subárboles append-only como historial.
+  // El formulario administra los campos de data, no debe reemplazar la entidad completa.
+  return db.ref('leads/'+id).update(data).then(()=>{
     const tn = normalizarTelefono(data.telefono);
     if(tn) db.ref('telefonos_index/'+tn).set(id).catch(()=>{});
   });
@@ -1171,7 +1173,7 @@ document.getElementById('btn-save').addEventListener('click', ()=>{
   const savePromise = leadTrace
     ? (()=> {
         const updates = {};
-        updates['leads/'+id] = data;
+        Object.entries(data).forEach(([k,v])=>{ updates['leads/'+id+'/'+k] = v; });
         updates['leads/'+id+'/historial/'+leadTrace.eventId] = leadTrace.entry;
         updates['event_trace/'+leadTrace.eventId] = leadTrace.entry;
         return db.ref().update(updates).then(()=>{
