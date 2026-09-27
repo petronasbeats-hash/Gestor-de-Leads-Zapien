@@ -578,6 +578,8 @@ document.getElementById('btn-confirm-booking').addEventListener('click', async (
     // o se guardan las dos juntas, o no se guarda ninguna — así no puede quedar
     // un horario "fantasma" ocupado sin que exista su cita.
     const citaId = db.ref('citas').push().key;
+    const creado = new Date().toISOString();
+    const traceId = db.ref('citas/'+citaId+'/historial').push().key;
     const updates = {};
     updates['citas_publicas/'+slotFlagKey] = { propiedadId: propiedadId || null };
     updates['citas/'+citaId] = {
@@ -587,7 +589,24 @@ document.getElementById('btn-confirm-booking').addEventListener('click', async (
       hora: selectedSlot.timeKey,
       leadId: leadIdFinal || null,
       estado: 'pendiente',
-      creado: new Date().toISOString()
+      creado
+    };
+    updates['citas/'+citaId+'/historial/'+traceId] = {
+      // Event Trace V1.1 — nacimiento de la cita desde experiencia pública.
+      tipo: 'creacion',
+      fecha: creado,
+      origen: 'reservar',
+      eventId: traceId,
+      eventType: 'APPOINTMENT_CREATED',
+      entityType: 'APPOINTMENT',
+      entityId: citaId,
+      timestamp: creado,
+      actor: { type: 'CLIENT', id: null, name: nombreCompleto || null },
+      source: { type: 'PUBLIC_RESERVATION', page: 'reservar.html' },
+      previousState: null,
+      newState: 'pendiente',
+      metadata: { propiedadId: propiedadId || null, leadId: leadIdFinal || null },
+      traceVersion: '1.1'
     };
     await db.ref().update(updates);
 
