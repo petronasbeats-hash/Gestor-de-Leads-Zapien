@@ -257,6 +257,7 @@
       <div class="v2-home-card" data-go-view="agenda"><div class="num" id="v2-stat-citas-hoy">0</div><div class="label">Visitas hoy</div></div>
       <div class="v2-home-card" data-go-view="personas"><div class="num" id="v2-stat-acciones">0</div><div class="label">Acciones pendientes</div></div>
       <div class="v2-home-card" data-go-view="propiedades"><div class="num" id="v2-stat-props">0</div><div class="label">Propiedades activas</div></div>
+      <div class="v2-home-card" data-go-view="propiedades"><div class="num" id="v2-stat-solicitudes-prop">0</div><div class="label">Solicitudes de propiedad</div></div>
     </div>
     <div class="card">
       <h2 class="mono" style="font-size:14px;color:var(--green);margin:0 0 12px;">Lo siguiente</h2>
@@ -1740,6 +1741,18 @@ function propiedadFaltantes(p){
   if(p.lat==null || p.lng==null) falta.push('coordenadas');
   return falta;
 }
+
+let solicitudesPropiedad={};
+function renderSolicitudesPropiedad(){
+  const list=document.getElementById('solicitudes-prop-list'); if(!list) return;
+  const arr=Object.entries(solicitudesPropiedad||{}).map(([id,s])=>({id,...s})).filter(s=>s.estadoSolicitud!=='convertida').sort((a,b)=>(b.creado||'').localeCompare(a.creado||''));
+  const badge=document.getElementById('v2-stat-solicitudes-prop'); if(badge) badge.textContent=arr.filter(s=>s.estadoSolicitud==='nueva').length;
+  if(!arr.length){list.innerHTML='<div class="empty">Sin solicitudes nuevas.</div>';return;}
+  list.innerHTML=arr.map(s=>`<div class="cita-item"><div><b>${escapeHtml(s.nombre||'Propietario')}</b><div class="cita-meta">${s.intencion==='vender'?'Quiere vender':'Quiere poner en renta'} · ${escapeHtml(s.tipoPropiedad||'Inmueble')} · ${escapeHtml(s.ubicacion||'Ubicación por confirmar')}</div><div class="cita-meta" style="color:var(--green);">${escapeHtml(s.codigoSolicitud||'')} · ${s.estadoSolicitud==='nueva'?'NUEVA':'EN REVISIÓN'}</div><div style="font-size:12px;margin-top:5px;">${escapeHtml(s.necesidadHumana||'')}</div></div><div style="display:flex;gap:6px;flex-wrap:wrap;"><button class="btn btn-primary btn-sm" data-sol-wa="${s.id}">Contactar</button><button class="btn btn-sm" data-sol-review="${s.id}">Tomar solicitud</button></div></div>`).join('');
+  list.querySelectorAll('[data-sol-review]').forEach(b=>b.onclick=()=>db.ref('solicitudes_propiedad/'+b.dataset.solReview).update({estadoSolicitud:'en_revision',revisionIniciada:new Date().toISOString()}));
+  list.querySelectorAll('[data-sol-wa]').forEach(b=>b.onclick=()=>{const s=solicitudesPropiedad[b.dataset.solWa];const tel=telefonoValidoParaWhatsApp(s?.telefono);if(!tel)return alert('Teléfono no válido.');const m=`Hola ${s.nombre||''} 👋 Recibimos tu solicitud ${s.codigoSolicitud||''} para ayudarnos a ${s.intencion==='vender'?'vender':'poner en renta'} tu propiedad. Queremos conocer mejor el inmueble y explicarte cómo podemos acompañarte. ¿Podemos platicar unos minutos? — Iré Inmobiliaria`;window.open('https://wa.me/52'+tel+'?text='+encodeURIComponent(m),'_blank','noopener');});
+}
+db.ref('solicitudes_propiedad').on('value',snap=>{solicitudesPropiedad=snap.val()||{};renderSolicitudesPropiedad();});
 
 function renderPropiedadesAdmin(obj){
   const list = document.getElementById('propiedades-list');
