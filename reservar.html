@@ -608,7 +608,23 @@ document.getElementById('btn-confirm-booking').addEventListener('click', async (
       metadata: { propiedadId: propiedadId || null, leadId: leadIdFinal || null },
       traceVersion: '1.1'
     };
-    await db.ref().update(updates);
+    updates['event_trace/'+traceId] = {
+      // Event Trace V1.1 — nacimiento de la cita desde experiencia pública.
+      tipo: 'creacion',
+      fecha: creado,
+      origen: 'reservar',
+      eventId: traceId,
+      eventType: 'APPOINTMENT_CREATED',
+      entityType: 'APPOINTMENT',
+      entityId: citaId,
+      timestamp: creado,
+      actor: { type: 'CLIENT', id: null, name: nombreCompleto || null },
+      source: { type: 'PUBLIC_RESERVATION', page: 'reservar.html' },
+      previousState: null,
+      newState: 'pendiente',
+      metadata: { propiedadId: propiedadId || null, leadId: leadIdFinal || null },
+      traceVersion: '1.1'
+    };\n    await db.ref().update(updates);
 
     const propObj = propiedadId ? propiedades[propiedadId] : null;
     const mapsLink = mapsLinkFor(propObj);
