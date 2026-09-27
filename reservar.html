@@ -108,9 +108,9 @@
 <div class="wrap">
   <header>
     <div class="eyebrow"><span class="dot"></span>IRÉ INMOBILIARIA · TEHUACÁN, PUE.</div>
-    <h1 id="page-title">Habitat</h1>
+    <h1 id="page-title">Reserva una visita</h1>
 
-    <div class="sub" id="page-sub">Elige el día y hora que mejor te acomode.</div>
+    <div class="sub" id="page-sub">Conoce los espacios disponibles y solicita el momento que mejor se adapte a ti. Nosotros revisamos tu solicitud y te acompañamos hasta la visita.</div>
   </header>
 
   <!-- ============ VISTA PÚBLICA ============ -->
@@ -137,7 +137,7 @@
 <!-- ============ MODAL DE CONFIRMACIÓN ============ -->
 <div class="overlay" id="overlay">
   <div class="modal" id="modal-content">
-    <h2>Confirma tu cita</h2>
+    <h2>Solicita tu reserva</h2>
     <div class="field"><label>Nombre</label><input type="text" id="f-nombre"></div>
     <div class="field"><label>Apellido (opcional)</label><input type="text" id="f-apellido"></div>
     <div class="field"><label>Teléfono (WhatsApp)</label><input type="text" id="f-telefono"></div>
@@ -159,7 +159,7 @@ id="f-notas" placeholder="Ej. propiedad de interés"></div>
     <div class="confirm-box mono" id="confirm-summary"></div>
     <div style="display:flex;gap:8px;justify-content:flex-end;">
       <button class="btn" id="btn-cancel-modal">Cancelar</button>
-      <button class="btn btn-primary" id="btn-confirm-booking">Confirmar cita</button>
+      <button class="btn btn-primary" id="btn-confirm-booking">Solicitar reserva</button>
     </div>
   </div>
 </div>
@@ -479,6 +479,12 @@ function openBookingModal(dateKey_, timeKey, label){
 document.getElementById('btn-cancel-modal').addEventListener('click', ()=> overlay.classList.remove('open'));
 overlay.addEventListener('click', e=>{ if(e.target===overlay) overlay.classList.remove('open'); });
 
+function generarCodigoReserva(){
+  const chars='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  const rand=Array.from({length:6},()=>chars[Math.floor(Math.random()*chars.length)]).join('');
+  return 'RSV-'+new Date().getFullYear().toString().slice(-2)+'-'+rand;
+}
+
 function bitacoraKey(){
   return new Date().toISOString().slice(0,16).replace('T',' ') + '__' + Math.random().toString(36).slice(2,6);
 }
@@ -508,11 +514,11 @@ async function upsertLeadParaCita({nombre, apellido, telefono, notas, propiedadI
   if(idParaActualizar){
     try{
       await db.ref('leads/'+idParaActualizar).update({
-        proximaAccion: `Visita programada${propTxt}`,
+        proximaAccion: `Reserva por revisar${propTxt}`,
         fechaProximaAccion: selectedSlot.dateKey
       });
       await db.ref('leads/'+idParaActualizar+'/bitacora/'+bitacoraKey())
-        .set(`Cliente agendó su visita para ${selectedSlot.label}${propTxt} desde la agenda pública.`);
+        .set(`Cliente solicitó reserva para ${selectedSlot.label}${propTxt} desde Reserva pública.`);
       return idParaActualizar;
     }catch(e){
       // El lead ya no existe o el índice estaba desactualizado — seguimos y creamos uno nuevo.
@@ -531,14 +537,14 @@ async function upsertLeadParaCita({nombre, apellido, telefono, notas, propiedadI
     
 intencion: document.getElementById('f-intencion')?.value || '',
     email: '',
-    fuente: 'Agenda pública',
+    fuente: 'Reserva pública',
     operacion: operacionProp,
     tipo: tipoDefault,
     presupuesto: '',
     ubicacion: (propObj && propObj.direccion) || '',
     valorEstimado: (propObj && Number(propObj.precio)) || 0,
     probabilidad: 30,
-    proximaAccion: `Visita programada${propTxt}`,
+    proximaAccion: `Reserva por revisar${propTxt}`,
     fechaProximaAccion: selectedSlot.dateKey,
     notas: notas || '',
     
@@ -546,7 +552,7 @@ etapa: 'visita_programada',
     fechaCreacion: dateKey(new Date()),
     fechaCierre: null,
     checklist: {},
-    bitacora: { [bitacoraKey()]: `Nodo creado desde agenda pública. Intención: ${document.getElementById('f-intencion')?.value || 'No especificada'}. Cita: ${selectedSlot.label}${propTxt}.` }
+    bitacora: { [bitacoraKey()]: `Nodo creado desde Reserva pública. Intención: ${document.getElementById('f-intencion')?.value || 'No especificada'}. Reserva solicitada: ${selectedSlot.label}${propTxt}.` }
  }
   });
   if(telNorm){
@@ -562,12 +568,12 @@ document.getElementById('btn-confirm-booking').addEventListener('click', async (
   const notas = document.getElementById('f-notas').value.trim();
   const propiedadId = document.getElementById('f-propiedad-id').value || null;
   const propiedadNombre = document.getElementById('f-propiedad-nombre').value || null;
-  if(!nombre || !telefono){ alert('Pon tu nombre y teléfono para poder confirmarte la cita.'); return; }
+  if(!nombre || !telefono){ alert('Pon tu nombre y teléfono para poder dar seguimiento a tu reserva.'); return; }
   if(!selectedSlot) return;
 
   const slotFlagKey = `${selectedSlot.dateKey}_${selectedSlot.timeKey}`;
   const btn = document.getElementById('btn-confirm-booking');
-  btn.disabled = true; btn.textContent = 'Agendando…';
+  btn.disabled = true; btn.textContent = 'Reservando…';
 
   try{
     // 1. crear/actualizar el lead PRIMERO — si esto falla, no se toca el horario todavía
@@ -578,8 +584,10 @@ document.getElementById('btn-confirm-booking').addEventListener('click', async (
     // o se guardan las dos juntas, o no se guarda ninguna — así no puede quedar
     // un horario "fantasma" ocupado sin que exista su cita.
     const citaId = db.ref('citas').push().key;
+    const codigoReserva = generarCodigoReserva();
+    const creadoISO = new Date().toISOString();
     const updates = {};
-    updates['citas_publicas/'+slotFlagKey] = { propiedadId: propiedadId || null };
+    updates['citas_publicas/'+slotFlagKey] = { propiedadId: propiedadId || null, citaId, codigoReserva };
     updates['citas/'+citaId] = {
       nombre: nombreCompleto, telefono, notas,
       propiedadId, propiedadNombre,
@@ -587,7 +595,12 @@ document.getElementById('btn-confirm-booking').addEventListener('click', async (
       hora: selectedSlot.timeKey,
       leadId: leadIdFinal || null,
       estado: 'pendiente',
-      creado: new Date().toISOString()
+      tipoEvento: 'reserva_visita',
+      codigoReserva,
+      estadoReserva: 'solicitada',
+      slaRevisionMin: 30,
+      creado: creadoISO,
+      reservaCreada: creadoISO
     };
     await db.ref().update(updates);
 
@@ -599,16 +612,17 @@ document.getElementById('btn-confirm-booking').addEventListener('click', async (
         ${mapsLink ? `<a href="${mapsLink}" target="_blank" style="color:var(--green);">Ver ubicación en Google Maps →</a>` : ''}
       </div>` : '';
     document.getElementById('modal-content').innerHTML = `
-      <h2>🔗 Conexión creada</h2>
-      <div class="confirm-box mono">📅 ${selectedSlot.label}${propiedadNombre?'<br>🏠 '+escapeHtml(propiedadNombre):''}<br>👤 ${escapeHtml(nombreCompleto)}</div>
+      <h2>✓ Reserva recibida</h2>
+      <div class="confirm-box mono">CÓDIGO · ${codigoReserva}<br>📅 ${selectedSlot.label}${propiedadNombre?'<br>🏠 '+escapeHtml(propiedadNombre):''}<br>👤 ${escapeHtml(nombreCompleto)}</div>
       ${direccionBlock}
-      <div class="sub" style="margin-bottom:14px;">Tu intención ya está conectada con Habitat. Te acompañaremos en el siguiente paso por WhatsApp.</div>
+      <div class="sub" style="margin-bottom:8px;">Recibimos tu solicitud. La revisaremos y te enviaremos la confirmación por WhatsApp.</div>
+      <div class="sub" style="margin-bottom:14px;color:var(--green);">Nivel de atención: revisión inicial objetivo en menos de 30 minutos dentro del horario de servicio. Conserva tu código para seguimiento.</div>
       <button class="btn btn-primary" onclick="location.reload()">Listo</button>
     `;
   }catch(err){
     console.error(err);
     alert('Ese horario ya no está disponible, elige otro.');
-    btn.disabled = false; btn.textContent = 'Confirmar cita';
+    btn.disabled = false; btn.textContent = 'Solicitar reserva';
     overlay.classList.remove('open');
   }
 });
