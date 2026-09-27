@@ -2085,6 +2085,39 @@ function renderCitasList(citasObj){
 }
 
 /* ---------- Seguimiento de citas ---------- */
+function timelineCitaHtml(c){
+  const eventos = c.historial ? Object.entries(c.historial)
+    .map(([id,e])=>({ id, ...e }))
+    .sort((a,b)=>String(a.timestamp || a.fecha || '').localeCompare(String(b.timestamp || b.fecha || ''))) : [];
+  if(!eventos.length) return '';
+
+  const labels = {
+    APPOINTMENT_CREATED: 'Cita creada',
+    APPOINTMENT_STATUS_CHANGED: 'Estado actualizado',
+    APPOINTMENT_CANCELLED: 'Cita cancelada',
+    APPOINTMENT_COMPLETED: 'Visita realizada',
+    APPOINTMENT_NO_SHOW: 'No asistió',
+    APPOINTMENT_RESCHEDULED: 'Cita reprogramada',
+    APPOINTMENT_FOLLOWUP_ADDED: 'Seguimiento agregado'
+  };
+
+  return `
+    <details style="margin-top:10px;">
+      <summary class="cita-meta" style="cursor:pointer;color:var(--green);">Trayectoria · ${eventos.length} evento${eventos.length===1?'':'s'}</summary>
+      <div style="margin-top:8px;border-left:1px solid var(--line);padding-left:10px;">
+        ${eventos.map(e=>{
+          const fecha = e.timestamp || e.fecha;
+          const label = labels[e.eventType] || e.tipo || 'Evento';
+          const cambio = e.previousState !== undefined && e.newState !== undefined && e.newState !== null
+            ? ` · ${escapeHtml(String(e.previousState || '—'))} → ${escapeHtml(String(e.newState))}` : '';
+          const source = e.source && e.source.type ? ` · ${escapeHtml(e.source.type)}` : '';
+          return `<div class="cita-meta" style="margin:6px 0;"><b>${escapeHtml(label)}</b>${cambio}${source}<br><span>${fecha ? new Date(fecha).toLocaleString('es-MX') : ''}</span></div>`;
+        }).join('')}
+      </div>
+    </details>
+  `;
+}
+
 function citaSeguimientoItemHtml(c){
   const ctx = buildContext(c);
   const estadoActual = ctx.estado;
@@ -2105,6 +2138,7 @@ function citaSeguimientoItemHtml(c){
       <div class="seg-notas">
         ${notas.length ? notas.map(([nid,n])=>`<div class="seg-nota-item">🗒️ ${new Date(n.fecha).toLocaleString('es-MX',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})} — ${escapeHtml(n.texto)}</div>`).join('') : ''}
       </div>
+      ${timelineCitaHtml(c)}
       <div class="seg-add-row">
         <input type="text" data-nota-input="${c.id}" placeholder="Agregar nota de seguimiento...">
         <button class="btn btn-sm" data-action="seg-add-nota" data-id="${c.id}">Agregar</button>
