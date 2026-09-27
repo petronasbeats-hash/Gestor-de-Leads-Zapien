@@ -253,6 +253,7 @@
 
   <div id="inicio-view" class="view-section active">
     <div class="v2-home-grid">
+      <div class="v2-home-card" data-go-view="agenda" style="border-color:var(--green-dim);"><div class="num" id="v2-stat-reservas-nuevas">0</div><div class="label">Reservas nuevas</div></div>
       <div class="v2-home-card" data-go-view="agenda"><div class="num" id="v2-stat-citas-hoy">0</div><div class="label">Visitas hoy</div></div>
       <div class="v2-home-card" data-go-view="personas"><div class="num" id="v2-stat-acciones">0</div><div class="label">Acciones pendientes</div></div>
       <div class="v2-home-card" data-go-view="propiedades"><div class="num" id="v2-stat-props">0</div><div class="label">Propiedades activas</div></div>
@@ -426,7 +427,7 @@
       </div>
 
       <div class="card">
-        <h2 class="mono" style="font-size:14px;color:var(--green);margin:0 0 12px;">Calendario de citas</h2>
+        <h2 class="mono" style="font-size:14px;color:var(--green);margin:0 0 12px;">Calendario de visitas</h2>
         <div class="cal-header">
           <button class="btn btn-sm" id="cal-prev">← Anterior</button>
           <div class="mono" id="cal-month-label" style="font-size:13.5px;color:var(--text);"></div>
@@ -1599,6 +1600,8 @@ function renderResumenStats(){
 
   const pendientes = Object.values(ultimasCitas||{}).filter(c=>c.fecha < todayKey && (c.estado||'pendiente')==='pendiente').length;
   document.getElementById('stat-pendientes').textContent = pendientes;
+  const reservasNuevas = Object.values(ultimasCitas||{}).filter(c=>c.tipoEvento==='reserva_visita' && (c.estadoReserva||'solicitada')==='solicitada').length;
+  const elReservas=document.getElementById('v2-stat-reservas-nuevas'); if(elReservas) elReservas.textContent=reservasNuevas;
   const citasHoy = Object.values(ultimasCitas||{}).filter(c=>c.fecha===todayKey && !['cancelada'].includes(c.estado||'pendiente')).length;
   const accionesPendientes = Object.values(leads||{}).filter(l=>l.fechaProximaAccion && l.fechaProximaAccion<=todayKey && !['ganado','perdido'].includes(l.etapa)).length;
   const elHoy=document.getElementById('v2-stat-citas-hoy'); if(elHoy) elHoy.textContent=citasHoy;
@@ -1607,8 +1610,32 @@ function renderResumenStats(){
   renderV2NextAction(todayKey);
 }
 
+function mensajeConfirmacionReserva(c){
+  const codigo=c.codigoReserva||'';
+  const prop=c.propiedadNombre?(' para '+c.propiedadNombre):'';
+  return `Hola ${c.nombre||''} 👋 Ya revisamos tu solicitud${prop}. Tu visita queda confirmada para el ${c.fecha||''} a las ${c.hora||''}. Código de reserva: ${codigo}. Si necesitas hacer algún cambio, respóndenos por este medio. — Iré Inmobiliaria`;
+}
+function whatsappReserva(c){
+  const tel=telefonoValidoParaWhatsApp(c.telefono);
+  if(!tel){ alert('Esta reserva no tiene un teléfono válido para WhatsApp.'); return; }
+  window.open('https://wa.me/52'+tel+'?text='+encodeURIComponent(mensajeConfirmacionReserva(c)),'_blank','noopener');
+}
+async function confirmarReservaV2(id){
+  const c=ultimasCitas[id]; if(!c) return;
+  await db.ref('citas/'+id).update({estado:'confirmada',estadoReserva:'confirmada',reservaConfirmada:new Date().toISOString(),proximoRecordatorio:'24h'});
+  whatsappReserva({...c,estado:'confirmada',estadoReserva:'confirmada'});
+}
+
 function renderV2NextAction(todayKey){
   const box=document.getElementById('v2-next-action'); if(!box) return;
+  const reservas=Object.entries(ultimasCitas||{}).map(([id,c])=>({id,...c})).filter(c=>c.tipoEvento==='reserva_visita' && (c.estadoReserva||'solicitada')==='solicitada').sort((a,b)=>(a.creado||'').localeCompare(b.creado||''));
+  if(reservas.length){
+    const c=reservas[0];
+    box.innerHTML=`<div class="cita-item"><div><b>Nueva reserva · ${escapeHtml(c.nombre||'Cliente')}</b><div class="cita-meta">${escapeHtml(c.propiedadNombre||'Sin propiedad')} · ${escapeHtml(c.fecha||'')} ${escapeHtml(c.hora||'')}</div><div class="cita-meta" style="color:var(--green);margin-top:3px;">${escapeHtml(c.codigoReserva||'')} · Objetivo de revisión &lt; 30 min</div></div><div style="display:flex;gap:6px;"><button class="btn btn-primary btn-sm" data-v2-confirm-reserva>Confirmar y WhatsApp</button><button class="btn btn-sm" data-v2-open-agenda>Ver</button></div></div>`;
+    box.querySelector('[data-v2-confirm-reserva]')?.addEventListener('click',()=>confirmarReservaV2(c.id));
+    box.querySelector('[data-v2-open-agenda]')?.addEventListener('click',()=>openMainView('agenda'));
+    return;
+  }
   const citas=Object.entries(ultimasCitas||{}).map(([id,c])=>({id,...c})).filter(c=>c.fecha>=todayKey && !['cancelada','realizada'].includes(c.estado||'pendiente')).sort((a,b)=>(a.fecha+a.hora).localeCompare(b.fecha+b.hora));
   if(citas.length){
     const c=citas[0], ctx=buildContext(c);
