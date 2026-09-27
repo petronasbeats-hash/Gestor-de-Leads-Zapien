@@ -811,6 +811,29 @@ function backfillIndiceTelefonos(){
   });
 }
 
+function registrarTraceLead(leadId, trace){
+  const eventId = db.ref('leads/'+leadId+'/historial').push().key;
+  const timestamp = trace.timestamp || new Date().toISOString();
+  const entry = {
+    eventId,
+    eventType: trace.eventType,
+    entityType: 'LEAD',
+    entityId: leadId,
+    timestamp,
+    actor: trace.actor || {
+      type: auth.currentUser ? 'USER' : 'SYSTEM',
+      id: auth.currentUser ? auth.currentUser.uid : null,
+      name: null
+    },
+    source: trace.source || { type: 'ADMIN', page: 'index.html' },
+    previousState: trace.previousState !== undefined ? trace.previousState : null,
+    newState: trace.newState !== undefined ? trace.newState : null,
+    metadata: trace.metadata || {},
+    traceVersion: '1.5'
+  };
+  return { eventId, entry };
+}
+
 function saveLead(id, data){
   return db.ref('leads/'+id).set(data).then(()=>{
     const tn = normalizarTelefono(data.telefono);
@@ -1129,7 +1152,30 @@ document.getElementById('btn-save').addEventListener('click', ()=>{
     bitacora: existing?.bitacora || {},
   };
 
-  saveLead(id, data).then(()=>{
+  const leadTrace = !existing
+    ? registrarTraceLead(id, { eventType:'LEAD_CREATED', newState:currentStageId })
+    : (existing.etapa !== currentStageId
+      ? registrarTraceLead(id, {
+          eventType:'LEAD_STAGE_CHANGED',
+          previousState:existing.etapa || null,
+          newState:currentStageId
+        })
+      : null);
+
+  const savePromise = leadTrace
+    ? (()=> {
+        const updates = {};
+        updates['leads/'+id] = data;
+        updates['leads/'+id+'/historial/'+leadTrace.eventId] = leadTrace.entry;
+        updates['event_trace/'+leadTrace.eventId] = leadTrace.entry;
+        return db.ref().update(updates).then(()=>{
+          const tn = normalizarTelefono(data.telefono);
+          if(tn) db.ref('telefonos_index/'+tn).set(id).catch(()=>{});
+        });
+      })()
+    : saveLead(id, data);
+
+  savePromise.then(()=>{
     // Sincroniza el vínculo en ambos sentidos: si cambió el lead relacionado,
     // actualiza también al otro lead para que apunte de vuelta a este.
     const nuevoRelId = data.leadRelacionadoId;
