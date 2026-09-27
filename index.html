@@ -1226,11 +1226,52 @@ const ESTADOS_CITA = { pendiente:'Pendiente', confirmada:'Confirmada', realizada
 // aunque hoy todavía la ejecute una persona (ver /areas/ire-lead-tracker.md — filosofía Synapse Core).
 function registrarTraceCita(citaId, trace){
   const traceId = db.ref('citas/'+citaId+'/historial').push().key;
-  const entry = {
-    tipo: trace.tipo,
-    fecha: trace.fecha || new Date().toISOString(),
-    origen: trace.origen || 'synapse'
+  const timestamp = trace.fecha || new Date().toISOString();
+  const origen = trace.origen || 'synapse';
+
+  // Event Trace V1.1 — contrato normalizado, compatible con V0.
+  // Los campos V0 se conservan para no romper historial ni consumidores existentes.
+  const EVENT_TYPE_POR_TRACE = {
+    creacion: 'APPOINTMENT_CREATED',
+    estado: trace.nuevo === 'cancelada' ? 'APPOINTMENT_CANCELLED'
+      : trace.nuevo === 'realizada' ? 'APPOINTMENT_COMPLETED'
+      : trace.nuevo === 'no_asistio' ? 'APPOINTMENT_NO_SHOW'
+      : 'APPOINTMENT_STATUS_CHANGED',
+    reprogramacion: 'APPOINTMENT_RESCHEDULED'
   };
+  const SOURCE_POR_ORIGEN = {
+    synapse: { type: 'ADMIN', page: 'index.html' },
+    agenda: { type: 'PUBLIC_AGENDA', page: 'agenda.html' },
+    reservar: { type: 'PUBLIC_AGENDA', page: 'reservar.html' },
+    system: { type: 'SYSTEM', page: null }
+  };
+
+  const entry = {
+    // Compatibilidad V0
+    tipo: trace.tipo,
+    fecha: timestamp,
+    origen,
+
+    // Contrato V1.1
+    eventId: traceId,
+    eventType: trace.eventType || EVENT_TYPE_POR_TRACE[trace.tipo] || 'APPOINTMENT_UPDATED',
+    entityType: 'APPOINTMENT',
+    entityId: citaId,
+    timestamp,
+    actor: trace.actor || {
+      type: auth.currentUser ? 'USER' : 'SYSTEM',
+      id: auth.currentUser ? auth.currentUser.uid : null,
+      name: null
+    },
+    source: trace.source || SOURCE_POR_ORIGEN[origen] || { type: 'SYSTEM', page: null },
+    previousState: trace.previousState !== undefined ? trace.previousState
+      : (trace.anterior !== undefined ? trace.anterior : null),
+    newState: trace.newState !== undefined ? trace.newState
+      : (trace.nuevo !== undefined ? trace.nuevo : null),
+    metadata: trace.metadata || {},
+    traceVersion: '1.1'
+  };
+
   if(trace.anterior !== undefined) entry.anterior = trace.anterior;
   if(trace.nuevo !== undefined) entry.nuevo = trace.nuevo;
   if(trace.fechaAnterior !== undefined) entry.fechaAnterior = trace.fechaAnterior;
