@@ -2185,6 +2185,25 @@ function buildOperationalContext(cita){
     }
   }
 
+  const actionProposals = [];
+  const has = type => signals.some(s=>s.type===type);
+  if(has('RESCHEDULE_NEEDED') || has('APPOINTMENT_OVERDUE')){
+    actionProposals.push({
+      actionType: 'REVIEW_APPOINTMENT',
+      label: 'Revisar / reprogramar cita',
+      reason: has('APPOINTMENT_OVERDUE') ? 'La cita quedó pendiente después de su horario.' : 'El estado de la cita requiere reprogramación.',
+      requiresHumanConfirmation: true
+    });
+  }
+  if(has('FOLLOWUP_NEEDED') || has('NEXT_ACTION_OVERDUE')){
+    actionProposals.push({
+      actionType: 'CONTACT_LEAD',
+      label: 'Contactar y dar seguimiento',
+      reason: has('NEXT_ACTION_OVERDUE') ? 'La próxima acción del lead está vencida.' : 'La visita ya ocurrió y requiere seguimiento.',
+      requiresHumanConfirmation: true
+    });
+  }
+
   return {
     contextVersion: '2.0',
     generatedAt: new Date().toISOString(),
@@ -2200,6 +2219,7 @@ function buildOperationalContext(cita){
       property: propertyEvents
     },
     signals,
+    actionProposals,
     suggestedNextAction: base.nextAction || (lead && lead.proximaAccion) || ''
   };
 }
@@ -2315,6 +2335,12 @@ function timelineCitaHtml(c){
   `;
 }
 
+function contextActionsHtml(c){
+  const op = buildOperationalContext(c);
+  if(!op.actionProposals.length) return '';
+  return `<div style="margin-top:6px;">${op.actionProposals.map(a=>`<button class="btn btn-sm" type="button" disabled title="${escapeHtml(a.reason)}">Sugerencia · ${escapeHtml(a.label)}</button>`).join(' ')}</div>`;
+}
+
 function contextSignalsHtml(c){
   const op = buildOperationalContext(c);
   if(!op.signals.length) return '';
@@ -2341,6 +2367,7 @@ function citaSeguimientoItemHtml(c){
           <div class="cita-meta">${escapeHtml(ctx.persona.telefono)}</div>
           <div class="cita-meta" style="color:var(--amber);">→ Siguiente: ${escapeHtml(ctx.nextAction)}</div>
           ${contextSignalsHtml(c)}
+          ${contextActionsHtml(c)}
         </div>
         <select class="seg-estado est-${estadoActual}" data-action="seg-estado" data-id="${c.id}">
           ${Object.entries(ESTADOS_CITA).map(([val,label])=>`<option value="${val}" ${val===estadoActual?'selected':''}>${label}</option>`).join('')}
