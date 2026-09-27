@@ -1611,6 +1611,31 @@ function renderResumenStats(){
   renderV2NextAction(todayKey);
 }
 
+function estadoSLAReserva(c){
+  const inicio=new Date(c.reservaCreada||c.creado||0).getTime();
+  const limite=Number(c.slaRevisionMin||30);
+  if(!inicio) return {nivel:'sin_dato',label:'Sin reloj',restante:null};
+  const usados=Math.max(0,Math.floor((Date.now()-inicio)/60000));
+  const restante=limite-usados;
+  if(restante<0) return {nivel:'vencida',label:'Atención vencida · '+Math.abs(restante)+' min',restante};
+  if(restante<=10) return {nivel:'por_vencer',label:'Por vencer · '+restante+' min',restante};
+  return {nivel:'en_tiempo',label:'En tiempo · '+restante+' min',restante};
+}
+function colorSLA(nivel){
+  return nivel==='vencida'?'var(--red)':nivel==='por_vencer'?'var(--amber)':'var(--green)';
+}
+function fechaHoraVisita(c){
+  const raw=(c.fecha||'')+'T'+(c.hora||'00:00')+':00';
+  const d=new Date(raw); return isNaN(d)?null:d;
+}
+function compromisoPosteriorReserva(c){
+  const visita=fechaHoraVisita(c); if(!visita) return {tipo:'preparar_visita',label:'Preparar visita'};
+  const horas=(visita.getTime()-Date.now())/3600000;
+  if(horas>24) return {tipo:'recordatorio_24h',label:'Recordatorio 24 h antes'};
+  if(horas>2) return {tipo:'recordatorio_2h',label:'Recordatorio 2 h antes'};
+  return {tipo:'preparar_visita',label:'Preparar visita'};
+}
+
 function mensajeConfirmacionReserva(c){
   const codigo=c.codigoReserva||'';
   const prop=c.propiedadNombre?(' para '+c.propiedadNombre):'';
@@ -1623,16 +1648,29 @@ function whatsappReserva(c){
 }
 async function confirmarReservaV2(id){
   const c=ultimasCitas[id]; if(!c) return;
-  await db.ref('citas/'+id).update({estado:'confirmada',estadoReserva:'confirmada',reservaConfirmada:new Date().toISOString(),proximoRecordatorio:'24h'});
+  const ahora=new Date().toISOString();
+  const siguiente=compromisoPosteriorReserva(c);
+  await db.ref('citas/'+id).update({
+    estado:'confirmada',
+    estadoReserva:'confirmada',
+    reservaConfirmada:ahora,
+    slaCumplidoMin:c.reservaCreada?Math.max(0,Math.floor((Date.now()-new Date(c.reservaCreada).getTime())/60000)):null,
+    siguienteCompromiso:siguiente.tipo,
+    siguienteCompromisoLabel:siguiente.label
+  });
   whatsappReserva({...c,estado:'confirmada',estadoReserva:'confirmada'});
 }
 
 function renderV2NextAction(todayKey){
   const box=document.getElementById('v2-next-action'); if(!box) return;
-  const reservas=Object.entries(ultimasCitas||{}).map(([id,c])=>({id,...c})).filter(c=>c.tipoEvento==='reserva_visita' && (c.estadoReserva||'solicitada')==='solicitada').sort((a,b)=>(a.creado||'').localeCompare(b.creado||''));
+  const reservas=Object.entries(ultimasCitas||{}).map(([id,c])=>({id,...c})).filter(c=>c.tipoEvento==='reserva_visita' && (c.estadoReserva||'solicitada')==='solicitada').sort((a,b)=>{
+    const sa=estadoSLAReserva(a), sb=estadoSLAReserva(b);
+    const rank={vencida:0,por_vencer:1,en_tiempo:2,sin_dato:3};
+    return (rank[sa.nivel]-rank[sb.nivel]) || ((a.creado||'').localeCompare(b.creado||''));
+  });
   if(reservas.length){
-    const c=reservas[0];
-    box.innerHTML=`<div class="cita-item"><div><b>Nueva reserva · ${escapeHtml(c.nombre||'Cliente')}</b><div class="cita-meta">${escapeHtml(c.propiedadNombre||'Sin propiedad')} · ${escapeHtml(c.fecha||'')} ${escapeHtml(c.hora||'')}</div><div class="cita-meta" style="color:var(--green);margin-top:3px;">${escapeHtml(c.codigoReserva||'')} · Objetivo de revisión &lt; 30 min</div></div><div style="display:flex;gap:6px;"><button class="btn btn-primary btn-sm" data-v2-confirm-reserva>Confirmar y WhatsApp</button><button class="btn btn-sm" data-v2-open-agenda>Ver</button></div></div>`;
+    const c=reservas[0], sla=estadoSLAReserva(c);
+    box.innerHTML=`<div class="cita-item"><div><b>Nueva reserva · ${escapeHtml(c.nombre||'Cliente')}</b><div class="cita-meta">${escapeHtml(c.propiedadNombre||'Sin propiedad')} · ${escapeHtml(c.fecha||'')} ${escapeHtml(c.hora||'')}</div><div class="cita-meta" style="color:${colorSLA(sla.nivel)};margin-top:3px;font-weight:700;">${escapeHtml(c.codigoReserva||'')} · ${escapeHtml(sla.label)}</div></div><div style="display:flex;gap:6px;"><button class="btn btn-primary btn-sm" data-v2-confirm-reserva>Confirmar y WhatsApp</button><button class="btn btn-sm" data-v2-open-agenda>Ver</button></div></div>`;
     box.querySelector('[data-v2-confirm-reserva]')?.addEventListener('click',()=>confirmarReservaV2(c.id));
     box.querySelector('[data-v2-open-agenda]')?.addEventListener('click',()=>openMainView('agenda'));
     return;
