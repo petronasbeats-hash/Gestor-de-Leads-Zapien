@@ -2145,6 +2145,50 @@ function buildContext(cita){
   };
 }
 
+/* ---------- CONTEXT ENGINE V2.0 ---------- */
+// Capa determinista sobre buildContext(): interpreta relaciones y eventos existentes.
+// No escribe Firebase, no ejecuta acciones y no usa IA; produce contexto operativo reusable.
+function eventosRecientesEntidad(entity){
+  return entity && entity.historial ? Object.values(entity.historial)
+    .slice()
+    .sort((a,b)=>String(b.timestamp || b.fecha || '').localeCompare(String(a.timestamp || a.fecha || '')))
+    .slice(0,5) : [];
+}
+
+function buildOperationalContext(cita){
+  const base = buildContext(cita);
+  const lead = cita.leadId ? (leads[cita.leadId] || null) : null;
+  const propiedad = cita.propiedadId ? (propiedades[cita.propiedadId] || null) : null;
+  const citaEvents = eventosRecientesEntidad(cita);
+  const leadEvents = eventosRecientesEntidad(lead);
+  const propertyEvents = eventosRecientesEntidad(propiedad);
+
+  const signals = [];
+  if(!lead) signals.push({ type:'MISSING_LEAD', level:'info' });
+  if(!propiedad && cita.propiedadId) signals.push({ type:'MISSING_PROPERTY', level:'warning' });
+  if(base.estado === 'no_asistio') signals.push({ type:'RESCHEDULE_NEEDED', level:'action' });
+  if(base.estado === 'cancelada') signals.push({ type:'RESCHEDULE_NEEDED', level:'action' });
+  if(base.estado === 'realizada') signals.push({ type:'FOLLOWUP_NEEDED', level:'action' });
+
+  return {
+    contextVersion: '2.0',
+    generatedAt: new Date().toISOString(),
+    subject: {
+      appointmentId: cita.id || null,
+      leadId: cita.leadId || null,
+      propertyId: cita.propiedadId || null
+    },
+    current: base,
+    recentEvents: {
+      appointment: citaEvents,
+      lead: leadEvents,
+      property: propertyEvents
+    },
+    signals,
+    suggestedNextAction: base.nextAction || (lead && lead.proximaAccion) || ''
+  };
+}
+
 // Acción de WhatsApp para una cita — ÚNICA implementación, reutilizada tanto en
 // "Próximas citas" (Resumen) como en el tab Citas (Seguimiento/Calendario).
 // Usa siempre el contexto actual (persona/propiedad vivos), no snapshots viejos.
