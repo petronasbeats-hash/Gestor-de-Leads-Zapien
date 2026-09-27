@@ -1,0 +1,45 @@
+{
+  "rules": {
+    "leads": {
+      ".read": "auth != null && auth.uid == 'v4wFRvNlwNPY4HtEqozpcHvjXI52'",
+      ".write": "auth != null && auth.uid == 'v4wFRvNlwNPY4HtEqozpcHvjXI52'",
+      "$leadId": {
+        ".write": "!data.exists() && newData.child('fuente').val() == 'Agenda pública'",
+        "proximaAccion": { ".write": "data.parent().exists()" },
+        "fechaProximaAccion": { ".write": "data.parent().exists()" },
+        "bitacora": { "$notaId": { ".write": "!data.exists() && data.parent().parent().exists()" } }
+      }
+    },
+    "telefonos_index": {
+      ".read": false,
+      "$telefono": {
+        ".read": true,
+        ".write": "(auth != null && auth.uid == 'v4wFRvNlwNPY4HtEqozpcHvjXI52') || !data.exists()"
+      }
+    },
+    "disponibilidad": {
+      ".read": true,
+      ".write": "auth != null && auth.uid == 'v4wFRvNlwNPY4HtEqozpcHvjXI52'"
+    },
+    "propiedades": {
+      ".read": true,
+      ".write": "auth != null && auth.uid == 'v4wFRvNlwNPY4HtEqozpcHvjXI52'"
+    },
+    "citas_publicas": {
+      ".read": true,
+      "$slotKey": {
+        ".write": "(auth != null && auth.uid == 'v4wFRvNlwNPY4HtEqozpcHvjXI52') || !data.exists()"
+      }
+    },
+    "citas": {
+      ".read": "auth != null && auth.uid == 'v4wFRvNlwNPY4HtEqozpcHvjXI52'",
+      "$citaId": {
+        ".write": "(auth != null && auth.uid == 'v4wFRvNlwNPY4HtEqozpcHvjXI52') || !data.exists()"
+      }
+    },
+    "event_trace": {
+      ".read": "auth != null && auth.uid == 'v4wFRvNlwNPY4HtEqozpcHvjXI52'",
+      ".write": "auth != null && auth.uid == 'v4wFRvNlwNPY4HtEqozpcHvjXI52'"
+    }
+  }
+}
