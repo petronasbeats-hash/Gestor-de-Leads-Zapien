@@ -551,19 +551,51 @@ document.getElementById('btn-confirm-booking').addEventListener('click', async (
   const btn = document.getElementById('btn-confirm-booking');
   btn.disabled = true; btn.textContent = 'Agendando…';
 
+  const citaId = db.ref('citas').push().key;
+  const lockToken = citaId;
+  const slotRef = db.ref('citas_publicas/'+slotFlagKey);
+  let slotAdquirido = false;
+
   try{
-    // 1. crear/actualizar el lead PRIMERO — si esto falla, no se toca el horario todavía
+    // Slot Transaction V1: compare-and-set real. Solo una tentativa puede adquirir el horario.
+    const tx = await slotRef.transaction(actual=>{
+      if(actual !== null) return;
+      return {
+        propiedadId: propiedadId || null,
+        citaId,
+        lockToken,
+        reservadoEn: new Date().toISOString()
+      };
+    }, undefined, false);
+    if(!tx.committed){
+      throw new Error('SLOT_TAKEN');
+    }
+    slotAdquirido = true;
+
+    // El Lead se crea/actualiza únicamente después de adquirir el horario.
     const nombreCompleto = apellido ? `${nombre} ${apellido}` : nombre;
     const leadIdFinal = await upsertLeadParaCita({nombre, apellido, telefono, notas, propiedadId, propiedadNombre});
 
-    // 2. marcar el horario ocupado Y guardar la cita como UNA sola operación atómica:
-    // o se guardan las dos juntas, o no se guarda ninguna — así no puede quedar
-    // un horario "fantasma" ocupado sin que exista su cita.
-    const citaId = db.ref('citas').push().key;
+    // Cita + Event Trace se escriben juntos. El lock ya contiene citaId para trazabilidad.
     const creado = new Date().toISOString();
     const traceId = db.ref('citas/'+citaId+'/historial').push().key;
+    const eventEntry = {
+      tipo: 'creacion',
+      fecha: creado,
+      origen: 'agenda',
+      eventId: traceId,
+      eventType: 'APPOINTMENT_CREATED',
+      entityType: 'APPOINTMENT',
+      entityId: citaId,
+      timestamp: creado,
+      actor: { type: 'CLIENT', id: null, name: nombreCompleto || null },
+      source: { type: 'PUBLIC_AGENDA', page: 'agenda.html' },
+      previousState: null,
+      newState: 'pendiente',
+      metadata: { propiedadId: propiedadId || null, leadId: leadIdFinal || null },
+      traceVersion: '1.1'
+    };
     const updates = {};
-    updates['citas_publicas/'+slotFlagKey] = { propiedadId: propiedadId || null };
     updates['citas/'+citaId] = {
       nombre: nombreCompleto, telefono, notas,
       propiedadId, propiedadNombre,
@@ -573,40 +605,8 @@ document.getElementById('btn-confirm-booking').addEventListener('click', async (
       estado: 'pendiente',
       creado
     };
-    updates['citas/'+citaId+'/historial/'+traceId] = {
-      // Event Trace V1.1 — nacimiento de la cita desde experiencia pública.
-      tipo: 'creacion',
-      fecha: creado,
-      origen: 'agenda',
-      eventId: traceId,
-      eventType: 'APPOINTMENT_CREATED',
-      entityType: 'APPOINTMENT',
-      entityId: citaId,
-      timestamp: creado,
-      actor: { type: 'CLIENT', id: null, name: nombreCompleto || null },
-      source: { type: 'PUBLIC_AGENDA', page: 'agenda.html' },
-      previousState: null,
-      newState: 'pendiente',
-      metadata: { propiedadId: propiedadId || null, leadId: leadIdFinal || null },
-      traceVersion: '1.1'
-    };
-    updates['event_trace/'+traceId] = {
-      // Event Trace V1.1 — nacimiento de la cita desde experiencia pública.
-      tipo: 'creacion',
-      fecha: creado,
-      origen: 'agenda',
-      eventId: traceId,
-      eventType: 'APPOINTMENT_CREATED',
-      entityType: 'APPOINTMENT',
-      entityId: citaId,
-      timestamp: creado,
-      actor: { type: 'CLIENT', id: null, name: nombreCompleto || null },
-      source: { type: 'PUBLIC_AGENDA', page: 'agenda.html' },
-      previousState: null,
-      newState: 'pendiente',
-      metadata: { propiedadId: propiedadId || null, leadId: leadIdFinal || null },
-      traceVersion: '1.1'
-    };
+    updates['citas/'+citaId+'/historial/'+traceId] = eventEntry;
+    updates['event_trace/'+traceId] = eventEntry;
     await db.ref().update(updates);
 
     const propObj = propiedadId ? propiedades[propiedadId] : null;
@@ -625,12 +625,25 @@ document.getElementById('btn-confirm-booking').addEventListener('click', async (
     `;
   }catch(err){
     console.error(err);
-    alert('Ese horario ya no está disponible, elige otro.');
+
+    // Rollback seguro: libera solo el lock de ESTA tentativa; nunca borra el de otro cliente.
+    if(slotAdquirido){
+      try{
+        await slotRef.transaction(actual=>{
+          return actual && actual.lockToken === lockToken ? null : actual;
+        }, undefined, false);
+      }catch(rollbackErr){
+        console.error('No se pudo liberar el slot reservado:', rollbackErr);
+      }
+    }
+
+    alert(err && err.message === 'SLOT_TAKEN'
+      ? 'Ese horario acaba de ser reservado. Elige otro.'
+      : 'No se pudo completar la cita. Intenta nuevamente.');
     btn.disabled = false; btn.textContent = 'Confirmar cita';
     overlay.classList.remove('open');
   }
 });
-
 
 function escapeHtml(s){
   return String(s).replace(/[&<>"']/g, ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
