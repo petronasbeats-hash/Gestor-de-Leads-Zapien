@@ -2170,6 +2170,21 @@ function buildOperationalContext(cita){
   if(base.estado === 'cancelada') signals.push({ type:'RESCHEDULE_NEEDED', level:'action' });
   if(base.estado === 'realizada') signals.push({ type:'FOLLOWUP_NEEDED', level:'action' });
 
+  // Anticipación temporal determinista: compara fechas reales, no estima probabilidades.
+  const ahora = new Date();
+  if(cita.fecha && cita.hora && ['pendiente','confirmada'].includes(base.estado)){
+    const fechaCita = new Date(cita.fecha+'T'+cita.hora);
+    if(!isNaN(fechaCita.getTime()) && fechaCita < ahora){
+      signals.push({ type:'APPOINTMENT_OVERDUE', level:'warning' });
+    }
+  }
+  if(lead && lead.fechaProximaAccion){
+    const limiteAccion = new Date(lead.fechaProximaAccion+'T23:59:59');
+    if(!isNaN(limiteAccion.getTime()) && limiteAccion < ahora){
+      signals.push({ type:'NEXT_ACTION_OVERDUE', level:'action' });
+    }
+  }
+
   return {
     contextVersion: '2.0',
     generatedAt: new Date().toISOString(),
@@ -2307,7 +2322,9 @@ function contextSignalsHtml(c){
     MISSING_LEAD: 'Sin lead vinculado',
     MISSING_PROPERTY: 'Propiedad no disponible',
     RESCHEDULE_NEEDED: 'Requiere reprogramación',
-    FOLLOWUP_NEEDED: 'Requiere seguimiento'
+    FOLLOWUP_NEEDED: 'Requiere seguimiento',
+    APPOINTMENT_OVERDUE: 'Cita pendiente vencida',
+    NEXT_ACTION_OVERDUE: 'Próxima acción vencida'
   };
   return `<div class="cita-meta" style="margin-top:4px;color:var(--amber);">Contexto · ${op.signals.map(s=>escapeHtml(labels[s.type] || s.type)).join(' · ')}</div>`;
 }
