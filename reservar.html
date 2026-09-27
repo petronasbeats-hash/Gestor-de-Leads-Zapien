@@ -142,19 +142,17 @@
     <div class="field"><label>Apellido (opcional)</label><input type="text" id="f-apellido"></div>
     <div class="field"><label>Teléfono (WhatsApp)</label><input type="text" id="f-telefono"></div>
    <div class="field">
-  <label>¿Qué estás buscando?</label>
+  <label>¿Cómo podemos ayudarte?</label>
   <select id="f-intencion">
-    <option value="">Selecciona una opción</option>
-    <option value="hogar">🏠 Encontrar un hogar</option>
-    <option value="renta">🔑 Rentar una propiedad</option>
-    <option value="venta">📍 Vender una propiedad</option>
-    <option value="inversion">📈 Buscar inversión</option>
+    <option value="">Cuéntanos qué necesitas</option>
+    <option value="buscar_hogar">🏠 Quiero encontrar un lugar para vivir</option>
+    <option value="independizarme">🌱 Planeo independizarme y quiero conocer opciones</option>
+    <option value="rentar_mi_propiedad">🔑 Tengo una propiedad y quiero encontrar un buen inquilino</option>
+    <option value="vender_mi_propiedad">📍 Tengo una propiedad y quiero venderla</option>
+    <option value="inversion">📈 Quiero encontrar una oportunidad de inversión</option>
   </select>
 </div>
-
-<div class="field"><label>Notas (opcional)</label><input type="text" id="f-notas" placeholder="Ej. propiedad de interés"></div>
- <div class="field"><label>Notas (opcional)</label><input type="text" 
-id="f-notas" placeholder="Ej. propiedad de interés"></div>
+<div class="field"><label>Cuéntanos un poco más (opcional)</label><input type="text" id="f-notas" placeholder="Ej. busco un departamento tranquilo para independizarme"></div>
     <input type="hidden" id="f-propiedad-id"><input type="hidden" id="f-propiedad-nombre">
     <div class="confirm-box mono" id="confirm-summary"></div>
     <div style="display:flex;gap:8px;justify-content:flex-end;">
@@ -491,11 +489,27 @@ function bitacoraKey(){
 
 // Crea o actualiza el lead correspondiente en el Gestor de Leads para que la cita
 // aparezca ahí automáticamente (el Gestor escucha /leads en tiempo real).
+function necesidadHumana(nombre, intencion, propiedadNombre, notas){
+  const prop=propiedadNombre ? ' y quiere conocer '+propiedadNombre : '';
+  const extra=notas ? ' '+notas.trim().replace(/[.!?]+$/,'')+'.' : '';
+  const textos={
+    buscar_hogar: nombre+' está buscando un lugar para vivir'+prop+'.',
+    independizarme: nombre+' planea independizarse y quiere conocer opciones'+(propiedadNombre?' como '+propiedadNombre:'')+'.',
+    rentar_mi_propiedad: nombre+' tiene una propiedad y necesita ayuda para encontrar al candidato adecuado para rentarla.',
+    vender_mi_propiedad: nombre+' tiene una propiedad y desea que le ayudemos a venderla.',
+    inversion: nombre+' busca una oportunidad de inversión inmobiliaria'+prop+'.'
+  };
+  return (textos[intencion]||nombre+' quiere recibir atención inmobiliaria'+prop+'.')+extra;
+}
+
 function normalizarTelefono(tel){
   return String(tel||'').replace(/\D/g,'').slice(-10);
 }
 
 async function upsertLeadParaCita({nombre, apellido, telefono, notas, propiedadId, propiedadNombre}){
+  const nombreCompletoNecesidad = apellido ? `${nombre} ${apellido}` : nombre;
+  const intencionActual = document.getElementById('f-intencion')?.value || '';
+  const necesidadTexto = necesidadHumana(nombreCompletoNecesidad, intencionActual, propiedadNombre, notas);
   const propTxt = propiedadNombre ? ` — ${propiedadNombre}` : '';
   const propObj = propiedadId ? propiedades[propiedadId] : null;
   const telNorm = normalizarTelefono(telefono);
@@ -514,6 +528,8 @@ async function upsertLeadParaCita({nombre, apellido, telefono, notas, propiedadI
   if(idParaActualizar){
     try{
       await db.ref('leads/'+idParaActualizar).update({
+        intencion: intencionActual,
+        necesidadHumana: necesidadTexto,
         proximaAccion: `Reserva por revisar${propTxt}`,
         fechaProximaAccion: selectedSlot.dateKey
       });
@@ -535,7 +551,8 @@ async function upsertLeadParaCita({nombre, apellido, telefono, notas, propiedadI
     nombre: nombreCompleto,
     telefono,
     
-intencion: document.getElementById('f-intencion')?.value || '',
+intencion: intencionActual,
+    necesidadHumana: necesidadTexto,
     email: '',
     fuente: 'Reserva pública',
     operacion: operacionProp,
