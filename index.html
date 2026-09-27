@@ -829,7 +829,7 @@ function registrarTraceLead(leadId, trace){
     previousState: trace.previousState !== undefined ? trace.previousState : null,
     newState: trace.newState !== undefined ? trace.newState : null,
     metadata: trace.metadata || {},
-    traceVersion: '1.5'
+    traceVersion: '1.1'
   };
   return { eventId, entry };
 }
