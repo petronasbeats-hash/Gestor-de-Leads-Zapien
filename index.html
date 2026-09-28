@@ -873,6 +873,20 @@ function buildLeadContext(lead={}){
   };
 }
 function orchestrationForLead(lead){ return buildLeadContext(lead); }
+function orchestrationForLeadId(id){
+  const lead=leads[id]; return lead?buildLeadContext({id,...lead}):null;
+}
+function synapseNext(lead){
+  const ctx=buildLeadContext(lead);
+  return {
+    flujo:ctx.clasificacion.flujo,
+    etapa:ctx.proceso.etapaId,
+    nextAction:ctx.nextAction,
+    entregable:ctx.protocolo?.entregable||null,
+    sla:ctx.proceso.sla,
+    overrideHumano:ctx.overrideHumano
+  };
+}
 
 const ROLES_POR_OPERACION = {
   Compra: ['Comprador'],
