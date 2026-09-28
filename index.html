@@ -1082,6 +1082,26 @@ let currentTab = "datos";
 function uid(){ return 'L' + Date.now().toString(36) + Math.random().toString(36).slice(2,6); }
 function esEtapaCerrada(etapa){ return ['ganado','cerrado_ganado','perdido'].includes(etapa); }
 function esEtapaGanada(etapa){ return ['ganado','cerrado_ganado'].includes(etapa); }
+function synapseIntegrityCheck(leadsObj=leads){
+  const alerts=[];
+  Object.entries(leadsObj||{}).forEach(([id,l])=>{
+    const clas=clasificacionSynapse(l);
+    const stages=stagesForFlujo(clas.flujo);
+    if(!stages.some(s=>s.id===l.etapa)){
+      alerts.push({severity:'error',code:'INVALID_STAGE',entity:'lead',id,message:`Etapa "${l.etapa||'vacía'}" no pertenece al flujo ${clas.flujo}.`});
+    }
+    if(l.proximaAccion&&esEtapaCerrada(l.etapa)){
+      alerts.push({severity:'warning',code:'ACTION_ON_CLOSED_FLOW',entity:'lead',id,message:'Existe una próxima acción en un flujo cerrado.'});
+    }
+    if(l.fechaCierre&&!esEtapaCerrada(l.etapa)){
+      alerts.push({severity:'warning',code:'CLOSE_DATE_ON_ACTIVE_FLOW',entity:'lead',id,message:'El lead tiene fecha de cierre pero continúa en una etapa activa.'});
+    }
+    if(l.flujo&&l.flujo!==clas.flujo){
+      alerts.push({severity:'error',code:'FLOW_MISMATCH',entity:'lead',id,message:`Flujo almacenado ${l.flujo} no coincide con flujo resuelto ${clas.flujo}.`});
+    }
+  });
+  return {ok:alerts.length===0,total:alerts.length,errors:alerts.filter(a=>a.severity==='error').length,warnings:alerts.filter(a=>a.severity==='warning').length,alerts};
+}
 function todayStr(){ return new Date().toISOString().slice(0,10); }
 function isOverdue(lead){
   if(!lead.fechaProximaAccion) return false;
