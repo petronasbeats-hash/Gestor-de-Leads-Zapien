@@ -818,10 +818,11 @@ const STAGES_INVERSION=[
  {id:"perdido",num:"09",label:"No continúa",sla:"—",objetivo:"Cerrar preservando el motivo.",acciones:["Registrar motivo."],script:"Dejamos registrada la oportunidad, {nombre}, por si deseas retomarla.",checklist:["Motivo registrado"],tracker:"Sin acción."}
 ];
 function stagesForFlujo(flujo){
+ if(flujo==='COMPRA_BUSCA') return STAGES;
  if(flujo==='RENTA_BUSCA') return STAGES_RENTA;
  if(flujo==='RENTA_OFRECE'||flujo==='VENTA_OFRECE') return STAGES_CAPTACION;
  if(flujo==='INVERSION_BUSCA'||flujo==='INVERSION_CAPITAL') return STAGES_INVERSION;
- return STAGES;
+ return [];
 }
 function stagesForOperacion(op,rol){ return stagesForFlujo(flujoSynapse(op,rol)); }
 // NEXT ACTION para LEADS: misma filosofía EVENTO→ESTADO→NEXT ACTION que ya usamos en citas.
@@ -872,7 +873,7 @@ function clasificacionSynapse(lead){
 function buildLeadContext(lead={}){
   const clasificacion=clasificacionSynapse(lead);
   const stages=stagesForFlujo(clasificacion.flujo);
-  const etapaId=lead.etapa||stages[0]?.id||'nuevo';
+  const etapaId=lead.etapa||stages[0]?.id||null;
   const etapa=stages.find(s=>s.id===etapaId)||stages[0]||null;
   const protocolo=PROTOCOLOS_POR_FLUJO?.[clasificacion.flujo]?.[etapa?.id]||null;
   const historial=Object.values(lead.historial_acciones||{});
@@ -923,7 +924,8 @@ function synapsePriority(lead,now=new Date()){
   const hoy=now.toISOString().slice(0,10);
   const cerrada=['ganado','cerrado_ganado','perdido'].includes(ctx.proceso.etapaId);
   let nivel='normal',rank=3,razon='Seguimiento activo';
-  if(cerrada){ nivel='cerrada'; rank=9; razon='Flujo cerrado'; }
+  if(!ctx.clasificacion.flujo){ nivel='sin_clasificar'; rank=8; razon='Requiere clasificación antes de orquestar'; }
+  else if(cerrada){ nivel='cerrada'; rank=9; razon='Flujo cerrado'; }
   else if(fecha && fecha<hoy){ nivel='vencida'; rank=0; razon='Próxima acción vencida'; }
   else if(fecha===hoy){ nivel='hoy'; rank=1; razon='Acción programada para hoy'; }
   else if(!fecha && ctx.nextAction){ nivel='sin_fecha'; rank=2; razon='Tiene siguiente acción sin fecha'; }
