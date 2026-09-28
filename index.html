@@ -1821,7 +1821,18 @@ function renderV2NextAction(todayKey){
     box.querySelector('[data-v2-open-agenda]')?.addEventListener('click',()=>openMainView('agenda'));
     return;
   }
-  box.innerHTML='<div class="empty">No hay visitas próximas que requieran atención.</div>';
+  const personas=Object.entries(leads||{}).map(([id,l])=>({id,...l}))
+    .filter(l=>!['ganado','cerrado_ganado','perdido'].includes(l.etapa||'nuevo'))
+    .map(l=>({lead:l,ctx:buildLeadContext(l)}))
+    .filter(x=>x.ctx.nextAction)
+    .sort((a,b)=>(a.lead.fechaProximaAccion||'9999-12-31').localeCompare(b.lead.fechaProximaAccion||'9999-12-31'));
+  if(personas.length){
+    const {lead,ctx}=personas[0];
+    box.innerHTML=`<div class="cita-item"><div><b>${escapeHtml(ctx.persona.nombre||'Persona')}</b><div class="cita-meta">${escapeHtml(ctx.clasificacion.label||ctx.clasificacion.flujo)} · ${escapeHtml(ctx.proceso.etapaLabel||'')}</div><div class="cita-meta" style="color:var(--green);margin-top:3px;">→ ${escapeHtml(ctx.nextAction)}</div>${ctx.protocolo?.entregable?`<div class="cita-meta">Entregable · ${escapeHtml(ctx.protocolo.entregable)}</div>`:''}</div><button class="btn btn-sm" data-v2-open-persona>Abrir persona</button></div>`;
+    box.querySelector('[data-v2-open-persona]')?.addEventListener('click',()=>{openMainView('personas');openModal(lead.id);});
+    return;
+  }
+  box.innerHTML='<div class="empty">No hay acciones que requieran atención.</div>';
 }
 
 /* ---------- Catálogo de propiedades ---------- */
