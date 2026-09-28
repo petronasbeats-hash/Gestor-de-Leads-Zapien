@@ -895,6 +895,9 @@ function orchestrationForLead(lead){ return buildLeadContext(lead); }
 function synapseStageReadiness(lead){
   const ctx=buildLeadContext(lead);
   const etapa=ctx.proceso;
+  if(!ctx.clasificacion.flujo||!etapa.etapaId){
+    return {status:'bloqueada',reason:'Synapse necesita una clasificación y etapa válidas antes de evaluar avance.',accionesCompletas:false,requiereProtocolo:false,protocoloCumplido:false,requiresHumanAdvance:true};
+  }
   const proto=lead?.protocolo?.[etapa.etapaId]||{};
   const requiereProtocolo=Boolean(ctx.protocolo?.entregable);
   const protocoloCumplido=!requiereProtocolo||Boolean(proto.cumplido);
@@ -1008,7 +1011,8 @@ function updateRolOptions(operacion, rolActual){
 }
 document.getElementById('f-operacion').addEventListener('change', (e)=>{
   updateRolOptions(e.target.value, null);
-  currentStageId = stagesForOperacion(e.target.value,document.getElementById('f-tipo').value)[0].id;
+  const stagesOperacion=stagesForOperacion(e.target.value,document.getElementById('f-tipo').value);
+  currentStageId=stagesOperacion[0]?.id||null;
   const accionEl = document.getElementById('f-accion');
   if(accionEsSugerida || !accionEl.value.trim()){
     accionEl.value = sugerenciaAccionPara(e.target.value,currentStageId,document.getElementById('f-tipo').value);
@@ -4004,14 +4008,7 @@ document.getElementById('btn-agenda').addEventListener('click', ()=>{
   });
 });
 
-document.getElementById('btn-whatsapp').addEventListener('click', ()=>{
-  const phone = document.getElementById('f-telefono').value.replace(/\D/g,'');
-  const nombre = document.getElementById('f-nombre').value || '{nombre}';
-  const s = STAGE_BY_ID[currentStageId];
-  const text = encodeURIComponent(s.script.replaceAll('{nombre}', nombre));
-  if(!phone){ alert('Agrega un teléfono para poder abrir WhatsApp.'); return; }
-  window.open(`https://wa.me/${phone}?text=${text}`, '_blank');
-});
+
 
 document.getElementById('btn-new').addEventListener('click', ()=>openModal(null));
 document.getElementById('btn-close').addEventListener('click', closeModal);
