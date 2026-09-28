@@ -860,12 +860,15 @@ function buildLeadContext(lead={}){
   const etapaId=lead.etapa||stages[0]?.id||'nuevo';
   const etapa=stages.find(s=>s.id===etapaId)||stages[0]||null;
   const protocolo=PROTOCOLOS_POR_FLUJO?.[clasificacion.flujo]?.[etapa?.id]||null;
-  const nextAction=lead.proximaAccion||(etapa?.acciones?.[0]||'');
+  const historial=Object.values(lead.historial_acciones||{});
+  const completadas=new Set(historial.filter(e=>e&&e.resultado==='realizada'&&e.etapa===etapa?.id&&e.flujo===clasificacion.flujo).map(e=>e.actionLabel));
+  const accionPendiente=(etapa?.acciones||[]).find(a=>!completadas.has(a))||'';
+  const nextAction=lead.proximaAccion||accionPendiente;
   return {
     persona:{id:lead.id||null,nombre:lead.nombre||'',telefono:lead.telefono||'',email:lead.email||''},
     necesidad:lead.necesidadHumana||lead.intencion||null,
     clasificacion,
-    proceso:{etapaId:etapa?.id||null,etapaLabel:etapa?.label||null,sla:etapa?.sla||null},
+    proceso:{etapaId:etapa?.id||null,etapaLabel:etapa?.label||null,sla:etapa?.sla||null,accionesCompletadas:completadas.size,accionesTotales:(etapa?.acciones||[]).length,etapaLista:Boolean(etapa&&(etapa.acciones||[]).length&&completadas.size>=(etapa.acciones||[]).length)},
     protocolo:protocolo?{entregable:protocolo.entregable}:null,
     nextAction,
     referencias:{propiedadId:lead.propiedadId||null,leadRelacionadoId:lead.leadRelacionadoId||null},
