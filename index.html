@@ -852,6 +852,28 @@ function clasificacionSynapse(lead){
   return {flujo,...(FLUJOS_SYNAPSE[flujo]||FLUJOS_SYNAPSE.COMPRA_BUSCA)};
 }
 
+// Context / Orchestration Layer V2 — pure resolver, no writes and no new Firebase nodes.
+// It turns a person/lead state into one reusable operational answer for any Synapse surface.
+function buildLeadContext(lead={}){
+  const clasificacion=clasificacionSynapse(lead);
+  const stages=stagesForFlujo(clasificacion.flujo);
+  const etapaId=lead.etapa||stages[0]?.id||'nuevo';
+  const etapa=stages.find(s=>s.id===etapaId)||stages[0]||null;
+  const protocolo=PROTOCOLOS_POR_FLUJO?.[clasificacion.flujo]?.[etapa?.id]||null;
+  const nextAction=lead.proximaAccion||(etapa?.acciones?.[0]||'');
+  return {
+    persona:{id:lead.id||null,nombre:lead.nombre||'',telefono:lead.telefono||'',email:lead.email||''},
+    necesidad:lead.necesidadHumana||lead.intencion||null,
+    clasificacion,
+    proceso:{etapaId:etapa?.id||null,etapaLabel:etapa?.label||null,sla:etapa?.sla||null},
+    protocolo:protocolo?{entregable:protocolo.entregable}:null,
+    nextAction,
+    referencias:{propiedadId:lead.propiedadId||null,leadRelacionadoId:lead.leadRelacionadoId||null},
+    overrideHumano:Boolean(lead.proximaAccion)
+  };
+}
+function orchestrationForLead(lead){ return buildLeadContext(lead); }
+
 const ROLES_POR_OPERACION = {
   Compra: ['Comprador'],
   Venta: ['Vendedor'],
