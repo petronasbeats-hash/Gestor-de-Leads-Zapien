@@ -3068,29 +3068,12 @@ document.getElementById('btn-cancel-edit-prop').addEventListener('click', ()=>{
   resetPropiedadForm();
 });
 
-function actualizarAvisoPropiedadesIncompletas(n){
-  const badge = document.getElementById('propiedades-tab-badge');
-  const card = document.getElementById('stat-propiedades-incompletas-card');
-  const num = document.getElementById('stat-propiedades-incompletas');
-  if(badge){ badge.style.display = n>0 ? 'inline-block' : 'none'; badge.textContent = n; }
-  if(card){ card.style.display = n>0 ? 'block' : 'none'; }
-  if(num){ num.textContent = n; }
-}
+
 document.getElementById('stat-propiedades-incompletas-card')?.addEventListener('click', ()=>{
   document.querySelector('.admin-tab-btn[data-tab="propiedades"]')?.click();
 });
 
-function renderManualLeadSelect(){
-  const sel = document.getElementById('m-lead');
-  if(!sel) return;
-  const prevVal = sel.value;
-  const arr = Object.entries(leads||{})
-    .filter(([id,l])=>!esEtapaCerrada(l.etapa))
-    .sort((a,b)=>(a[1].nombre||'').localeCompare(b[1].nombre||''));
-  sel.innerHTML = `<option value="">Cliente nuevo (sin lead existente)</option>` +
-    arr.map(([id,l])=>`<option value="${id}">${escapeHtml(l.nombre||'(sin nombre)')}${l.telefono?' · '+escapeHtml(l.telefono):''}</option>`).join('');
-  if(arr.some(([id])=>id===prevVal)) sel.value = prevVal;
-}
+
 document.getElementById('m-lead')?.addEventListener('change', ()=>{
   const id = document.getElementById('m-lead').value;
   const lead = id ? leads[id] : null;
@@ -3100,15 +3083,7 @@ document.getElementById('m-lead')?.addEventListener('change', ()=>{
   }
 });
 
-function renderManualPropiedadSelect(){
-  const sel = document.getElementById('m-propiedad');
-  if(!sel) return;
-  const prevVal = sel.value;
-  const activas = Object.entries(propiedades).filter(([id,p])=>p.activo!==false);
-  sel.innerHTML = `<option value="">Sin propiedad</option>` +
-    activas.map(([id,p])=>`<option value="${id}">${propiedadFaltantes(p).length?'⚠ ':''}${escapeHtml(p.nombre)}</option>`).join('');
-  if(activas.some(([id])=>id===prevVal)) sel.value = prevVal;
-}
+
 
 // Crea un lead nuevo desde una cita manual del admin cuando no se vinculó uno existente —
 // mismo criterio que la agenda pública (operación según la propiedad elegida).
@@ -3208,25 +3183,7 @@ document.getElementById('btn-add-manual').addEventListener('click', ()=>{
     });
 });
 
-function renderFotosThumbs(){
-  const box = document.getElementById('p-fotos-thumbs');
-  const urls = document.getElementById('p-fotos').value.split('\n').map(s=>s.trim()).filter(Boolean);
-  box.innerHTML = urls.map((u,i)=>`
-    <div style="position:relative;">
-      <img src="${escapeHtml(u)}" style="height:60px;width:80px;object-fit:cover;border-radius:6px;border:1px solid var(--line);">
-      <button type="button" data-idx="${i}" class="thumb-remove" title="Quitar" style="position:absolute;top:-6px;right:-6px;background:var(--red);color:#fff;border:none;border-radius:50%;width:18px;height:18px;font-size:11px;line-height:1;cursor:pointer;">×</button>
-    </div>
-  `).join('');
-  box.querySelectorAll('.thumb-remove').forEach(btn=>{
-    btn.addEventListener('click', ()=>{
-      const idx = Number(btn.dataset.idx);
-      const urls2 = document.getElementById('p-fotos').value.split('\n').map(s=>s.trim()).filter(Boolean);
-      urls2.splice(idx,1);
-      document.getElementById('p-fotos').value = urls2.join('\n');
-      renderFotosThumbs();
-    });
-  });
-}
+
 document.getElementById('p-fotos').addEventListener('input', renderFotosThumbs);
 
 document.getElementById('p-fotos-file').addEventListener('change', async (e)=>{
@@ -3319,25 +3276,7 @@ document.getElementById('btn-add-propiedad').addEventListener('click', ()=>{
 });
 
 /* ---------- Lista de próximas citas (Resumen) ---------- */
-function renderHorariosFantasma(){
-  const card = document.getElementById('fantasmas-card');
-  const el = document.getElementById('horarios-fantasma');
-  if(!card || !el) return;
-  const citasKeys = new Set(Object.values(ultimasCitas||{}).map(c=>`${c.fecha}_${c.hora}`));
-  const fantasmas = Object.keys(ocupados||{}).filter(k=> !citasKeys.has(k));
-  card.style.display = fantasmas.length ? 'block' : 'none';
-  if(fantasmas.length === 0) return;
-  el.innerHTML = fantasmas.map(k=>{
-    const [fecha,hora] = k.split('_');
-    return `<div class="cita-item"><div>📅 ${escapeHtml(fecha)} ${escapeHtml(hora)} <span class="cita-meta">— ocupado, sin cita ni lead detrás</span></div><button class="btn btn-sm" data-action="liberar-fantasma" data-key="${escapeHtml(k)}" style="color:var(--red);">Liberar</button></div>`;
-  }).join('');
-  el.querySelectorAll('[data-action="liberar-fantasma"]').forEach(btn=>{
-    btn.addEventListener('click', ()=>{
-      if(!confirm('¿Liberar este horario? Vuelve a quedar disponible para agendar.')) return;
-      db.ref('citas_publicas/'+btn.dataset.key).remove();
-    });
-  });
-}
+
 
 /* ---------- CONTEXT LAYER V1 ---------- */
 // Reconstruye el contexto de una interacción (persona+propiedad+cita+estado+nextAction+lead)
@@ -3348,19 +3287,8 @@ function renderHorariosFantasma(){
 // Acción de WhatsApp para una cita — ÚNICA implementación, reutilizada tanto en
 // "Próximas citas" (Resumen) como en el tab Citas (Seguimiento/Calendario).
 // Usa siempre el contexto actual (persona/propiedad vivos), no snapshots viejos.
-function telefonoValidoParaWhatsApp(tel){ const d = (tel||'').replace(/\D/g,''); return d.length >= 8 ? d : ''; }
-function abrirWhatsAppParaCita(cita){
-  const ctx = buildContext(cita);
-  const phone = telefonoValidoParaWhatsApp(ctx.persona.telefono);
-  if(!phone){ alert('Esta cita no tiene un teléfono válido para WhatsApp.'); return; }
-  const p = ctx.propiedad.id ? propiedades[ctx.propiedad.id] : null;
-  const mapsLink = mapsLinkFor(p);
-  let msg = `Hola ${ctx.persona.nombre}, confirmamos tu visita el ${ctx.cita.fecha} a las ${ctx.cita.hora}.`;
-  if(p && p.direccion) msg += ` Dirección: ${p.direccion}.`;
-  if(mapsLink) msg += ` Ubicación en Maps: ${mapsLink}`;
-  msg += ' ¡Nos vemos!';
-  window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`,'_blank');
-}
+
+
 
 
 
@@ -3564,19 +3492,7 @@ function renderStagePane(){
   });
 }
 
-function renderBitacoraPane(){
-  const lead = currentLeadId ? leads[currentLeadId] : null;
-  const entries = (lead && lead.bitacora) ? Object.entries(lead.bitacora).sort((a,b)=>b[0].localeCompare(a[0])) : [];
-  const listEl = document.getElementById('bitacora-list');
-  if(entries.length===0){
-    listEl.innerHTML = `<div class="empty" style="padding:16px 0;">Sin entradas todavía.</div>`;
-  } else {
-    listEl.innerHTML = entries.map(([key,txt])=>{
-      const fecha = key.split('__')[0];
-      return `<div class="bitacora-entry"><div class="date mono">${fecha}</div><div class="txt">${escapeHtml(txt)}</div></div>`;
-    }).join('');
-  }
-}
+
 
 document.getElementById('btn-add-bitacora').addEventListener('click', ()=>{
   const txt = document.getElementById('bitacora-text').value.trim();
@@ -3719,24 +3635,7 @@ const DAY_LABELS = {dom:"Domingo",lun:"Lunes",mar:"Martes",mie:"Miércoles",jue:
 const ESTADOS_CITA = { pendiente:'Pendiente', confirmada:'Confirmada', realizada:'Realizada', no_asistio:'No asistió', cancelada:'Cancelada' };
 // NEXT ACTION: cada estado de una cita implica una siguiente acción lógica que Synapse ya entiende,
 // aunque hoy todavía la ejecute una persona (ver /areas/ire-lead-tracker.md — filosofía Synapse Core).
-function registrarTraceCita(citaId, trace){
-  const traceId = db.ref('citas/'+citaId+'/historial').push().key;
-  const entry = {
-    tipo: trace.tipo,
-    fecha: trace.fecha || new Date().toISOString(),
-    origen: trace.origen || 'synapse'
-  };
-  if(trace.anterior !== undefined) entry.anterior = trace.anterior;
-  if(trace.nuevo !== undefined) entry.nuevo = trace.nuevo;
-  if(trace.fechaAnterior !== undefined) entry.fechaAnterior = trace.fechaAnterior;
-  if(trace.horaAnterior !== undefined) entry.horaAnterior = trace.horaAnterior;
-  if(trace.fechaNueva !== undefined) entry.fechaNueva = trace.fechaNueva;
-  if(trace.horaNueva !== undefined) entry.horaNueva = trace.horaNueva;
-  if(trace.resultadoAnterior !== undefined) entry.resultadoAnterior = trace.resultadoAnterior;
-  if(trace.resultadoNuevo !== undefined) entry.resultadoNuevo = trace.resultadoNuevo;
-  if(trace.seguimientoId !== undefined) entry.seguimientoId = trace.seguimientoId;
-  return { traceId, entry };
-}
+
 const NEXT_ACTION_POR_ESTADO = { pendiente:'Confirmar visita', confirmada:'Preparar visita', realizada:'Dar seguimiento', no_asistio:'Reprogramar', cancelada:'Reprogramar' };
 const MESES_ES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 const ETAPAS_PRE_VISITA = ['nuevo','contactado','calificado','requisitos','visita_programada'];
@@ -3751,146 +3650,29 @@ let googleAccessToken = null;
 let tokenClient = null;
 let adminDataLoaded = false;
 
-function pad2(n){ return n<10 ? '0'+n : ''+n; }
-function dateKey(d){ return `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`; }
 
-function mapsLinkFor(p){
-  if(!p) return null;
-  if(p.lat!=null && p.lng!=null && p.lat!=='' && p.lng!=='') return `https://www.google.com/maps?q=${p.lat},${p.lng}`;
-  if(p.direccion) return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(p.direccion)}`;
-  return null;
-}
 
-function normalizarDia(cfg){
-  if(!cfg) return { activo:false, rangos:[{inicio:'09:00', fin:'18:00'}] };
-  if(cfg.rangos) return cfg;
-  return { activo: cfg.activo, rangos: [{inicio: cfg.inicio || '09:00', fin: cfg.fin || '18:00'}] };
-}
 
-function bitacoraKeyCitas(){
-  return new Date().toISOString().slice(0,16).replace('T',' ') + '__' + Math.random().toString(36).slice(2,6);
-}
+
+
+
+
+
 
 const ETAPAS_ANTES_DE_VISITA_PROGRAMADA = ['nuevo','contactado','calificado','requisitos'];
 
 // Sincroniza el lead cuando se agenda una cita nueva (manual o pública) — sin que Sebas
 // tenga que mover la tarjeta a mano. Respeta la etapa según venta o renta porque
 // "visita_programada" y "visita_realizada" son ids compartidos en ambos flujos.
-async function sincronizarLeadPorNuevaCita(leadId, fecha, hora, propiedadNombre){
-  if(!leadId) return;
-  const snap = await db.ref('leads/'+leadId).once('value');
-  const lead = snap.val();
-  if(!lead) return;
-  const propTxt = propiedadNombre ? ` — ${propiedadNombre}` : '';
-  const cuando = `${fecha} ${hora}`;
-  const updates = {
-    proximaAccion: `Visita programada${propTxt}`,
-    fechaProximaAccion: fecha
-  };
-  if(ETAPAS_ANTES_DE_VISITA_PROGRAMADA.includes(lead.etapa)){
-    updates.etapa = 'visita_programada';
-  }
-  await db.ref('leads/'+leadId).update(updates);
-  await db.ref('leads/'+leadId+'/bitacora/'+bitacoraKeyCitas())
-    .set(`Cita agendada para ${cuando}${propTxt} — etapa sincronizada automáticamente.`);
-}
+async 
 
 // Sincroniza el lead en el Gestor cuando cambia el estado de una cita.
-async function sincronizarLeadPorEstadoCita(cita, nuevoEstado){
-  if(!cita || !cita.leadId) return;
-  const propTxt = cita.propiedadNombre ? ` — ${cita.propiedadNombre}` : '';
-  const cuando = `${cita.fecha} ${cita.hora}`;
-
-  const snap = await db.ref('leads/'+cita.leadId).once('value');
-  const lead = snap.val();
-  if(!lead) return;
-
-  if(nuevoEstado === 'realizada'){
-    const updates = {
-      proximaAccion: `Dar seguimiento — feedback de la visita${propTxt}`,
-      fechaProximaAccion: todayStr()
-    };
-    if(ETAPAS_PRE_VISITA.includes(lead.etapa)){
-      updates.etapa = 'visita_realizada';
-    }
-    await db.ref('leads/'+cita.leadId).update(updates);
-    await db.ref('leads/'+cita.leadId+'/bitacora/'+bitacoraKeyCitas())
-      .set(`Visita realizada el ${cuando}${propTxt}. Próxima acción: pedir feedback.`);
-  } else if(nuevoEstado === 'no_asistio'){
-    await db.ref('leads/'+cita.leadId).update({
-      proximaAccion: `Reagendar visita — no se presentó${propTxt}`,
-      fechaProximaAccion: todayStr()
-    });
-    await db.ref('leads/'+cita.leadId+'/bitacora/'+bitacoraKeyCitas())
-      .set(`No se presentó a la cita del ${cuando}${propTxt}. Próxima acción: reagendar.`);
-  } else if(nuevoEstado === 'cancelada'){
-    await db.ref('leads/'+cita.leadId).update({
-      proximaAccion: `Reagendar visita — cita cancelada${propTxt}`,
-      fechaProximaAccion: todayStr()
-    });
-    await db.ref('leads/'+cita.leadId+'/bitacora/'+bitacoraKeyCitas())
-      .set(`Cita cancelada — era el ${cuando}${propTxt}. Próxima acción: reagendar.`);
-  }
-}
+async 
 
 /* ---------- Horario semanal ---------- */
-function renderHorarioEditor(cfg){
-  const editor = document.getElementById('horario-editor');
-  editor.innerHTML = DAY_KEYS.map(dk=>{
-    const cRaw = (cfg && cfg[dk]) || {activo: dk!=='dom' && dk!=='sab'};
-    const c = normalizarDia(cRaw);
-    const rangosHtml = c.rangos.map((r,i)=>`
-      <div class="row2 rango-row" data-day="${dk}" data-idx="${i}">
-        <span></span>
-        <input type="time" class="h-inicio" value="${r.inicio}">
-        <input type="time" class="h-fin" value="${r.fin}">
-        <button type="button" class="btn btn-sm btn-quitar-rango" style="color:var(--red);">✕</button>
-      </div>`).join('');
-    return `
-    <div class="day-group" data-day="${dk}" style="margin-bottom:14px;border-bottom:1px dashed var(--line);padding-bottom:10px;">
-      <label style="display:flex;align-items:center;gap:6px;font-size:12.5px;margin-bottom:6px;">
-        <input type="checkbox" data-day="${dk}" class="h-activo" ${c.activo?'checked':''}> ${DAY_LABELS[dk]}
-      </label>
-      <div class="rangos-list" data-day="${dk}">${rangosHtml}</div>
-      <button type="button" class="btn btn-sm btn-add-rango" data-day="${dk}" style="margin-top:4px;">+ Agregar franja (ej. tarde)</button>
-    </div>`;
-  }).join('');
-  document.getElementById('a-duracion').value = (cfg && cfg.duracionMin) || 30;
-  document.getElementById('a-velocidad').value = (cfg && cfg.velocidadKmH) || 25;
-  document.getElementById('a-buffer').value = (cfg && cfg.bufferMin) || 10;
-  attachHorarioEditorEvents();
-}
-function attachHorarioEditorEvents(){
-  document.querySelectorAll('.btn-add-rango').forEach(btn=>{
-    btn.addEventListener('click', ()=>{
-      const dk = btn.dataset.day;
-      const list = document.querySelector(`.rangos-list[data-day="${dk}"]`);
-      const idx = list.querySelectorAll('.rango-row').length;
-      const row = document.createElement('div');
-      row.className = 'row2 rango-row';
-      row.dataset.day = dk; row.dataset.idx = idx;
-      row.innerHTML = `
-        <span></span>
-        <input type="time" class="h-inicio" value="16:00">
-        <input type="time" class="h-fin" value="18:00">
-        <button type="button" class="btn btn-sm btn-quitar-rango" style="color:var(--red);">✕</button>`;
-      list.appendChild(row);
-      attachQuitarRango(row.querySelector('.btn-quitar-rango'));
-    });
-  });
-  document.querySelectorAll('.btn-quitar-rango').forEach(attachQuitarRango);
-}
-function attachQuitarRango(btn){
-  btn.addEventListener('click', ()=>{
-    const row = btn.closest('.rango-row');
-    const list = row.parentElement;
-    if(list.querySelectorAll('.rango-row').length <= 1){
-      alert('Cada día activo necesita al menos una franja de horario.');
-      return;
-    }
-    row.remove();
-  });
-}
+
+
+
 document.getElementById('btn-save-horario').addEventListener('click', ()=>{
   const out = {
     duracionMin: Number(document.getElementById('a-duracion').value),
@@ -3911,104 +3693,17 @@ document.getElementById('btn-save-horario').addEventListener('click', ()=>{
 });
 
 /* ---------- Carga de datos del panel ---------- */
-function loadAdminData(){
-  if(adminDataLoaded) return;
-  adminDataLoaded = true;
-  db.ref('disponibilidad/horarios').on('value', snap=>{
-    horario = snap.val();
-    renderHorarioEditor(horario);
-  });
-  db.ref('citas_publicas').on('value', snap=>{
-    ocupados = snap.val() || {};
-    renderHorariosFantasma();
-  });
-  db.ref('citas').orderByChild('fecha').on('value', snap=>{
-    ultimasCitas = snap.val() || {};
-    renderCitasList(ultimasCitas);
-    renderSeguimientoList(ultimasCitas);
-    renderCalendario(ultimasCitas);
-    renderResumenStats();
-    renderHorariosFantasma();
-  });
-  db.ref('propiedades').on('value', snap=>{
-    propiedades = snap.val() || {};
-    renderPropiedadesAdmin(propiedades);
-    renderManualPropiedadSelect();
-    renderResumenStats();
-    renderPropiedadLeadSelect();
-    // Context Layer V1: si el nombre de una propiedad cambia, las citas Y las tarjetas de
-    // lead que ya la referencian (badge 🏠 en el pipeline) deben reflejarlo de inmediato.
-    renderCitasList(ultimasCitas);
-    renderSeguimientoList(ultimasCitas);
-    renderCalendario(ultimasCitas);
-    renderAll();
-  });
-}
+
 
 /* ---------- Propiedad de interés dentro de la ficha del lead ---------- */
-function renderPropiedadLeadSelect(){
-  const sel = document.getElementById('f-propiedad-lead');
-  if(!sel) return;
-  const prevValue = sel.value;
-  const activas = Object.entries(propiedades||{}).filter(([id,p])=>p.activo!==false);
-  sel.innerHTML = `<option value="">Sin propiedad asignada</option>` +
-    activas.map(([id,p])=>`<option value="${id}">${propiedadFaltantes(p).length?'⚠ ':''}${escapeHtml(p.nombre||'(sin nombre)')}${p.precio?' · $'+Number(p.precio).toLocaleString('es-MX'):''}</option>`).join('');
-  if(prevValue && propiedades[prevValue]) sel.value = prevValue;
-  renderPropiedadLeadPreview();
-}
 
-function renderPropiedadLeadPreview(){
-  const sel = document.getElementById('f-propiedad-lead');
-  const box = document.getElementById('propiedad-lead-preview');
-  if(!sel || !box) return;
-  const p = sel.value ? propiedades[sel.value] : null;
-  if(!p){ box.classList.remove('show'); box.innerHTML = ''; return; }
-  const fotos = Array.isArray(p.fotos) ? p.fotos.filter(Boolean) : (typeof p.fotos === 'string' ? p.fotos.split('\n').map(f=>f.trim()).filter(Boolean) : []);
-  box.classList.add('show');
-  box.innerHTML = `
-    ${fotos.length ? `<div class="pp-fotos">${fotos.map(f=>`<img src="${escapeHtml(f)}" loading="lazy">`).join('')}</div>` : ''}
-    ${p.precio ? `<div class="pp-precio">$${Number(p.precio).toLocaleString('es-MX')}${p.operacion==='Renta'?'/mes':''}</div>` : ''}
-    <div class="pp-ficha">
-      ${p.recamaras?`<span>${p.recamaras} rec.</span>`:''}
-      ${p.banos?`<span>${p.banos} baños</span>`:''}
-      ${p.m2c?`<span>${p.m2c} m² const.</span>`:''}
-      ${p.m2t?`<span>${p.m2t} m² terreno</span>`:''}
-    </div>
-    ${p.descripcion ? `<div class="pp-desc">${escapeHtml(p.descripcion)}</div>` : ''}
-    ${p.direccion ? `<div class="pp-desc">📍 ${escapeHtml(p.direccion)}</div>` : ''}
-  `;
-}
+
+
 
 /* ---------- Lead relacionado (contraparte del mismo contrato) ---------- */
-function renderLeadRelacionadoSelect(){
-  const sel = document.getElementById('f-lead-relacionado');
-  if(!sel) return;
-  const prevValue = sel.value;
-  const otros = Object.entries(leads||{}).filter(([id])=> id !== currentLeadId);
-  sel.innerHTML = `<option value="">Sin lead relacionado</option>` +
-    otros.map(([id,l])=>`<option value="${id}">${escapeHtml(l.nombre||'(sin nombre)')}${l.tipo?' — '+escapeHtml(l.tipo):''}${l.operacion?' · '+escapeHtml(l.operacion):''}</option>`).join('');
-  if(prevValue && leads[prevValue]) sel.value = prevValue;
-  renderLeadRelacionadoPreview();
-}
 
-function renderLeadRelacionadoPreview(){
-  const sel = document.getElementById('f-lead-relacionado');
-  const box = document.getElementById('lead-relacionado-preview');
-  if(!sel || !box) return;
-  const l = sel.value ? leads[sel.value] : null;
-  if(!l){ box.classList.remove('show'); box.innerHTML = ''; return; }
-  const etapaLabel = (STAGES.find(s=>s.id===l.etapa) || STAGES_RENTA.find(s=>s.id===l.etapa) || {}).label || l.etapa || '';
-  box.classList.add('show');
-  box.innerHTML = `
-    <div class="pp-desc">${escapeHtml(l.telefono||'')}${l.tipo?' · '+escapeHtml(l.tipo):''}${etapaLabel?' · '+escapeHtml(etapaLabel):''}</div>
-    <button type="button" class="btn btn-sm" id="btn-abrir-lead-relacionado" style="margin-top:6px;">Abrir ficha de ${escapeHtml(l.nombre||'este lead')} →</button>
-  `;
-  document.getElementById('btn-abrir-lead-relacionado').addEventListener('click', ()=>{
-    const idDestino = sel.value;
-    closeModal();
-    setTimeout(()=> openModal(idDestino), 50);
-  });
-}
+
+
 document.getElementById('f-lead-relacionado')?.addEventListener('change', renderLeadRelacionadoPreview);
 document.getElementById('f-propiedad-lead')?.addEventListener('change', renderPropiedadLeadPreview);
 
@@ -4062,83 +3757,9 @@ async
 
 
 /* ---------- Catálogo de propiedades ---------- */
-function propiedadFaltantes(p){
-  const falta = [];
-  const tieneEnlace = p.enlaceExterno && p.enlaceExterno.trim();
-  if(!p.precio) falta.push('precio');
-  if(!tieneEnlace){
-    if(!p.descripcion || !p.descripcion.trim()) falta.push('descripción');
-    const fotos = Array.isArray(p.fotos) ? p.fotos.filter(Boolean) : (typeof p.fotos === 'string' ? p.fotos.split('\n').map(f=>f.trim()).filter(Boolean) : []);
-    if(!fotos.length) falta.push('fotos');
-    if(!p.recamaras && !p.banos) falta.push('recámaras/baños');
-  }
-  if(!p.direccion || !p.direccion.trim()) falta.push('dirección');
-  if(p.lat==null || p.lng==null) falta.push('coordenadas');
-  return falta;
-}
 
-function renderPropiedadesAdmin(obj){
-  const list = document.getElementById('propiedades-list');
-  const arr = Object.entries(obj).map(([id,p])=>({id,...p}));
-  if(arr.length === 0){
-    list.innerHTML = `<div class="empty">Sin propiedades registradas.</div>`;
-    actualizarAvisoPropiedadesIncompletas(0);
-    return;
-  }
-  const incompletasActivas = arr.filter(p=>p.activo!==false && propiedadFaltantes(p).length>0).length;
-  actualizarAvisoPropiedadesIncompletas(incompletasActivas);
 
-  const grupos = {};
-  const individuales = [];
-  arr.forEach(p=>{
-    if(p.propertyGroupId){
-      if(!grupos[p.propertyGroupId]) grupos[p.propertyGroupId]={id:p.propertyGroupId,name:p.propertyName||p.propertyGroupId,units:[]};
-      grupos[p.propertyGroupId].units.push(p);
-    } else individuales.push(p);
-  });
 
-  const propertyRow = (p, unit=false)=>{
-    const faltantes=propiedadFaltantes(p);
-    return `
-      <div class="cita-item ${unit?'property-unit':''}">
-        <div>
-          <b>${escapeHtml(p.nombre||'Sin nombre')}</b> ${p.activo===false?'<span class="cita-meta">(inactiva)</span>':''}
-          <div class="cita-meta">${p.category?escapeHtml(p.category)+' · ':''}${p.operacion?escapeHtml(p.operacion)+' · ':''}${p.precio?'$'+Number(p.precio).toLocaleString('es-MX')+(String(p.operacion).toLowerCase()==='renta'?'/mes':''):'sin precio'}</div>
-          <div class="cita-meta">${escapeHtml(p.direccion||'Sin dirección')}</div>
-          ${faltantes.length?`<div class="cita-meta" style="color:var(--amber);">⚠ Falta: ${faltantes.join(', ')}</div>`:'<div class="cita-meta" style="color:var(--green);">✓ Ficha completa</div>'}
-        </div>
-        <div style="display:flex;gap:6px;flex-wrap:wrap;">
-          <button class="btn btn-sm" data-action="edit-prop" data-id="${p.id}">Editar</button>
-          <button class="btn btn-sm" data-action="toggle-prop" data-id="${p.id}">${p.activo===false?'Activar':'Desactivar'}</button>
-          <button class="btn btn-sm" data-action="del-prop" data-id="${p.id}" style="color:var(--red);">Eliminar</button>
-        </div>
-      </div>`;
-  };
-
-  const groupsHtml=Object.values(grupos).sort((a,b)=>a.name.localeCompare(b.name)).map(g=>{
-    const active=g.units.filter(p=>p.activo!==false).length;
-    const incomplete=g.units.filter(p=>p.activo!==false&&propiedadFaltantes(p).length).length;
-    return `<div class="property-group" data-property-group="${escapeHtml(g.id)}">
-      <div class="property-group-head" data-action="toggle-group">
-        <div><div class="property-group-title">◇ ${escapeHtml(g.name)}</div>
-        <div class="property-group-meta">${g.units.length} unidad${g.units.length===1?'':'es'} · ${active} activa${active===1?'':'s'}${incomplete?' · '+incomplete+' por completar':''}</div></div>
-        <span class="property-group-arrow">VER UNIDADES ↓</span>
-      </div>
-      <div class="property-units">${g.units.sort((a,b)=>String(a.unitNumber||a.nombre).localeCompare(String(b.unitNumber||b.nombre),undefined,{numeric:true})).map(p=>propertyRow(p,true)).join('')}</div>
-    </div>`;
-  }).join('');
-
-  const individualHtml=individuales.length?`<div class="mono" style="font-size:10px;color:var(--muted);letter-spacing:.08em;margin:16px 0 8px;">PROPIEDADES INDIVIDUALES</div>${individuales.map(p=>`<div class="property-standalone">${propertyRow(p)}</div>`).join('')}`:'';
-  list.innerHTML=groupsHtml+individualHtml;
-
-  list.querySelectorAll('[data-action="toggle-group"]').forEach(head=>head.addEventListener('click',()=>{
-    const group=head.closest('.property-group'); group.classList.toggle('open');
-    head.querySelector('.property-group-arrow').textContent=group.classList.contains('open')?'OCULTAR ↑':'VER UNIDADES ↓';
-  }));
-  list.querySelectorAll('[data-action="edit-prop"]').forEach(btn=>btn.addEventListener('click',()=>{const p=arr.find(x=>x.id===btn.dataset.id);if(p)cargarPropiedadEnFormulario(p);}));
-  list.querySelectorAll('[data-action="toggle-prop"]').forEach(btn=>btn.addEventListener('click',()=>{const p=arr.find(x=>x.id===btn.dataset.id);db.ref('propiedades/'+p.id+'/activo').set(p.activo===false?true:false);}));
-  list.querySelectorAll('[data-action="del-prop"]').forEach(btn=>btn.addEventListener('click',()=>{if(confirm('¿Eliminar esta propiedad del catálogo?'))db.ref('propiedades/'+btn.dataset.id).remove();}));
-}
 
 /* ---------- Edición real de propiedad (Property Engine V1 — mismo ID, sin duplicar) ---------- */
 let propEditingSnapshot = null; // guarda el registro completo que se está editando (para conservar campos que el form no maneja)
@@ -4151,29 +3772,12 @@ document.getElementById('btn-cancel-edit-prop').addEventListener('click', ()=>{
   resetPropiedadForm();
 });
 
-function actualizarAvisoPropiedadesIncompletas(n){
-  const badge = document.getElementById('propiedades-tab-badge');
-  const card = document.getElementById('stat-propiedades-incompletas-card');
-  const num = document.getElementById('stat-propiedades-incompletas');
-  if(badge){ badge.style.display = n>0 ? 'inline-block' : 'none'; badge.textContent = n; }
-  if(card){ card.style.display = n>0 ? 'block' : 'none'; }
-  if(num){ num.textContent = n; }
-}
+
 document.getElementById('stat-propiedades-incompletas-card')?.addEventListener('click', ()=>{
   document.querySelector('.admin-tab-btn[data-tab="propiedades"]')?.click();
 });
 
-function renderManualLeadSelect(){
-  const sel = document.getElementById('m-lead');
-  if(!sel) return;
-  const prevVal = sel.value;
-  const arr = Object.entries(leads||{})
-    .filter(([id,l])=>!esEtapaCerrada(l.etapa))
-    .sort((a,b)=>(a[1].nombre||'').localeCompare(b[1].nombre||''));
-  sel.innerHTML = `<option value="">Cliente nuevo (sin lead existente)</option>` +
-    arr.map(([id,l])=>`<option value="${id}">${escapeHtml(l.nombre||'(sin nombre)')}${l.telefono?' · '+escapeHtml(l.telefono):''}</option>`).join('');
-  if(arr.some(([id])=>id===prevVal)) sel.value = prevVal;
-}
+
 document.getElementById('m-lead')?.addEventListener('change', ()=>{
   const id = document.getElementById('m-lead').value;
   const lead = id ? leads[id] : null;
@@ -4183,15 +3787,7 @@ document.getElementById('m-lead')?.addEventListener('change', ()=>{
   }
 });
 
-function renderManualPropiedadSelect(){
-  const sel = document.getElementById('m-propiedad');
-  if(!sel) return;
-  const prevVal = sel.value;
-  const activas = Object.entries(propiedades).filter(([id,p])=>p.activo!==false);
-  sel.innerHTML = `<option value="">Sin propiedad</option>` +
-    activas.map(([id,p])=>`<option value="${id}">${propiedadFaltantes(p).length?'⚠ ':''}${escapeHtml(p.nombre)}</option>`).join('');
-  if(activas.some(([id])=>id===prevVal)) sel.value = prevVal;
-}
+
 
 // Crea un lead nuevo desde una cita manual del admin cuando no se vinculó uno existente —
 // mismo criterio que la agenda pública (operación según la propiedad elegida).
@@ -4291,25 +3887,7 @@ document.getElementById('btn-add-manual').addEventListener('click', ()=>{
     });
 });
 
-function renderFotosThumbs(){
-  const box = document.getElementById('p-fotos-thumbs');
-  const urls = document.getElementById('p-fotos').value.split('\n').map(s=>s.trim()).filter(Boolean);
-  box.innerHTML = urls.map((u,i)=>`
-    <div style="position:relative;">
-      <img src="${escapeHtml(u)}" style="height:60px;width:80px;object-fit:cover;border-radius:6px;border:1px solid var(--line);">
-      <button type="button" data-idx="${i}" class="thumb-remove" title="Quitar" style="position:absolute;top:-6px;right:-6px;background:var(--red);color:#fff;border:none;border-radius:50%;width:18px;height:18px;font-size:11px;line-height:1;cursor:pointer;">×</button>
-    </div>
-  `).join('');
-  box.querySelectorAll('.thumb-remove').forEach(btn=>{
-    btn.addEventListener('click', ()=>{
-      const idx = Number(btn.dataset.idx);
-      const urls2 = document.getElementById('p-fotos').value.split('\n').map(s=>s.trim()).filter(Boolean);
-      urls2.splice(idx,1);
-      document.getElementById('p-fotos').value = urls2.join('\n');
-      renderFotosThumbs();
-    });
-  });
-}
+
 document.getElementById('p-fotos').addEventListener('input', renderFotosThumbs);
 
 document.getElementById('p-fotos-file').addEventListener('change', async (e)=>{
@@ -4419,25 +3997,7 @@ document.getElementById('btn-add-propiedad').addEventListener('click', ()=>{
 });
 
 /* ---------- Lista de próximas citas (Resumen) ---------- */
-function renderHorariosFantasma(){
-  const card = document.getElementById('fantasmas-card');
-  const el = document.getElementById('horarios-fantasma');
-  if(!card || !el) return;
-  const citasKeys = new Set(Object.values(ultimasCitas||{}).map(c=>`${c.fecha}_${c.hora}`));
-  const fantasmas = Object.keys(ocupados||{}).filter(k=> !citasKeys.has(k));
-  card.style.display = fantasmas.length ? 'block' : 'none';
-  if(fantasmas.length === 0) return;
-  el.innerHTML = fantasmas.map(k=>{
-    const [fecha,hora] = k.split('_');
-    return `<div class="cita-item"><div>📅 ${escapeHtml(fecha)} ${escapeHtml(hora)} <span class="cita-meta">— ocupado, sin cita ni lead detrás</span></div><button class="btn btn-sm" data-action="liberar-fantasma" data-key="${escapeHtml(k)}" style="color:var(--red);">Liberar</button></div>`;
-  }).join('');
-  el.querySelectorAll('[data-action="liberar-fantasma"]').forEach(btn=>{
-    btn.addEventListener('click', ()=>{
-      if(!confirm('¿Liberar este horario? Vuelve a quedar disponible para agendar.')) return;
-      db.ref('citas_publicas/'+btn.dataset.key).remove();
-    });
-  });
-}
+
 
 /* ---------- CONTEXT LAYER V1 ---------- */
 // Reconstruye el contexto de una interacción (persona+propiedad+cita+estado+nextAction+lead)
@@ -4448,63 +4008,16 @@ function renderHorariosFantasma(){
 // Acción de WhatsApp para una cita — ÚNICA implementación, reutilizada tanto en
 // "Próximas citas" (Resumen) como en el tab Citas (Seguimiento/Calendario).
 // Usa siempre el contexto actual (persona/propiedad vivos), no snapshots viejos.
-function telefonoValidoParaWhatsApp(tel){ const d = (tel||'').replace(/\D/g,''); return d.length >= 8 ? d : ''; }
-function abrirWhatsAppParaCita(cita){
-  const ctx = buildContext(cita);
-  const phone = telefonoValidoParaWhatsApp(ctx.persona.telefono);
-  if(!phone){ alert('Esta cita no tiene un teléfono válido para WhatsApp.'); return; }
-  const p = ctx.propiedad.id ? propiedades[ctx.propiedad.id] : null;
-  const mapsLink = mapsLinkFor(p);
-  let msg = `Hola ${ctx.persona.nombre}, confirmamos tu visita el ${ctx.cita.fecha} a las ${ctx.cita.hora}.`;
-  if(p && p.direccion) msg += ` Dirección: ${p.direccion}.`;
-  if(mapsLink) msg += ` Ubicación en Maps: ${mapsLink}`;
-  msg += ' ¡Nos vemos!';
-  window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`,'_blank');
-}
+
+
 
 
 
 /* ---------- Seguimiento de citas ---------- */
-function siguienteAccionPorFeedback(valor, propiedadNombre){
-  const p=propiedadNombre?' — '+propiedadNombre:'';
-  const mapa={
-    interesado:'Avanzar requisitos y condiciones'+p,
-    comparar:'Proponer alternativas comparables',
-    pensarlo:'Contactar en 24 h para resolver dudas'+p,
-    no_encaja:'Buscar una propiedad que encaje mejor',
-    no_asistio:'Reprogramar visita'
-  };
-  return mapa[valor]||'Dar seguimiento personalizado';
-}
-async function guardarFeedbackVisita(id){
-  const c=ultimasCitas[id]; if(!c) return;
-  const box=document.querySelector(`[data-cita-id="${id}"]`);
-  const select=box?.querySelector('[data-feedback]');
-  const nota=box?.querySelector('[data-feedback-nota]')?.value.trim()||'';
-  const valor=select?.value||'';
-  if(!valor){ alert('Selecciona cómo resultó la visita.'); return; }
-  const accion=siguienteAccionPorFeedback(valor,c.propiedadNombre);
-  const ahora=new Date().toISOString();
-  const updates={};
-  updates['citas/'+id+'/feedback']={resultado:valor,nota,fecha:ahora};
-  updates['citas/'+id+'/nextAction']=accion;
-  updates['citas/'+id+'/estadoReserva']='visitada';
-  if(c.leadId){
-    updates['leads/'+c.leadId+'/proximaAccion']=accion;
-    updates['leads/'+c.leadId+'/fechaProximaAccion']=valor==='pensarlo'?dateKey(new Date(Date.now()+86400000)):dateKey(new Date());
-    updates['leads/'+c.leadId+'/bitacora/'+bitacoraKeyCitas()]=`Feedback de visita: ${valor}. ${nota||''} Próxima acción: ${accion}.`;
-  }
-  await db.ref().update(updates);
-}
-function mensajePostVisita(c){
-  const prop=c.propiedadNombre?(' '+c.propiedadNombre):' la propiedad';
-  return `Hola ${c.nombre||''} 👋 Gracias por visitar${prop}. Queremos ayudarte a tomar una decisión con calma. ¿Cómo te sentiste con el espacio? Puedes decirnos si te interesa avanzar, si quieres comparar otras opciones o si hay algo que no terminó de encajar. — Iré Inmobiliaria`;
-}
-function whatsappPostVisita(c){
-  const tel=telefonoValidoParaWhatsApp(c.telefono);
-  if(!tel){ alert('Esta visita no tiene un teléfono válido para WhatsApp.'); return; }
-  window.open('https://wa.me/52'+tel+'?text='+encodeURIComponent(mensajePostVisita(c)),'_blank','noopener');
-}
+
+async 
+
+
 
 
 
@@ -4635,29 +4148,12 @@ document.getElementById('btn-cancel-edit-prop').addEventListener('click', ()=>{
   resetPropiedadForm();
 });
 
-function actualizarAvisoPropiedadesIncompletas(n){
-  const badge = document.getElementById('propiedades-tab-badge');
-  const card = document.getElementById('stat-propiedades-incompletas-card');
-  const num = document.getElementById('stat-propiedades-incompletas');
-  if(badge){ badge.style.display = n>0 ? 'inline-block' : 'none'; badge.textContent = n; }
-  if(card){ card.style.display = n>0 ? 'block' : 'none'; }
-  if(num){ num.textContent = n; }
-}
+
 document.getElementById('stat-propiedades-incompletas-card')?.addEventListener('click', ()=>{
   document.querySelector('.admin-tab-btn[data-tab="propiedades"]')?.click();
 });
 
-function renderManualLeadSelect(){
-  const sel = document.getElementById('m-lead');
-  if(!sel) return;
-  const prevVal = sel.value;
-  const arr = Object.entries(leads||{})
-    .filter(([id,l])=>!esEtapaCerrada(l.etapa))
-    .sort((a,b)=>(a[1].nombre||'').localeCompare(b[1].nombre||''));
-  sel.innerHTML = `<option value="">Cliente nuevo (sin lead existente)</option>` +
-    arr.map(([id,l])=>`<option value="${id}">${escapeHtml(l.nombre||'(sin nombre)')}${l.telefono?' · '+escapeHtml(l.telefono):''}</option>`).join('');
-  if(arr.some(([id])=>id===prevVal)) sel.value = prevVal;
-}
+
 document.getElementById('m-lead')?.addEventListener('change', ()=>{
   const id = document.getElementById('m-lead').value;
   const lead = id ? leads[id] : null;
@@ -4667,15 +4163,7 @@ document.getElementById('m-lead')?.addEventListener('change', ()=>{
   }
 });
 
-function renderManualPropiedadSelect(){
-  const sel = document.getElementById('m-propiedad');
-  if(!sel) return;
-  const prevVal = sel.value;
-  const activas = Object.entries(propiedades).filter(([id,p])=>p.activo!==false);
-  sel.innerHTML = `<option value="">Sin propiedad</option>` +
-    activas.map(([id,p])=>`<option value="${id}">${propiedadFaltantes(p).length?'⚠ ':''}${escapeHtml(p.nombre)}</option>`).join('');
-  if(activas.some(([id])=>id===prevVal)) sel.value = prevVal;
-}
+
 
 // Crea un lead nuevo desde una cita manual del admin cuando no se vinculó uno existente —
 // mismo criterio que la agenda pública (operación según la propiedad elegida).
@@ -4775,25 +4263,7 @@ document.getElementById('btn-add-manual').addEventListener('click', ()=>{
     });
 });
 
-function renderFotosThumbs(){
-  const box = document.getElementById('p-fotos-thumbs');
-  const urls = document.getElementById('p-fotos').value.split('\n').map(s=>s.trim()).filter(Boolean);
-  box.innerHTML = urls.map((u,i)=>`
-    <div style="position:relative;">
-      <img src="${escapeHtml(u)}" style="height:60px;width:80px;object-fit:cover;border-radius:6px;border:1px solid var(--line);">
-      <button type="button" data-idx="${i}" class="thumb-remove" title="Quitar" style="position:absolute;top:-6px;right:-6px;background:var(--red);color:#fff;border:none;border-radius:50%;width:18px;height:18px;font-size:11px;line-height:1;cursor:pointer;">×</button>
-    </div>
-  `).join('');
-  box.querySelectorAll('.thumb-remove').forEach(btn=>{
-    btn.addEventListener('click', ()=>{
-      const idx = Number(btn.dataset.idx);
-      const urls2 = document.getElementById('p-fotos').value.split('\n').map(s=>s.trim()).filter(Boolean);
-      urls2.splice(idx,1);
-      document.getElementById('p-fotos').value = urls2.join('\n');
-      renderFotosThumbs();
-    });
-  });
-}
+
 document.getElementById('p-fotos').addEventListener('input', renderFotosThumbs);
 
 document.getElementById('p-fotos-file').addEventListener('change', async (e)=>{
@@ -4886,25 +4356,7 @@ document.getElementById('btn-add-propiedad').addEventListener('click', ()=>{
 });
 
 /* ---------- Lista de próximas citas (Resumen) ---------- */
-function renderHorariosFantasma(){
-  const card = document.getElementById('fantasmas-card');
-  const el = document.getElementById('horarios-fantasma');
-  if(!card || !el) return;
-  const citasKeys = new Set(Object.values(ultimasCitas||{}).map(c=>`${c.fecha}_${c.hora}`));
-  const fantasmas = Object.keys(ocupados||{}).filter(k=> !citasKeys.has(k));
-  card.style.display = fantasmas.length ? 'block' : 'none';
-  if(fantasmas.length === 0) return;
-  el.innerHTML = fantasmas.map(k=>{
-    const [fecha,hora] = k.split('_');
-    return `<div class="cita-item"><div>📅 ${escapeHtml(fecha)} ${escapeHtml(hora)} <span class="cita-meta">— ocupado, sin cita ni lead detrás</span></div><button class="btn btn-sm" data-action="liberar-fantasma" data-key="${escapeHtml(k)}" style="color:var(--red);">Liberar</button></div>`;
-  }).join('');
-  el.querySelectorAll('[data-action="liberar-fantasma"]').forEach(btn=>{
-    btn.addEventListener('click', ()=>{
-      if(!confirm('¿Liberar este horario? Vuelve a quedar disponible para agendar.')) return;
-      db.ref('citas_publicas/'+btn.dataset.key).remove();
-    });
-  });
-}
+
 
 /* ---------- CONTEXT LAYER V1 ---------- */
 // Reconstruye el contexto de una interacción (persona+propiedad+cita+estado+nextAction+lead)
@@ -4915,19 +4367,8 @@ function renderHorariosFantasma(){
 // Acción de WhatsApp para una cita — ÚNICA implementación, reutilizada tanto en
 // "Próximas citas" (Resumen) como en el tab Citas (Seguimiento/Calendario).
 // Usa siempre el contexto actual (persona/propiedad vivos), no snapshots viejos.
-function telefonoValidoParaWhatsApp(tel){ const d = (tel||'').replace(/\D/g,''); return d.length >= 8 ? d : ''; }
-function abrirWhatsAppParaCita(cita){
-  const ctx = buildContext(cita);
-  const phone = telefonoValidoParaWhatsApp(ctx.persona.telefono);
-  if(!phone){ alert('Esta cita no tiene un teléfono válido para WhatsApp.'); return; }
-  const p = ctx.propiedad.id ? propiedades[ctx.propiedad.id] : null;
-  const mapsLink = mapsLinkFor(p);
-  let msg = `Hola ${ctx.persona.nombre}, confirmamos tu visita el ${ctx.cita.fecha} a las ${ctx.cita.hora}.`;
-  if(p && p.direccion) msg += ` Dirección: ${p.direccion}.`;
-  if(mapsLink) msg += ` Ubicación en Maps: ${mapsLink}`;
-  msg += ' ¡Nos vemos!';
-  window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`,'_blank');
-}
+
+
 
 
 
