@@ -2662,6 +2662,12 @@ function attachSeguimientoHandlers(container){
       const estadoAnterior = cita.estado || 'pendiente';
       const estadoNuevo = sel.value;
       if(estadoAnterior === estadoNuevo) return;
+      const gate=synapseHealthGateForEntity('cita',id,'appointment_status_change');
+      if(!gate.allowed){
+        sel.value=estadoAnterior;
+        alert('Synapse Health bloqueó el cambio de estado para proteger la integridad de esta cita. '+gate.blocking.map(a=>a.message).join(' '));
+        return;
+      }
       const trace = registrarTraceCita(id, { tipo: 'estado', anterior: estadoAnterior, nuevo: estadoNuevo, origen: 'synapse' });
       const updates = {};
       updates['citas/'+id+'/estado'] = estadoNuevo;
