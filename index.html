@@ -905,6 +905,24 @@ function synapseWorkQueue(leadsObj=leads){
   }).filter(x=>x.priority.rank<9 && x.context.nextAction)
     .sort((a,b)=>(a.priority.rank-b.priority.rank)||((a.priority.fecha||'9999-12-31').localeCompare(b.priority.fecha||'9999-12-31')));
 }
+function synapseActionContract(lead){
+  const ctx=buildLeadContext(lead), priority=synapsePriority(lead);
+  const texto=(ctx.nextAction||'').toLowerCase();
+  let canal='interno',accionTipo='revisar_contexto';
+  if(/whatsapp|mensaje|contact/.test(texto)){ canal='whatsapp'; accionTipo='contactar_persona'; }
+  else if(/visita|cita|agendar/.test(texto)){ canal='agenda'; accionTipo='gestionar_encuentro'; }
+  else if(/document|evidencia|ficha|requisit/.test(texto)){ canal='expediente'; accionTipo='revisar_entregable'; }
+  return {
+    version:'2.0',
+    subject:{type:'persona',id:lead.id||null,label:ctx.persona.nombre||'Persona'},
+    context:{flujo:ctx.clasificacion.flujo,etapa:ctx.proceso.etapaId,necesidad:ctx.necesidad},
+    action:{type:accionTipo,label:ctx.nextAction,channel:canal,dueDate:priority.fecha},
+    deliverable:ctx.protocolo?.entregable||null,
+    evidenceExpected:ctx.protocolo?.entregable?'confirmacion_entregable':'registro_accion',
+    priority:{level:priority.nivel,reason:priority.razon},
+    automation:{mode:'suggest',requiresHuman:true}
+  };
+}
 
 const ROLES_POR_OPERACION = {
   Compra: ['Comprador'],
