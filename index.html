@@ -3087,36 +3087,7 @@ document.getElementById('m-lead')?.addEventListener('change', ()=>{
 
 // Crea un lead nuevo desde una cita manual del admin cuando no se vinculó uno existente —
 // mismo criterio que la agenda pública (operación según la propiedad elegida).
-async ){
-  const propObj = propiedadId ? propiedades[propiedadId] : null;
-  const propTxt = propiedadNombre ? ` — ${propiedadNombre}` : '';
-  const operacionProp = (propObj && propObj.operacion) || 'Compra';
-  const tipoDefault = operacionProp === 'Renta' ? 'Inquilino' : 'Comprador';
-  const newLeadId = db.ref('leads').push().key;
-  await db.ref('leads/'+newLeadId).set({
-    nombre, telefono, email: '',
-    fuente: 'Cita manual',
-    operacion: operacionProp,
-    tipo: tipoDefault,
-    presupuesto: '',
-    ubicacion: (propObj && propObj.direccion) || '',
-    propiedadId: propiedadId || null,
-    propiedadNombre: propiedadNombre || null,
-    valorEstimado: (propObj && Number(propObj.precio)) || 0,
-    probabilidad: 30,
-    proximaAccion: `Visita programada${propTxt}`,
-    fechaProximaAccion: fecha,
-    notas: notas || '',
-    etapa: 'visita_programada',
-    fechaCreacion: todayStr(),
-    fechaCierre: null,
-    checklist: {},
-    bitacora: { [bitacoraKeyCitas()]: `Lead creado automáticamente al agendar cita manual para ${fecha} ${hora}${propTxt}.` }
-  });
-  const tn = normalizarTelefono(telefono);
-  if(tn) db.ref('telefonos_index/'+tn).set(newLeadId).catch(()=>{});
-  return newLeadId;
-}
+
 
 document.getElementById('btn-add-manual').addEventListener('click', ()=>{
   const nombre = document.getElementById('m-nombre').value.trim();
@@ -3297,23 +3268,14 @@ document.getElementById('btn-add-propiedad').addEventListener('click', ()=>{
 
 
 
-document.getElementById('cal-prev').addEventListener('click', ()=>{
-  calMonthDate.setMonth(calMonthDate.getMonth()-1);
-  renderCalendario(ultimasCitas);
-});
-document.getElementById('cal-next').addEventListener('click', ()=>{
-  calMonthDate.setMonth(calMonthDate.getMonth()+1);
-  renderCalendario(ultimasCitas);
-});
+
+
 
 /* ---------- Google Calendar ---------- */
 
 initGoogleClient();
 
-document.getElementById('btn-google-connect').addEventListener('click', ()=>{
-  if(!tokenClient){ alert('Google todavía está cargando, espera un segundo e inténtalo de nuevo.'); return; }
-  tokenClient.requestAccessToken();
-});
+
 
 document.getElementById('btn-sync-calendar').addEventListener('click', ()=>{
   if(!googleAccessToken){ alert('Conecta Google Calendar primero.'); return; }
@@ -3664,10 +3626,8 @@ const ETAPAS_ANTES_DE_VISITA_PROGRAMADA = ['nuevo','contactado','calificado','re
 // Sincroniza el lead cuando se agenda una cita nueva (manual o pública) — sin que Sebas
 // tenga que mover la tarjeta a mano. Respeta la etapa según venta o renta porque
 // "visita_programada" y "visita_realizada" son ids compartidos en ambos flujos.
-async 
 
 // Sincroniza el lead en el Gestor cuando cambia el estado de una cita.
-async 
 
 /* ---------- Horario semanal ---------- */
 
@@ -3718,21 +3678,6 @@ document.querySelectorAll('.admin-tab-btn').forEach(btn=>{
 });
 
 /* ---------- Resumen / stats ---------- */
-
-
-
-
-
-
-
-
-
-async 
-
-
-async 
-
-
 
 /* ---------- Catálogo de propiedades ---------- */
 
@@ -3993,31 +3938,14 @@ document.getElementById('btn-add-propiedad').addEventListener('click', ()=>{
 
 /* ---------- Seguimiento de citas ---------- */
 
-async 
 
 
-
-
-
-
-
-document.getElementById('cal-prev').addEventListener('click', ()=>{
-  calMonthDate.setMonth(calMonthDate.getMonth()-1);
-  renderCalendario(ultimasCitas);
-});
-document.getElementById('cal-next').addEventListener('click', ()=>{
-  calMonthDate.setMonth(calMonthDate.getMonth()+1);
-  renderCalendario(ultimasCitas);
-});
 
 /* ---------- Google Calendar ---------- */
 
 initGoogleClient();
 
-document.getElementById('btn-google-connect').addEventListener('click', ()=>{
-  if(!tokenClient){ alert('Google todavía está cargando, espera un segundo e inténtalo de nuevo.'); return; }
-  tokenClient.requestAccessToken();
-});
+
 
 document.getElementById('btn-sync-calendar').addEventListener('click', ()=>{
   if(!googleAccessToken){ alert('Conecta Google Calendar primero.'); return; }
@@ -4355,23 +4283,14 @@ document.getElementById('btn-add-propiedad').addEventListener('click', ()=>{
 
 
 
-document.getElementById('cal-prev').addEventListener('click', ()=>{
-  calMonthDate.setMonth(calMonthDate.getMonth()-1);
-  renderCalendario(ultimasCitas);
-});
-document.getElementById('cal-next').addEventListener('click', ()=>{
-  calMonthDate.setMonth(calMonthDate.getMonth()+1);
-  renderCalendario(ultimasCitas);
-});
+
+
 
 /* ---------- Google Calendar ---------- */
 
 initGoogleClient();
 
-document.getElementById('btn-google-connect').addEventListener('click', ()=>{
-  if(!tokenClient){ alert('Google todavía está cargando, espera un segundo e inténtalo de nuevo.'); return; }
-  tokenClient.requestAccessToken();
-});
+
 
 document.getElementById('btn-sync-calendar').addEventListener('click', ()=>{
   if(!googleAccessToken){ alert('Conecta Google Calendar primero.'); return; }
