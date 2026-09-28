@@ -1101,6 +1101,11 @@ function synapseHealthCanProceed(alerts=[],operation='general'){
   const critical=alerts.filter(a=>a.severity==='critical');
   return {allowed:critical.length===0,operation,mode:critical.length?'protected':alerts.length?'degraded':'normal',blocking:critical};
 }
+function synapseHealthGateForEntity(entity,id,operation='general'){
+  const health=synapseIntegrityCheck();
+  const related=health.alerts.filter(a=>a.entity===entity&&a.id===id);
+  return synapseHealthCanProceed(related,operation);
+}
 
 function synapseIntegrityCheck(leadsObj=leads){
   const alerts=[];
@@ -1374,6 +1379,11 @@ const PROTOCOLO_RENTA={
 
   document.getElementById('btn-advance-stage')?.addEventListener('click',async()=>{
     if(!currentLeadId||!siguienteEtapa) return;
+    const gate=synapseHealthGateForEntity('lead',currentLeadId,'advance_stage');
+    if(!gate.allowed){
+      alert('Synapse Health bloqueó el avance para proteger la integridad. '+gate.blocking.map(a=>a.message).join(' '));
+      return;
+    }
     const anterior=currentStageId;
     currentStageId=siguienteEtapa.id;
     await db.ref('leads/'+currentLeadId).update({etapa:currentStageId,proximaAccion:null,fechaProximaAccion:null});
