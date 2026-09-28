@@ -1080,25 +1080,27 @@ let accionEsSugerida = false;
 let currentTab = "datos";
 
 function uid(){ return 'L' + Date.now().toString(36) + Math.random().toString(36).slice(2,6); }
+function esEtapaCerrada(etapa){ return ['ganado','cerrado_ganado','perdido'].includes(etapa); }
+function esEtapaGanada(etapa){ return ['ganado','cerrado_ganado'].includes(etapa); }
 function todayStr(){ return new Date().toISOString().slice(0,10); }
 function isOverdue(lead){
   if(!lead.fechaProximaAccion) return false;
-  if(lead.etapa === 'ganado' || lead.etapa === 'perdido') return false;
+  if(esEtapaCerrada(lead.etapa)) return false;
   return lead.fechaProximaAccion < todayStr();
 }
 
 function renderDash(){
   const all = Object.values(leads);
-  const activos = all.filter(l=>l.etapa!=='ganado' && l.etapa!=='perdido').length;
+  const activos = all.filter(l=>!esEtapaCerrada(l.etapa)).length;
   const vencidos = all.filter(isOverdue).length;
   const now = new Date();
   const ganadosMes = all.filter(l=>{
-    if(l.etapa!=='ganado' || !l.fechaCierre) return false;
+    if(!esEtapaGanada(l.etapa) || !l.fechaCierre) return false;
     const d = new Date(l.fechaCierre);
     return d.getMonth()===now.getMonth() && d.getFullYear()===now.getFullYear();
   }).length;
   const valorPonderado = all.reduce((sum,l)=>{
-    if(l.etapa==='ganado'||l.etapa==='perdido') return sum;
+    if(esEtapaCerrada(l.etapa)) return sum;
     const v = Number(l.valorEstimado)||0;
     const p = Number(l.probabilidad)||0;
     return sum + v*(p/100);
@@ -1369,8 +1371,8 @@ document.getElementById('btn-save').addEventListener('click', ()=>{
   const stageChecklist = [...document.querySelectorAll('#stage-checklist input')].map(cb=>cb.checked);
   const checklist = { ...(existing?.checklist || {}) , [currentStageId]: stageChecklist };
 
-  const wasNotGanado = !existing || existing.etapa !== 'ganado';
-  const isNowGanado = currentStageId === 'ganado';
+  const wasNotGanado = !existing || !esEtapaGanada(existing.etapa);
+  const isNowGanado = esEtapaGanada(currentStageId);
 
   const protocoloActual=protocoloEtapaActual(document.getElementById('f-operacion').value,currentStageId);
   if(protocoloActual && currentLeadId && !leads[currentLeadId]?.protocolo?.[currentStageId]?.cumplido){
@@ -1821,7 +1823,7 @@ function renderResumenStats(){
   const reservasNuevas = Object.values(ultimasCitas||{}).filter(c=>c.tipoEvento==='reserva_visita' && (c.estadoReserva||'solicitada')==='solicitada').length;
   const elReservas=document.getElementById('v2-stat-reservas-nuevas'); if(elReservas) elReservas.textContent=reservasNuevas;
   const citasHoy = Object.values(ultimasCitas||{}).filter(c=>c.fecha===todayKey && !['cancelada'].includes(c.estado||'pendiente')).length;
-  const accionesPendientes = Object.values(leads||{}).filter(l=>l.fechaProximaAccion && l.fechaProximaAccion<=todayKey && !['ganado','perdido'].includes(l.etapa)).length;
+  const accionesPendientes = Object.values(leads||{}).filter(l=>l.fechaProximaAccion && l.fechaProximaAccion<=todayKey && !esEtapaCerrada(l.etapa)).length;
   const elHoy=document.getElementById('v2-stat-citas-hoy'); if(elHoy) elHoy.textContent=citasHoy;
   const elAcc=document.getElementById('v2-stat-acciones'); if(elAcc) elAcc.textContent=accionesPendientes;
   const elProps=document.getElementById('v2-stat-props'); if(elProps) elProps.textContent=propActivas;
@@ -2110,7 +2112,7 @@ function renderManualLeadSelect(){
   if(!sel) return;
   const prevVal = sel.value;
   const arr = Object.entries(leads||{})
-    .filter(([id,l])=>!['ganado','perdido'].includes(l.etapa))
+    .filter(([id,l])=>!esEtapaCerrada(l.etapa))
     .sort((a,b)=>(a[1].nombre||'').localeCompare(b[1].nombre||''));
   sel.innerHTML = `<option value="">Cliente nuevo (sin lead existente)</option>` +
     arr.map(([id,l])=>`<option value="${id}">${escapeHtml(l.nombre||'(sin nombre)')}${l.telefono?' · '+escapeHtml(l.telefono):''}</option>`).join('');
@@ -2960,7 +2962,7 @@ function renderManualLeadSelect(){
   if(!sel) return;
   const prevVal = sel.value;
   const arr = Object.entries(leads||{})
-    .filter(([id,l])=>!['ganado','perdido'].includes(l.etapa))
+    .filter(([id,l])=>!esEtapaCerrada(l.etapa))
     .sort((a,b)=>(a[1].nombre||'').localeCompare(b[1].nombre||''));
   sel.innerHTML = `<option value="">Cliente nuevo (sin lead existente)</option>` +
     arr.map(([id,l])=>`<option value="${id}">${escapeHtml(l.nombre||'(sin nombre)')}${l.telefono?' · '+escapeHtml(l.telefono):''}</option>`).join('');
@@ -4213,7 +4215,7 @@ function renderResumenStats(){
   const reservasNuevas = Object.values(ultimasCitas||{}).filter(c=>c.tipoEvento==='reserva_visita' && (c.estadoReserva||'solicitada')==='solicitada').length;
   const elReservas=document.getElementById('v2-stat-reservas-nuevas'); if(elReservas) elReservas.textContent=reservasNuevas;
   const citasHoy = Object.values(ultimasCitas||{}).filter(c=>c.fecha===todayKey && !['cancelada'].includes(c.estado||'pendiente')).length;
-  const accionesPendientes = Object.values(leads||{}).filter(l=>l.fechaProximaAccion && l.fechaProximaAccion<=todayKey && !['ganado','perdido'].includes(l.etapa)).length;
+  const accionesPendientes = Object.values(leads||{}).filter(l=>l.fechaProximaAccion && l.fechaProximaAccion<=todayKey && !esEtapaCerrada(l.etapa)).length;
   const elHoy=document.getElementById('v2-stat-citas-hoy'); if(elHoy) elHoy.textContent=citasHoy;
   const elAcc=document.getElementById('v2-stat-acciones'); if(elAcc) elAcc.textContent=accionesPendientes;
   const elProps=document.getElementById('v2-stat-props'); if(elProps) elProps.textContent=propActivas;
@@ -4478,7 +4480,7 @@ function renderManualLeadSelect(){
   if(!sel) return;
   const prevVal = sel.value;
   const arr = Object.entries(leads||{})
-    .filter(([id,l])=>!['ganado','perdido'].includes(l.etapa))
+    .filter(([id,l])=>!esEtapaCerrada(l.etapa))
     .sort((a,b)=>(a[1].nombre||'').localeCompare(b[1].nombre||''));
   sel.innerHTML = `<option value="">Cliente nuevo (sin lead existente)</option>` +
     arr.map(([id,l])=>`<option value="${id}">${escapeHtml(l.nombre||'(sin nombre)')}${l.telefono?' · '+escapeHtml(l.telefono):''}</option>`).join('');
@@ -5328,7 +5330,7 @@ function renderManualLeadSelect(){
   if(!sel) return;
   const prevVal = sel.value;
   const arr = Object.entries(leads||{})
-    .filter(([id,l])=>!['ganado','perdido'].includes(l.etapa))
+    .filter(([id,l])=>!esEtapaCerrada(l.etapa))
     .sort((a,b)=>(a[1].nombre||'').localeCompare(b[1].nombre||''));
   sel.innerHTML = `<option value="">Cliente nuevo (sin lead existente)</option>` +
     arr.map(([id,l])=>`<option value="${id}">${escapeHtml(l.nombre||'(sin nombre)')}${l.telefono?' · '+escapeHtml(l.telefono):''}</option>`).join('');
