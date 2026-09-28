@@ -1219,17 +1219,23 @@ function renderDash(){
 
 function renderFilterOptions(){
   const sel = document.getElementById('filter-etapa');
-  if(sel.dataset.built) return;
-  sel.dataset.built = "1";
-  const seen = new Set();
-  const merged = [];
-  [...STAGES, ...STAGES_RENTA].forEach(s=>{
+  const current=sel.value;
+  const pipelines=[
+    {label:'Compra · busca',stages:stagesForFlujo('COMPRA_BUSCA')},
+    {label:'Renta · busca',stages:stagesForFlujo('RENTA_BUSCA')},
+    {label:'Captación · ofrece',stages:stagesForFlujo('RENTA_OFRECE')},
+    {label:'Inversión',stages:stagesForFlujo('INVERSION_BUSCA')}
+  ];
+  const seen=new Set();
+  const options=[];
+  pipelines.forEach(p=>p.stages.forEach(s=>{
     if(seen.has(s.id)) return;
     seen.add(s.id);
-    merged.push(s);
-  });
-  sel.innerHTML = `<option value="">Todas las etapas</option>` +
-    merged.map(s=>`<option value="${s.id}">${s.num} · ${s.label}</option>`).join('');
+    options.push({id:s.id,label:s.label,source:p.label});
+  }));
+  sel.innerHTML=`<option value="">Todas las etapas</option>`+
+    options.map(s=>`<option value="${s.id}">${escapeHtml(s.label)} · ${escapeHtml(s.source)}</option>`).join('');
+  sel.value=seen.has(current)?current:'';
 }
 
 function renderList(){
@@ -1565,7 +1571,7 @@ overlay.addEventListener('click', (e)=>{ if(e.target===overlay) closeModal(); })
 
 document.getElementById('search').addEventListener('input', renderList);
 document.getElementById('filter-etapa').addEventListener('change', renderList);
-document.getElementById('filter-operacion').addEventListener('change', renderList);
+document.getElementById('filter-operacion').addEventListener('change', ()=>{ renderFilterOptions(); renderList(); });
 document.getElementById('filter-overdue').addEventListener('change', renderList);
 
 document.getElementById('btn-export').addEventListener('click', ()=>{
