@@ -1087,6 +1087,21 @@ let currentTab = "datos";
 function uid(){ return 'L' + Date.now().toString(36) + Math.random().toString(36).slice(2,6); }
 function esEtapaCerrada(etapa){ return ['ganado','cerrado_ganado','perdido'].includes(etapa); }
 function esEtapaGanada(etapa){ return ['ganado','cerrado_ganado'].includes(etapa); }
+const SYNAPSE_HEALTH_POLICY={
+  info:{rank:0,mode:'normal',blocks:false,label:'INFO'},
+  warning:{rank:1,mode:'degraded',blocks:false,label:'WARNING'},
+  error:{rank:2,mode:'degraded',blocks:false,label:'ERROR'},
+  critical:{rank:3,mode:'protected',blocks:true,label:'CRITICAL'}
+};
+function synapseHealthSeverity(alerts=[]){
+  const max=alerts.reduce((m,a)=>Math.max(m,SYNAPSE_HEALTH_POLICY[a.severity]?.rank||0),0);
+  return Object.entries(SYNAPSE_HEALTH_POLICY).find(([,p])=>p.rank===max)?.[0]||'info';
+}
+function synapseHealthCanProceed(alerts=[],operation='general'){
+  const critical=alerts.filter(a=>a.severity==='critical');
+  return {allowed:critical.length===0,operation,mode:critical.length?'protected':alerts.length?'degraded':'normal',blocking:critical};
+}
+
 function synapseIntegrityCheck(leadsObj=leads){
   const alerts=[];
   Object.entries(leadsObj||{}).forEach(([id,l])=>{
@@ -1122,7 +1137,8 @@ function synapseIntegrityCheck(leadsObj=leads){
       alerts.push({severity:'warning',code:'RESERVATION_WITHOUT_CODE',entity:'cita',id,message:'Reserva de visita sin código público de reserva.'});
     }
   });
-  return {ok:alerts.length===0,total:alerts.length,errors:alerts.filter(a=>a.severity==='error').length,warnings:alerts.filter(a=>a.severity==='warning').length,alerts};
+  const severity=synapseHealthSeverity(alerts), gate=synapseHealthCanProceed(alerts);
+  return {ok:alerts.length===0,total:alerts.length,infos:alerts.filter(a=>a.severity==='info').length,warnings:alerts.filter(a=>a.severity==='warning').length,errors:alerts.filter(a=>a.severity==='error').length,criticals:alerts.filter(a=>a.severity==='critical').length,severity,mode:gate.mode,canProceed:gate.allowed,alerts};
 }
 function todayStr(){ return new Date().toISOString().slice(0,10); }
 function isOverdue(lead){
@@ -1878,9 +1894,9 @@ function renderV2Health(){
   const summary=document.getElementById('v2-health-summary'), list=document.getElementById('v2-health-alerts');
   if(!summary||!list) return;
   if(health.ok){summary.innerHTML='<b style="color:var(--green)">SALUDABLE</b> · Sin inconsistencias detectadas.';list.innerHTML='';return;}
-  const state=health.errors?'ERROR':'ATENCIÓN';
-  const color=health.errors?'var(--red)':'var(--amber)';
-  summary.innerHTML=`<b style="color:${color}">${state}</b> · ${health.errors} errores · ${health.warnings} avisos`;
+  const state=health.criticals?'CRITICAL':health.errors?'ERROR':health.warnings?'ATENCIÓN':'INFO';
+  const color=(health.criticals||health.errors)?'var(--red)':health.warnings?'var(--amber)':'var(--muted)';
+  summary.innerHTML=`<b style="color:${color}">${state}</b> · modo ${health.mode.toUpperCase()} · ${health.criticals} críticos · ${health.errors} errores · ${health.warnings} avisos`;
   list.innerHTML=health.alerts.slice(0,8).map(a=>`<div style="border-top:1px solid var(--line);padding:7px 0;font-size:12px;"><b class="mono" style="color:${a.severity==='error'?'var(--red)':'var(--amber)'}">${escapeHtml(a.code)}</b> · ${escapeHtml(a.message)} <span class="mono" style="color:var(--muted-2)">[${escapeHtml(a.id)}]</span></div>`).join('')+(health.total>8?`<div class="sub">+${health.total-8} avisos adicionales.</div>`:'');
 }
 
