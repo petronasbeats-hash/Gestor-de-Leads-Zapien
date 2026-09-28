@@ -1885,8 +1885,13 @@ function renderV2NextAction(todayKey){
   const personas=synapseWorkQueue();
   if(personas.length){
     const {lead,context:ctx,priority}=personas[0];
-    box.innerHTML=`<div class="cita-item"><div><b>${escapeHtml(ctx.persona.nombre||'Persona')}</b><div class="cita-meta">${escapeHtml(ctx.clasificacion.label||ctx.clasificacion.flujo)} · ${escapeHtml(ctx.proceso.etapaLabel||'')}</div><div class="cita-meta">${escapeHtml(priority.razon)}</div><div class="cita-meta" style="color:var(--green);margin-top:3px;">→ ${escapeHtml(ctx.nextAction)}</div>${ctx.protocolo?.entregable?`<div class="cita-meta">Entregable · ${escapeHtml(ctx.protocolo.entregable)}</div>`:''}</div><button class="btn btn-sm" data-v2-open-persona>Abrir persona</button></div>`;
+    box.innerHTML=`<div class="cita-item"><div><b>${escapeHtml(ctx.persona.nombre||'Persona')}</b><div class="cita-meta">${escapeHtml(ctx.clasificacion.label||ctx.clasificacion.flujo)} · ${escapeHtml(ctx.proceso.etapaLabel||'')}</div><div class="cita-meta">${escapeHtml(priority.razon)}</div><div class="cita-meta" style="color:var(--green);margin-top:3px;">→ ${escapeHtml(ctx.nextAction)}</div>${ctx.protocolo?.entregable?`<div class="cita-meta">Entregable · ${escapeHtml(ctx.protocolo.entregable)}</div>`:''}</div><div style="display:flex;gap:6px;flex-wrap:wrap;"><button class="btn btn-primary btn-sm" data-v2-action-done>Registrar realizada</button><button class="btn btn-sm" data-v2-open-persona>Abrir persona</button></div></div>`;
     box.querySelector('[data-v2-open-persona]')?.addEventListener('click',()=>{openMainView('personas');openModal(lead.id);});
+    box.querySelector('[data-v2-action-done]')?.addEventListener('click',async()=>{
+      const nota=prompt('Nota opcional sobre el resultado de la acción:')||'';
+      await registrarResultadoAccion(lead.id,{status:'realizada',note:nota});
+      renderV2NextAction(todayKey);
+    });
     return;
   }
   box.innerHTML='<div class="empty">No hay acciones que requieran atención.</div>';
