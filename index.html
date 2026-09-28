@@ -1306,11 +1306,20 @@ const PROTOCOLO_RENTA={
         <li><input type="checkbox" data-idx="${i}" ${checklistState[i]?'checked':''}><span>${c}</span></li>
       `).join('')}
     </ul>
+    ${readiness?`<div style="border:1px solid var(--line);border-radius:7px;padding:10px;margin:12px 0;font-size:12px;"><b class="mono">STAGE READINESS · ${readiness.status.toUpperCase()}</b><div style="color:var(--muted);margin-top:4px;">${escapeHtml(readiness.reason)}</div>${readiness.status==='lista'&&siguienteEtapa?`<button class="btn btn-primary btn-sm" id="btn-advance-stage" style="margin-top:8px;">Avanzar a ${escapeHtml(siguienteEtapa.label)}</button>`:''}</div>`:''}
     <div style="font-size:11.5px;color:var(--muted-2);font-family:'JetBrains Mono',monospace;border-top:1px dashed var(--line);padding-top:10px;">
       <b style="color:var(--muted);">Tracker →</b> ${s.tracker}
     </div>
   `;
 
+  document.getElementById('btn-advance-stage')?.addEventListener('click',async()=>{
+    if(!currentLeadId||!siguienteEtapa) return;
+    const anterior=currentStageId;
+    currentStageId=siguienteEtapa.id;
+    await db.ref('leads/'+currentLeadId).update({etapa:currentStageId,proximaAccion:null,fechaProximaAccion:null});
+    await db.ref('leads/'+currentLeadId+'/bitacora/'+bitacoraKeyCitas()).set(`Avance de etapa aprobado por operador: ${anterior} → ${currentStageId}.`);
+    renderStagePane();
+  });
   document.getElementById('btn-copy-script').addEventListener('click', (e)=>{
     navigator.clipboard?.writeText(scriptFilled).catch(()=>{});
     e.target.textContent = 'Copiado ✓';
@@ -3688,6 +3697,9 @@ function renderStagePane(){
   const nombre = document.getElementById('f-nombre').value || '{nombre}';
   const scriptFilled = s.script.replaceAll('{nombre}', nombre);
   const checklistState = (lead && lead.checklist && lead.checklist[s.id]) || [];
+  const readiness = lead ? synapseStageReadiness({id:currentLeadId,...lead,etapa:currentStageId}) : null;
+  const idxEtapa=stagesActuales.findIndex(x=>x.id===currentStageId);
+  const siguienteEtapa=idxEtapa>=0 ? stagesActuales[idxEtapa+1] : null;
 
   const detail = document.getElementById('stage-detail');
   detail.innerHTML = `
