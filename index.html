@@ -946,6 +946,18 @@ async function registrarResultadoAccion(leadId,result={}){
   await db.ref('leads/'+leadId+'/bitacora/'+bitacoraKeyCitas()).set(
     `Acción registrada: ${contract.action.label} · resultado: ${event.resultado}${event.nota?' · '+event.nota:''}.`
   );
+  // Adaptive Next Action Loop V1: a completed action may clear only the exact action
+  // that generated this contract. It never advances stage or overwrites a newer human decision.
+  if(event.resultado==='realizada'){
+    const fresh=(await db.ref('leads/'+leadId).once('value')).val()||{};
+    if((fresh.proximaAccion||'')===contract.action.label){
+      await db.ref('leads/'+leadId).update({proximaAccion:null,fechaProximaAccion:null});
+      event.nextState='recalcular_contexto';
+    }else{
+      event.nextState='preservar_override';
+    }
+    await db.ref('leads/'+leadId+'/historial_acciones/'+eventId+'/nextState').set(event.nextState);
+  }
   return event;
 }
 
