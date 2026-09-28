@@ -1122,6 +1122,26 @@ function synapseHealthGateForEntity(entity,id,operation='general'){
   const related=health.alerts.filter(a=>a.entity===entity&&a.id===id);
   return synapseHealthCanProceed(related,operation);
 }
+function synapseHealthSnapshot(){
+  const h=synapseIntegrityCheck();
+  return {at:new Date().toISOString(),severity:h.severity,mode:h.mode,total:h.total,criticals:h.criticals,errors:h.errors,warnings:h.warnings,codes:h.alerts.map(a=>a.code+':'+a.entity+':'+a.id)};
+}
+function synapseHealthVerify(previousSnapshot){
+  const current=synapseHealthSnapshot();
+  const before=new Set(previousSnapshot?.codes||[]);
+  const now=new Set(current.codes||[]);
+  const resolved=[...before].filter(x=>!now.has(x));
+  const persistent=[...before].filter(x=>now.has(x));
+  const introduced=[...now].filter(x=>!before.has(x));
+  return {
+    verifiedAt:new Date().toISOString(),
+    before:previousSnapshot||null,
+    current,
+    resolved,persistent,introduced,
+    improved:resolved.length>0&&introduced.length===0,
+    clean:current.total===0
+  };
+}
 
 function synapseIntegrityCheck(leadsObj=leads){
   const alerts=[];
