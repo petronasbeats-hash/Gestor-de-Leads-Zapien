@@ -854,9 +854,17 @@ function flujoSynapse(operacion,rol){
   return rol==='Vendedor'?'VENTA_OFRECE':'COMPRA_BUSCA';
 }
 function clasificacionSynapse(lead){
-  const rol=lead?.rol||lead?.tipo;
-  const flujo=lead?.flujo||flujoSynapse(lead?.operacion||'Compra',rol);
-  return {flujo,...(FLUJOS_SYNAPSE[flujo]||FLUJOS_SYNAPSE.COMPRA_BUSCA)};
+  const rol=lead?.rol||lead?.tipo||null;
+  const operacion=lead?.operacion||null;
+  const flujoGuardado=lead?.flujo||null;
+  const tieneSenal=Boolean(flujoGuardado||operacion||rol);
+  // Compatibilidad histórica: registros que sí contienen señales antiguas siguen resolviéndose.
+  // Un objeto realmente vacío ya no se disfraza silenciosamente como COMPRA_BUSCA.
+  if(!tieneSenal) return {flujo:null,operacion:null,rol:null,lado:null,label:'SIN CLASIFICAR',confidence:'unknown'};
+  const flujo=flujoGuardado||flujoSynapse(operacion||'Compra',rol);
+  const base=FLUJOS_SYNAPSE[flujo];
+  if(!base) return {flujo,operacion,rol,lado:null,label:'FLUJO NO RECONOCIDO',confidence:'invalid'};
+  return {flujo,...base,confidence:flujoGuardado?'stored':'resolved'};
 }
 
 // Context / Orchestration Layer V2 — pure resolver, no writes and no new Firebase nodes.
@@ -1096,6 +1104,7 @@ const SYNAPSE_HEALTH_POLICY={
   critical:{rank:3,mode:'protected',blocks:true,label:'CRITICAL'}
 };
 const SYNAPSE_HEALTH_DIAGNOSTICS={
+  UNCLASSIFIED_LEAD:{impact:'Core no puede determinar qué pipeline o protocolo corresponde.',action:'Definir operación y rol reales antes de continuar el proceso.'},
   INVALID_STAGE:{impact:'El proceso puede quedar fuera de su pipeline.',action:'Revisar operación, rol y etapa antes de continuar.'},
   FLOW_MISMATCH:{impact:'La clasificación almacenada contradice la resuelta por Core.',action:'Revisar operación/rol y confirmar cuál flujo corresponde.'},
   ACTION_ON_CLOSED_FLOW:{impact:'Puede generar seguimiento innecesario sobre un proceso cerrado.',action:'Revisar si la acción debe eliminarse o si el proceso debe reabrirse.'},
@@ -1149,6 +1158,9 @@ function synapseIntegrityCheck(leadsObj=leads){
   const alerts=[];
   Object.entries(leadsObj||{}).forEach(([id,l])=>{
     const clas=clasificacionSynapse(l);
+    if(!clas.flujo){
+      alerts.push({severity:'error',code:'UNCLASSIFIED_LEAD',entity:'lead',id,message:'La persona no tiene señales suficientes para resolver operación, rol o flujo.'});
+    }
     const stages=stagesForFlujo(clas.flujo);
     if(!stages.some(s=>s.id===l.etapa)){
       alerts.push({severity:'error',code:'INVALID_STAGE',entity:'lead',id,message:`Etapa "${l.etapa||'vacía'}" no pertenece al flujo ${clas.flujo}.`});
