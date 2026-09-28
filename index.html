@@ -1093,6 +1093,22 @@ const SYNAPSE_HEALTH_POLICY={
   error:{rank:2,mode:'degraded',blocks:false,label:'ERROR'},
   critical:{rank:3,mode:'protected',blocks:true,label:'CRITICAL'}
 };
+const SYNAPSE_HEALTH_DIAGNOSTICS={
+  INVALID_STAGE:{impact:'El proceso puede quedar fuera de su pipeline.',action:'Revisar operación, rol y etapa antes de continuar.'},
+  FLOW_MISMATCH:{impact:'La clasificación almacenada contradice la resuelta por Core.',action:'Revisar operación/rol y confirmar cuál flujo corresponde.'},
+  ACTION_ON_CLOSED_FLOW:{impact:'Puede generar seguimiento innecesario sobre un proceso cerrado.',action:'Revisar si la acción debe eliminarse o si el proceso debe reabrirse.'},
+  CLOSE_DATE_ON_ACTIVE_FLOW:{impact:'Métricas de cierre y estado operativo pueden divergir.',action:'Confirmar si el proceso está activo o cerrado.'},
+  BROKEN_PROPERTY_REF:{impact:'La persona perdió vínculo con su inmueble referenciado.',action:'Localizar la propiedad correcta y restablecer el vínculo; no inventar un ID.'},
+  BROKEN_LEAD_REF:{impact:'La relación entre personas quedó incompleta.',action:'Revisar la relación y vincular solo si existe la persona correcta.'},
+  APPOINTMENT_BROKEN_LEAD_REF:{impact:'La cita no puede sincronizar seguimiento con una persona válida.',action:'Identificar la persona correcta antes de cambiar el estado de la cita.'},
+  APPOINTMENT_BROKEN_PROPERTY_REF:{impact:'La cita apunta a un inmueble que ya no existe en el catálogo.',action:'Identificar la propiedad correcta antes de operar la cita.'},
+  RESERVATION_WITHOUT_CODE:{impact:'La reserva carece de identificador público de seguimiento.',action:'Revisar el origen de la reserva y regenerar código solo mediante flujo controlado.'}
+};
+function enrichHealthAlert(alert){
+  const d=SYNAPSE_HEALTH_DIAGNOSTICS[alert.code]||{};
+  return {...alert,impact:d.impact||'Requiere revisión.',recommendedAction:d.action||'Revisar manualmente antes de corregir.'};
+}
+
 function synapseHealthSeverity(alerts=[]){
   const max=alerts.reduce((m,a)=>Math.max(m,SYNAPSE_HEALTH_POLICY[a.severity]?.rank||0),0);
   return Object.entries(SYNAPSE_HEALTH_POLICY).find(([,p])=>p.rank===max)?.[0]||'info';
@@ -1142,8 +1158,9 @@ function synapseIntegrityCheck(leadsObj=leads){
       alerts.push({severity:'warning',code:'RESERVATION_WITHOUT_CODE',entity:'cita',id,message:'Reserva de visita sin código público de reserva.'});
     }
   });
-  const severity=synapseHealthSeverity(alerts), gate=synapseHealthCanProceed(alerts);
-  return {ok:alerts.length===0,total:alerts.length,infos:alerts.filter(a=>a.severity==='info').length,warnings:alerts.filter(a=>a.severity==='warning').length,errors:alerts.filter(a=>a.severity==='error').length,criticals:alerts.filter(a=>a.severity==='critical').length,severity,mode:gate.mode,canProceed:gate.allowed,alerts};
+  const enriched=alerts.map(enrichHealthAlert);
+  const severity=synapseHealthSeverity(enriched), gate=synapseHealthCanProceed(enriched);
+  return {ok:enriched.length===0,total:enriched.length,infos:enriched.filter(a=>a.severity==='info').length,warnings:enriched.filter(a=>a.severity==='warning').length,errors:enriched.filter(a=>a.severity==='error').length,criticals:enriched.filter(a=>a.severity==='critical').length,severity,mode:gate.mode,canProceed:gate.allowed,alerts:enriched};
 }
 function todayStr(){ return new Date().toISOString().slice(0,10); }
 function isOverdue(lead){
@@ -1907,7 +1924,7 @@ function renderV2Health(){
   const state=health.criticals?'CRITICAL':health.errors?'ERROR':health.warnings?'ATENCIÓN':'INFO';
   const color=(health.criticals||health.errors)?'var(--red)':health.warnings?'var(--amber)':'var(--muted)';
   summary.innerHTML=`<b style="color:${color}">${state}</b> · modo ${health.mode.toUpperCase()} · ${health.criticals} críticos · ${health.errors} errores · ${health.warnings} avisos`;
-  list.innerHTML=health.alerts.slice(0,8).map(a=>`<div style="border-top:1px solid var(--line);padding:7px 0;font-size:12px;"><b class="mono" style="color:${a.severity==='error'?'var(--red)':'var(--amber)'}">${escapeHtml(a.code)}</b> · ${escapeHtml(a.message)} <span class="mono" style="color:var(--muted-2)">[${escapeHtml(a.id)}]</span></div>`).join('')+(health.total>8?`<div class="sub">+${health.total-8} avisos adicionales.</div>`:'');
+  list.innerHTML=health.alerts.slice(0,8).map(a=>`<div style="border-top:1px solid var(--line);padding:7px 0;font-size:12px;"><b class="mono" style="color:${['error','critical'].includes(a.severity)?'var(--red)':'var(--amber)'}">${escapeHtml(a.code)}</b> · ${escapeHtml(a.message)} <span class="mono" style="color:var(--muted-2)">[${escapeHtml(a.id)}]</span><div class="sub" style="margin-top:3px;">Impacto: ${escapeHtml(a.impact)} · Revisar: ${escapeHtml(a.recommendedAction)}</div></div>`).join('')+(health.total>8?`<div class="sub">+${health.total-8} avisos adicionales.</div>`:'');
 }
 
 function estadoSLAReserva(c){
