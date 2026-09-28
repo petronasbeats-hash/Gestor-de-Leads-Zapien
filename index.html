@@ -1127,7 +1127,7 @@ const PROTOCOLO_RENTA={
   const nombre = document.getElementById('f-nombre').value || '{nombre}';
   const scriptFilled = s.script.replaceAll('{nombre}', nombre);
   const checklistState = (lead && lead.checklist && lead.checklist[s.id]) || [];
-  const protocolo = protocoloEtapaActual(operacionActual,s.id);
+  const protocolo = protocoloEtapaActual(operacionActual,s.id,document.getElementById('f-tipo').value);
   const protocoloState = lead?.protocolo?.[s.id] || {};
 
   const detail = document.getElementById('stage-detail');
@@ -3447,11 +3447,36 @@ function addCitaToGoogleCalendar(c){
     }
   }
 };
-function protocoloEtapaActual(op,etapa){ return op==='Renta'?PROTOCOLO_RENTA[etapa]||null:null; }
+const PROTOCOLOS_POR_FLUJO={
+  RENTA_BUSCA: PROTOCOLO_RENTA,
+  RENTA_OFRECE:{
+    nuevo:{entregable:'Inicio de captación',mensaje:(n)=>`Hola ${n} 👋 Recibimos tu interés en poner una propiedad en renta. Para ayudarte bien, primero conoceremos el inmueble, disponibilidad y condiciones que buscas para la operación. — Iré Inmobiliaria`}
+  },
+  COMPRA_BUSCA:{
+    nuevo:{entregable:'Criterios de búsqueda',mensaje:(n)=>`Hola ${n} 👋 Para ayudarte a comprar, vamos a precisar ubicación, presupuesto, tipo de inmueble y tiempos. Con esos criterios podremos revisar opciones pertinentes. — Iré Inmobiliaria`}
+  },
+  VENTA_OFRECE:{
+    nuevo:{entregable:'Inicio de captación para venta',mensaje:(n)=>`Hola ${n} 👋 Recibimos tu interés en vender una propiedad. El siguiente paso es conocer el inmueble, documentación, condiciones y objetivo de venta antes de preparar su comercialización. — Iré Inmobiliaria`}
+  },
+  INVERSION_BUSCA:{
+    nuevo:{entregable:'Perfil de inversión',mensaje:(n)=>`Hola ${n} 👋 Para buscar oportunidades de inversión necesitamos entender capital disponible, horizonte, tipo de activo y objetivo esperado. Después podremos revisar oportunidades compatibles. — Iré Inmobiliaria`}
+  },
+  INVERSION_CAPITAL:{
+    nuevo:{entregable:'Ficha inicial de oportunidad',mensaje:(n)=>`Hola ${n} 👋 Para evaluar tu proyecto o inmueble como oportunidad de inversión necesitamos conocer el activo, capital requerido, destino de los recursos y modelo propuesto. — Iré Inmobiliaria`}
+  }
+};
+function flujoActualFormulario(){
+  return flujoSynapse(document.getElementById('f-operacion').value,document.getElementById('f-tipo').value);
+}
+
+function protocoloEtapaActual(op,etapa,rol){
+  const flujo=flujoSynapse(op,rol||document.getElementById('f-tipo')?.value);
+  return PROTOCOLOS_POR_FLUJO[flujo]?.[etapa]||null;
+}
 async function compartirEntregableProtocolo(etapa){
   if(!currentLeadId){ alert('Guarda a la persona antes de compartir el protocolo.'); return; }
   const lead=leads[currentLeadId]; if(!lead) return;
-  const proto=protocoloEtapaActual(lead.operacion,etapa); if(!proto) return;
+  const proto=protocoloEtapaActual(lead.operacion,etapa,lead.rol||lead.tipo); if(!proto) return;
   const tel=telefonoValidoParaWhatsApp(lead.telefono);
   if(!tel){ alert('Esta persona no tiene un teléfono válido para WhatsApp.'); return; }
   const msg=proto.mensaje(lead.nombre||'',lead);
@@ -3462,7 +3487,7 @@ async function compartirEntregableProtocolo(etapa){
 }
 async function confirmarEntregableProtocolo(etapa){
   if(!currentLeadId) return;
-  const lead=leads[currentLeadId]; const proto=protocoloEtapaActual(lead?.operacion,etapa); if(!proto) return;
+  const lead=leads[currentLeadId]; const proto=protocoloEtapaActual(lead?.operacion,etapa,lead?.rol||lead?.tipo); if(!proto) return;
   const ahora=new Date().toISOString();
   await db.ref('leads/'+currentLeadId+'/protocolo/'+etapa).update({cumplido:true,cumplidoEn:ahora});
   await db.ref('leads/'+currentLeadId+'/bitacora/'+bitacoraKeyCitas()).set(`Protocolo cumplido: ${proto.entregable} compartido y confirmado.`);
