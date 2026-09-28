@@ -794,18 +794,40 @@ const STAGES_RENTA = [
 ];
 const STAGE_BY_ID_RENTA = Object.fromEntries(STAGES_RENTA.map(s=>[s.id,s]));
 
-function stagesForOperacion(op){ return op === 'Renta' ? STAGES_RENTA : STAGES; }
+const STAGES_CAPTACION=[
+ {id:"nuevo",num:"01",label:"Solicitud",sla:"< 60 min",objetivo:"Entender qué quiere lograr el propietario antes de ofrecer una solución.",acciones:["Confirmar contacto y objetivo del propietario.","Identificar inmueble, ubicación y disponibilidad.","Acordar siguiente conversación o visita de captación."],script:"Hola {nombre} 👋 Recibimos tu solicitud. Queremos conocer tu propiedad y qué quieres lograr con ella para proponerte el proceso adecuado.",checklist:["Contacto confirmado","Objetivo identificado","Inmueble identificado"],tracker:"Avanzar a Diagnóstico cuando exista contexto suficiente."},
+ {id:"diagnostico",num:"02",label:"Diagnóstico",sla:"24–48 h",objetivo:"Comprender el activo y definir qué información falta.",acciones:["Levantar características y estado del inmueble.","Revisar ocupación/unidades si aplica.","Identificar documentación y condiciones relevantes."],script:"{nombre}, vamos a revisar contigo las características, situación actual y documentación del inmueble para definir el siguiente paso.",checklist:["Características levantadas","Situación de ocupación conocida","Pendientes documentales identificados"],tracker:"Avanzar a Propuesta de servicio."},
+ {id:"propuesta_servicio",num:"03",label:"Propuesta",sla:"48 h",objetivo:"Definir el servicio y alcance adecuado sin activar automáticamente la propiedad.",acciones:["Definir comercialización, administración u otro alcance aplicable.","Explicar condiciones y responsabilidades.","Obtener autorización para continuar."],script:"{nombre}, con la información del inmueble ya podemos proponerte cómo ayudarte y qué incluye el servicio.",checklist:["Alcance definido","Condiciones compartidas","Autorización registrada"],tracker:"Con autorización, iniciar activación."},
+ {id:"activacion",num:"04",label:"Activación",sla:"Según expediente",objetivo:"Preparar el inmueble para entrar al flujo operativo correspondiente.",acciones:["Completar ficha y evidencia requerida.","Validar disponibilidad y condiciones.","Activar comercialización/operación solo con autorización."],script:"Estamos preparando la activación de tu inmueble, {nombre}. Te confirmaremos cuando el expediente esté listo.",checklist:["Ficha completa","Evidencia requerida","Autorización vigente"],tracker:"Cerrar captación al quedar activo."},
+ {id:"cerrado_ganado",num:"08",label:"Activo",sla:"—",objetivo:"El inmueble ya fue incorporado al servicio acordado.",acciones:["Mantener trazabilidad del origen de captación."],script:"Tu inmueble ya quedó incorporado al servicio acordado, {nombre}.",checklist:["Activación registrada"],tracker:"Continuar en el motor operativo correspondiente."},
+ {id:"perdido",num:"09",label:"No continúa",sla:"—",objetivo:"Cerrar la solicitud preservando motivo e historia.",acciones:["Registrar motivo de cierre."],script:"Gracias por permitirnos conocer tu caso, {nombre}. Dejamos registrada la solicitud por si más adelante deseas retomarla.",checklist:["Motivo registrado"],tracker:"Sin acción."}
+];
+const STAGES_INVERSION=[
+ {id:"nuevo",num:"01",label:"Nueva",sla:"< 60 min",objetivo:"Capturar el objetivo de inversión o necesidad de capital.",acciones:["Confirmar rol y objetivo.","Registrar rango de capital o capital requerido.","Identificar tipo de activo/proyecto."],script:"Hola {nombre} 👋 Queremos entender tu objetivo de inversión para revisar oportunidades compatibles.",checklist:["Rol confirmado","Objetivo registrado","Rango económico registrado"],tracker:"Avanzar a Perfil."},
+ {id:"perfil",num:"02",label:"Perfil",sla:"24–48 h",objetivo:"Estructurar criterios antes de generar coincidencias.",acciones:["Definir horizonte y preferencias.","Registrar restricciones y condiciones.","Validar información suficiente para matching."],script:"{nombre}, terminemos de definir tu perfil para comparar únicamente oportunidades pertinentes.",checklist:["Horizonte definido","Criterios definidos","Condiciones registradas"],tracker:"Avanzar a Matching."},
+ {id:"matching",num:"03",label:"Matching",sla:"Continuo",objetivo:"Detectar oportunidades potencialmente compatibles para revisión humana.",acciones:["Comparar criterios con oportunidades.","Revisar coincidencia antes de compartir.","Documentar interés o descarte."],script:"Encontramos una oportunidad que podría ajustarse a tu perfil, {nombre}. Antes de avanzar revisemos juntos la información.",checklist:["Coincidencia revisada","Información compartida","Respuesta registrada"],tracker:"Si existe interés, avanzar a Evaluación."},
+ {id:"evaluacion",num:"04",label:"Evaluación",sla:"Según oportunidad",objetivo:"Acompañar revisión sin presentar proyecciones como garantías.",acciones:["Reunir información disponible.","Registrar preguntas y análisis.","Definir siguiente decisión humana."],script:"Revisemos la información disponible de la oportunidad, {nombre}, y dejemos claros los pendientes antes de cualquier decisión.",checklist:["Información revisada","Pendientes identificados","Siguiente decisión definida"],tracker:"Avanzar según decisión."},
+ {id:"cerrado_ganado",num:"08",label:"Concretada",sla:"—",objetivo:"Registrar una operación concretada y su trazabilidad.",acciones:["Registrar cierre y referencias."],script:"Quedó registrada la operación, {nombre}.",checklist:["Cierre registrado"],tracker:"Continuar en motores correspondientes."},
+ {id:"perdido",num:"09",label:"No continúa",sla:"—",objetivo:"Cerrar preservando el motivo.",acciones:["Registrar motivo."],script:"Dejamos registrada la oportunidad, {nombre}, por si deseas retomarla.",checklist:["Motivo registrado"],tracker:"Sin acción."}
+];
+function stagesForFlujo(flujo){
+ if(flujo==='RENTA_BUSCA') return STAGES_RENTA;
+ if(flujo==='RENTA_OFRECE'||flujo==='VENTA_OFRECE') return STAGES_CAPTACION;
+ if(flujo==='INVERSION_BUSCA'||flujo==='INVERSION_CAPITAL') return STAGES_INVERSION;
+ return STAGES;
+}
+function stagesForOperacion(op,rol){ return stagesForFlujo(flujoSynapse(op,rol)); }
 // NEXT ACTION para LEADS: misma filosofía EVENTO→ESTADO→NEXT ACTION que ya usamos en citas.
 // Synapse SUGIERE la próxima acción a partir de la primera acción definida para la etapa
 // (contenido que ya existía en el protocolo — no se inventa nada nuevo). Nunca sobrescribe
 // una "próxima acción" que el humano ya haya escrito — ver los dos puntos donde se usa.
-function sugerenciaAccionPara(operacion, etapaId){
-  const s = stageByIdForOperacion(operacion, etapaId);
+function sugerenciaAccionPara(operacion, etapaId, rol){
+  const s = stageByIdForOperacion(operacion, etapaId, rol);
   return (s && s.acciones && s.acciones[0]) || '';
 }
-function stageByIdForOperacion(op, etapaId){
-  const map = op === 'Renta' ? STAGE_BY_ID_RENTA : STAGE_BY_ID;
-  return map[etapaId] || stagesForOperacion(op)[0];
+function stageByIdForOperacion(op, etapaId, rol){
+  const stages=stagesForOperacion(op,rol);
+  return stages.find(s=>s.id===etapaId)||stages[0];
 }
 
 // Classification Layer V2 — reusable Core, independent from any implementation.
@@ -1104,7 +1126,7 @@ const PROTOCOLO_RENTA={
       const renta=p?.precio?'
   const pillsEl = document.getElementById('stage-pills');
   const operacionActual = document.getElementById('f-operacion').value;
-  const stagesActuales = stagesForOperacion(operacionActual);
+  const stagesActuales = stagesForOperacion(operacionActual,document.getElementById('f-tipo').value);
   pillsEl.innerHTML = stagesActuales.map(s=>`
     <button class="stage-pill ${s.lost?'lost-pill':''} ${s.id===currentStageId?'current':''}" data-id="${s.id}">${s.num} ${s.label}</button>
   `).join('');
@@ -1115,14 +1137,14 @@ const PROTOCOLO_RENTA={
       // una próxima acción que el humano ya escribió (override humano).
       const accionEl = document.getElementById('f-accion');
       if(accionEsSugerida || !accionEl.value.trim()){
-        accionEl.value = sugerenciaAccionPara(operacionActual, currentStageId);
+        accionEl.value = sugerenciaAccionPara(operacionActual, currentStageId, document.getElementById('f-tipo').value);
         accionEsSugerida = true;
       }
       renderStagePane();
     });
   });
 
-  const s = stageByIdForOperacion(operacionActual, currentStageId);
+  const s = stageByIdForOperacion(operacionActual, currentStageId, document.getElementById('f-tipo').value);
   const lead = currentLeadId ? leads[currentLeadId] : null;
   const nombre = document.getElementById('f-nombre').value || '{nombre}';
   const scriptFilled = s.script.replaceAll('{nombre}', nombre);
@@ -3496,7 +3518,7 @@ async function confirmarEntregableProtocolo(etapa){
 function renderStagePane(){
   const pillsEl = document.getElementById('stage-pills');
   const operacionActual = document.getElementById('f-operacion').value;
-  const stagesActuales = stagesForOperacion(operacionActual);
+  const stagesActuales = stagesForOperacion(operacionActual,document.getElementById('f-tipo').value);
   pillsEl.innerHTML = stagesActuales.map(s=>`
     <button class="stage-pill ${s.lost?'lost-pill':''} ${s.id===currentStageId?'current':''}" data-id="${s.id}">${s.num} ${s.label}</button>
   `).join('');
@@ -3507,14 +3529,14 @@ function renderStagePane(){
       // una próxima acción que el humano ya escribió (override humano).
       const accionEl = document.getElementById('f-accion');
       if(accionEsSugerida || !accionEl.value.trim()){
-        accionEl.value = sugerenciaAccionPara(operacionActual, currentStageId);
+        accionEl.value = sugerenciaAccionPara(operacionActual, currentStageId, document.getElementById('f-tipo').value);
         accionEsSugerida = true;
       }
       renderStagePane();
     });
   });
 
-  const s = stageByIdForOperacion(operacionActual, currentStageId);
+  const s = stageByIdForOperacion(operacionActual, currentStageId, document.getElementById('f-tipo').value);
   const lead = currentLeadId ? leads[currentLeadId] : null;
   const nombre = document.getElementById('f-nombre').value || '{nombre}';
   const scriptFilled = s.script.replaceAll('{nombre}', nombre);
