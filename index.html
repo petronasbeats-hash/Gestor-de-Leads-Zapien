@@ -3060,55 +3060,9 @@ function addCitaToGoogleCalendar(c){
 /* ---------- Edición real de propiedad (Property Engine V1 — mismo ID, sin duplicar) ---------- */
 let propEditingSnapshot = null; // guarda el registro completo que se está editando (para conservar campos que el form no maneja)
 
-function cargarPropiedadEnFormulario(p){
-  propEditingSnapshot = p;
-  document.getElementById('p-edit-id').value = p.id;
-  document.getElementById('p-nombre').value = p.nombre || '';
-  document.getElementById('p-direccion').value = p.direccion || '';
-  document.getElementById('p-enlace').value = p.enlaceExterno || '';
-  document.getElementById('p-lat').value = (p.lat!=null) ? p.lat : '';
-  document.getElementById('p-lng').value = (p.lng!=null) ? p.lng : '';
-  document.getElementById('p-operacion').value = p.operacion || 'Venta';
-  document.getElementById('p-precio').value = (p.precio!=null) ? p.precio : '';
-  document.getElementById('p-recamaras').value = (p.recamaras!=null) ? p.recamaras : '';
-  document.getElementById('p-banos').value = (p.banos!=null) ? p.banos : '';
-  document.getElementById('p-m2c').value = (p.m2c!=null) ? p.m2c : '';
-  document.getElementById('p-m2t').value = (p.m2t!=null) ? p.m2t : '';
-  document.getElementById('p-descripcion').value = p.descripcion || '';
-  const fotos = Array.isArray(p.fotos) ? p.fotos : (typeof p.fotos === 'string' ? p.fotos.split('\n').map(f=>f.trim()).filter(Boolean) : []);
-  document.getElementById('p-fotos').value = fotos.join('\n');
-  renderFotosThumbs();
 
-  document.getElementById('btn-add-propiedad').textContent = 'Guardar cambios';
-  document.getElementById('btn-cancel-edit-prop').style.display = 'inline-block';
-  document.getElementById('p-edit-banner').style.display = 'block';
 
-  document.querySelector('.admin-tab-btn[data-tab="propiedades"]')?.click();
-  document.getElementById('p-nombre').scrollIntoView({behavior:'smooth', block:'center'});
-}
 
-function resetPropiedadForm(){
-  propEditingSnapshot = null;
-  document.getElementById('p-edit-id').value = '';
-  document.getElementById('p-nombre').value = '';
-  document.getElementById('p-direccion').value = '';
-  document.getElementById('p-enlace').value = '';
-  document.getElementById('p-lat').value = '';
-  document.getElementById('p-lng').value = '';
-  document.getElementById('p-operacion').value = 'Venta';
-  document.getElementById('p-precio').value = '';
-  document.getElementById('p-recamaras').value = '';
-  document.getElementById('p-banos').value = '';
-  document.getElementById('p-m2c').value = '';
-  document.getElementById('p-m2t').value = '';
-  document.getElementById('p-descripcion').value = '';
-  document.getElementById('p-fotos').value = '';
-  document.getElementById('p-fotos-upload-status').textContent = '';
-  renderFotosThumbs();
-  document.getElementById('btn-add-propiedad').textContent = '+ Agregar propiedad';
-  document.getElementById('btn-cancel-edit-prop').style.display = 'none';
-  document.getElementById('p-edit-banner').style.display = 'none';
-}
 
 document.getElementById('btn-cancel-edit-prop').addEventListener('click', ()=>{
   resetPropiedadForm();
@@ -3158,7 +3112,7 @@ function renderManualPropiedadSelect(){
 
 // Crea un lead nuevo desde una cita manual del admin cuando no se vinculó uno existente —
 // mismo criterio que la agenda pública (operación según la propiedad elegida).
-async function crearLeadDesdeCitaManual({nombre, telefono, fecha, hora, propiedadId, propiedadNombre, notas}){
+async ){
   const propObj = propiedadId ? propiedades[propiedadId] : null;
   const propTxt = propiedadNombre ? ` — ${propiedadNombre}` : '';
   const operacionProp = (propObj && propObj.operacion) || 'Compra';
@@ -3389,28 +3343,7 @@ function renderHorariosFantasma(){
 // Reconstruye el contexto de una interacción (persona+propiedad+cita+estado+nextAction+lead)
 // a partir de datos que YA están en memoria (leads, propiedades). No lee ni escribe Firebase,
 // no inventa campos nuevos: solo interpreta las relaciones que ya existen vía leadId/propiedadId.
-function buildContext(cita){
-  const lead = cita.leadId ? (leads[cita.leadId] || null) : null;
-  const propiedadViva = cita.propiedadId ? (propiedades[cita.propiedadId] || null) : null;
-  return {
-    persona: {
-      nombre: (lead && lead.nombre) || cita.nombre || '',
-      telefono: (lead && lead.telefono) || cita.telefono || ''
-    },
-    propiedad: {
-      id: cita.propiedadId || null,
-      // Preferimos el nombre VIVO de la propiedad (por si se editó/renombró después);
-      // si ya no existe (borrada) o nunca hubo propiedadId, caemos al nombre cacheado en la cita.
-      nombre: (propiedadViva && propiedadViva.nombre) || cita.propiedadNombre || null
-    },
-    cita: { id: cita.id || null, fecha: cita.fecha, hora: cita.hora },
-    estado: cita.estado || 'pendiente',
-    // Respeta cualquier nextAction ya guardado (manual o del mapa); si la cita es vieja y
-    // nunca tuvo nextAction, lo deriva del estado — así nunca rompe citas creadas antes de este campo.
-    nextAction: cita.nextAction || NEXT_ACTION_POR_ESTADO[cita.estado || 'pendiente'] || '',
-    lead: lead ? { etapa: lead.etapa || null, proximaAccion: lead.proximaAccion || null } : null
-  };
-}
+
 
 // Acción de WhatsApp para una cita — ÚNICA implementación, reutilizada tanto en
 // "Próximas citas" (Resumen) como en el tab Citas (Seguimiento/Calendario).
@@ -3429,146 +3362,12 @@ function abrirWhatsAppParaCita(cita){
   window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`,'_blank');
 }
 
-function renderCitasList(citasObj){
-  const list = document.getElementById('citas-list');
-  const today = dateKey(new Date());
-  const arr = Object.entries(citasObj)
-    .map(([id,c])=>({id,...c}))
-    .filter(c=>c.fecha >= today)
-    .sort((a,b)=> (a.fecha+a.hora).localeCompare(b.fecha+b.hora));
-  if(arr.length===0){
-    list.innerHTML = `<div class="empty">Sin citas próximas.</div>`;
-    return;
-  }
-  list.innerHTML = arr.map(c=>{
-    const ctx = buildContext(c);
-    return `
-    <div class="cita-item">
-      <div>
-        <b>${escapeHtml(ctx.persona.nombre)}</b> — ${c.fecha} ${c.hora} ${ctx.propiedad.nombre?'· 🏠 '+escapeHtml(ctx.propiedad.nombre):''} ${c.manual?'<span class="cita-meta" style="color:var(--green);">· manual</span>':''}
-        <div class="cita-meta">${escapeHtml(ctx.persona.telefono)} ${c.notas?'· '+escapeHtml(c.notas):''}</div>
-        <div class="cita-meta" style="color:var(--amber);">→ Siguiente: ${escapeHtml(ctx.nextAction)}</div>
-      </div>
-      <div style="display:flex;gap:6px;">
-        <button class="btn btn-sm" data-action="gcal" data-id="${c.id}">+ Google Calendar</button>
-        <button class="btn btn-sm" data-action="wa" data-id="${c.id}">WhatsApp</button>
-        <button class="btn btn-sm" data-action="del" data-id="${c.id}" style="color:var(--red);">Cancelar</button>
-      </div>
-    </div>
-  `;
-  }).join('');
 
-  list.querySelectorAll('[data-action="del"]').forEach(btn=>{
-    btn.addEventListener('click', ()=>{
-      const c = arr.find(x=>x.id===btn.dataset.id);
-      if(!confirm('¿Cancelar esta cita?')) return;
-      const estadoAnterior = c.estado || 'pendiente';
-      const trace = registrarTraceCita(c.id, { tipo: 'estado', anterior: estadoAnterior, nuevo: 'cancelada', origen: 'synapse' });
-      const updates = {};
-      updates['citas/'+c.id+'/estado'] = 'cancelada';
-      updates['citas/'+c.id+'/nextAction'] = NEXT_ACTION_POR_ESTADO.cancelada || 'Reprogramar';
-      updates['citas/'+c.id+'/historial/'+trace.traceId] = trace.entry;
-      updates['citas_publicas/'+c.fecha+'_'+c.hora] = null;
-      db.ref().update(updates)
-        .then(()=> sincronizarLeadPorEstadoCita(c, 'cancelada'))
-        .catch(err=> alert('No se pudo cancelar la cita.\n\nError: ' + err.message));
-    });
-  });
-  list.querySelectorAll('[data-action="wa"]').forEach(btn=>{
-    btn.addEventListener('click', ()=>{
-      const c = arr.find(x=>x.id===btn.dataset.id);
-      abrirWhatsAppParaCita(c);
-    });
-  });
-  list.querySelectorAll('[data-action="gcal"]').forEach(btn=>{
-    btn.addEventListener('click', ()=>{
-      const c = arr.find(x=>x.id===btn.dataset.id);
-      addCitaToGoogleCalendar(c);
-    });
-  });
-}
 
 /* ---------- Seguimiento de citas ---------- */
-function renderCalendario(citasObj){
-  const grid = document.getElementById('cal-grid');
-  const label = document.getElementById('cal-month-label');
-  if(!grid || !label) return;
 
-  const year = calMonthDate.getFullYear();
-  const month = calMonthDate.getMonth();
-  label.textContent = `${MESES_ES[month]} ${year}`;
 
-  const firstDay = new Date(year, month, 1);
-  const daysInMonth = new Date(year, month+1, 0).getDate();
-  const leadingBlanks = firstDay.getDay();
-  const totalCells = leadingBlanks + daysInMonth;
-  const rows = Math.ceil(totalCells/7);
-  const totalGridCells = rows*7;
 
-  const porFecha = {};
-  Object.entries(citasObj).forEach(([id,c])=>{
-    if(!c.fecha) return;
-    (porFecha[c.fecha] = porFecha[c.fecha] || []).push({id,...c});
-  });
-
-  const todayKey = dateKey(new Date());
-  let html = '';
-  for(let i=0;i<totalGridCells;i++){
-    const dayNum = i - leadingBlanks + 1;
-    if(dayNum < 1 || dayNum > daysInMonth){
-      html += `<div class="cal-day cal-blank"></div>`;
-      continue;
-    }
-    const dKey = `${year}-${pad2(month+1)}-${pad2(dayNum)}`;
-    const citasDia = (porFecha[dKey] || []).sort((a,b)=>a.hora.localeCompare(b.hora));
-    const classes = ['cal-day'];
-    if(dKey === todayKey) classes.push('today');
-    if(dKey === calSelectedDate) classes.push('selected');
-    const dotsToShow = citasDia.slice(0,6);
-    const extra = citasDia.length - dotsToShow.length;
-    html += `
-      <div class="${classes.join(' ')}" data-date="${dKey}">
-        <div class="cal-day-num">${dayNum}</div>
-        <div class="cal-dots">
-          ${dotsToShow.map(c=>`<div class="cal-dot est-${c.estado||'pendiente'}"></div>`).join('')}
-        </div>
-        ${extra>0 ? `<div class="cal-more">+${extra}</div>` : ''}
-      </div>
-    `;
-  }
-  grid.innerHTML = html;
-
-  grid.querySelectorAll('.cal-day[data-date]').forEach(cell=>{
-    cell.addEventListener('click', ()=>{
-      calSelectedDate = cell.dataset.date;
-      renderCalendario(ultimasCitas);
-      renderCalDayDetail(ultimasCitas);
-    });
-  });
-
-  renderCalDayDetail(citasObj);
-}
-
-function renderCalDayDetail(citasObj){
-  const detail = document.getElementById('cal-day-detail');
-  if(!detail) return;
-  if(!calSelectedDate){
-    detail.innerHTML = `<div class="sub">Toca un día del calendario para ver sus citas.</div>`;
-    return;
-  }
-  const arr = Object.entries(citasObj)
-    .map(([id,c])=>({id,...c}))
-    .filter(c=>c.fecha === calSelectedDate)
-    .sort((a,b)=>a.hora.localeCompare(b.hora));
-
-  if(arr.length === 0){
-    detail.innerHTML = `<div class="sub">Sin citas el ${calSelectedDate}.</div>`;
-    return;
-  }
-  detail.innerHTML = `<div class="sub" style="margin-bottom:8px;">Citas del ${calSelectedDate}:</div>` +
-    arr.map(c=>citaSeguimientoItemHtml(c)).join('');
-  attachSeguimientoHandlers(detail);
-}
 
 document.getElementById('cal-prev').addEventListener('click', ()=>{
   calMonthDate.setMonth(calMonthDate.getMonth()-1);
@@ -3580,21 +3379,7 @@ document.getElementById('cal-next').addEventListener('click', ()=>{
 });
 
 /* ---------- Google Calendar ---------- */
-function initGoogleClient(){
-  if(!window.google || !google.accounts) { setTimeout(initGoogleClient, 300); return; }
-  tokenClient = google.accounts.oauth2.initTokenClient({
-    client_id: GOOGLE_CLIENT_ID,
-    scope: GOOGLE_SCOPE,
-    callback: (resp)=>{
-      if(resp.access_token){
-        googleAccessToken = resp.access_token;
-        document.getElementById('google-status').textContent = '● Conectado a Google Calendar';
-        document.getElementById('google-status').classList.add('ok');
-        document.getElementById('btn-sync-calendar').style.display = 'inline-block';
-      }
-    }
-  });
-}
+
 initGoogleClient();
 
 document.getElementById('btn-google-connect').addEventListener('click', ()=>{
@@ -3661,28 +3446,7 @@ document.getElementById('btn-sync-calendar').addEventListener('click', ()=>{
   });
 });
 
-function addCitaToGoogleCalendar(c){
-  if(!googleAccessToken){
-    alert('Conecta Google Calendar primero (pestaña Disponibilidad).');
-    return;
-  }
-  const start = new Date(c.fecha+'T'+c.hora+':00');
-  const end = new Date(start.getTime() + ((horario && horario.duracionMin)||30)*60000);
-  fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events', {
-    method: 'POST',
-    headers: { 'Authorization': 'Bearer ' + googleAccessToken, 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      summary: `Visita — ${c.nombre}`,
-      description: `Tel: ${c.telefono||''}\nNotas: ${c.notas||''}`,
-      start: { dateTime: start.toISOString() },
-      end: { dateTime: end.toISOString() }
-    })
-  }).then(r=>r.json()).then(()=>{
-    alert('Agregado a tu Google Calendar.');
-  }).catch(()=>{
-    alert('No se pudo agregar. Intenta reconectar Google Calendar.');
-  });
-}
+
 </script>
 </body>
 </html>
@@ -4283,98 +4047,19 @@ function renderResumenStats(){
   renderV2NextAction(todayKey);
 }
 
-function estadoSLAReserva(c){
-  const inicio=new Date(c.reservaCreada||c.creado||0).getTime();
-  const limite=Number(c.slaRevisionMin||30);
-  if(!inicio) return {nivel:'sin_dato',label:'Sin reloj',restante:null};
-  const usados=Math.max(0,Math.floor((Date.now()-inicio)/60000));
-  const restante=limite-usados;
-  if(restante<0) return {nivel:'vencida',label:'Atención vencida · '+Math.abs(restante)+' min',restante};
-  if(restante<=10) return {nivel:'por_vencer',label:'Por vencer · '+restante+' min',restante};
-  return {nivel:'en_tiempo',label:'En tiempo · '+restante+' min',restante};
-}
-function colorSLA(nivel){
-  return nivel==='vencida'?'var(--red)':nivel==='por_vencer'?'var(--amber)':'var(--green)';
-}
-function fechaHoraVisita(c){
-  const raw=(c.fecha||'')+'T'+(c.hora||'00:00')+':00';
-  const d=new Date(raw); return isNaN(d)?null:d;
-}
-function compromisoPosteriorReserva(c){
-  const visita=fechaHoraVisita(c); if(!visita) return {tipo:'preparar_visita',label:'Preparar visita'};
-  const horas=(visita.getTime()-Date.now())/3600000;
-  if(horas>24) return {tipo:'recordatorio_24h',label:'Recordatorio 24 h antes'};
-  if(horas>2) return {tipo:'recordatorio_2h',label:'Recordatorio 2 h antes'};
-  return {tipo:'preparar_visita',label:'Preparar visita'};
-}
 
-function mensajeConfirmacionReserva(c){
-  const codigo=c.codigoReserva||'';
-  const prop=c.propiedadNombre?(' para '+c.propiedadNombre):'';
-  return `Hola ${c.nombre||''} 👋 Ya revisamos tu solicitud${prop}. Tu visita queda confirmada para el ${c.fecha||''} a las ${c.hora||''}. Código de reserva: ${codigo}. Si necesitas hacer algún cambio, respóndenos por este medio. — Iré Inmobiliaria`;
-}
-function mensajeRecordatorioReserva(c, tipo){
-  const prop=c.propiedadNombre?(' para '+c.propiedadNombre):'';
-  const codigo=c.codigoReserva?(' Código '+c.codigoReserva+'.'):'';
-  if(tipo==='recordatorio_24h') return `Hola ${c.nombre||''} 👋 Te recordamos que mañana tienes tu visita${prop} a las ${c.hora||''}.${codigo} Si necesitas ajustar el horario, escríbenos y te ayudamos. — Iré Inmobiliaria`;
-  if(tipo==='recordatorio_2h') return `Hola ${c.nombre||''} 👋 Tu visita${prop} es hoy a las ${c.hora||''}. Te esperamos.${codigo} Si surge algún imprevisto, avísanos por aquí. — Iré Inmobiliaria`;
-  return `Hola ${c.nombre||''} 👋 Estamos preparando tu visita${prop} de las ${c.hora||''}.${codigo} Nos vemos pronto. — Iré Inmobiliaria`;
-}
-async function enviarRecordatorioReserva(id, tipo){
-  const c=ultimasCitas[id]; if(!c) return;
-  const tel=telefonoValidoParaWhatsApp(c.telefono);
-  if(!tel){ alert('Esta reserva no tiene un teléfono válido para WhatsApp.'); return; }
-  const ahora=new Date().toISOString();
-  const updates={};
-  updates['citas/'+id+'/recordatorios/'+tipo+'/preparado']=ahora;
-  updates['citas/'+id+'/recordatorios/'+tipo+'/canal']='whatsapp_manual';
-  await db.ref().update(updates);
-  window.open('https://wa.me/52'+tel+'?text='+encodeURIComponent(mensajeRecordatorioReserva(c,tipo)),'_blank','noopener');
-}
 
-function whatsappReserva(c){
-  const tel=telefonoValidoParaWhatsApp(c.telefono);
-  if(!tel){ alert('Esta reserva no tiene un teléfono válido para WhatsApp.'); return; }
-  window.open('https://wa.me/52'+tel+'?text='+encodeURIComponent(mensajeConfirmacionReserva(c)),'_blank','noopener');
-}
-async function confirmarReservaV2(id){
-  const c=ultimasCitas[id]; if(!c) return;
-  const ahora=new Date().toISOString();
-  const siguiente=compromisoPosteriorReserva(c);
-  await db.ref('citas/'+id).update({
-    estado:'confirmada',
-    estadoReserva:'confirmada',
-    reservaConfirmada:ahora,
-    slaCumplidoMin:c.reservaCreada?Math.max(0,Math.floor((Date.now()-new Date(c.reservaCreada).getTime())/60000)):null,
-    siguienteCompromiso:siguiente.tipo,
-    siguienteCompromisoLabel:siguiente.label
-  });
-  whatsappReserva({...c,estado:'confirmada',estadoReserva:'confirmada'});
-}
 
-function renderV2NextAction(todayKey){
-  const box=document.getElementById('v2-next-action'); if(!box) return;
-  const reservas=Object.entries(ultimasCitas||{}).map(([id,c])=>({id,...c})).filter(c=>c.tipoEvento==='reserva_visita' && (c.estadoReserva||'solicitada')==='solicitada').sort((a,b)=>{
-    const sa=estadoSLAReserva(a), sb=estadoSLAReserva(b);
-    const rank={vencida:0,por_vencer:1,en_tiempo:2,sin_dato:3};
-    return (rank[sa.nivel]-rank[sb.nivel]) || ((a.creado||'').localeCompare(b.creado||''));
-  });
-  if(reservas.length){
-    const c=reservas[0], sla=estadoSLAReserva(c);
-    box.innerHTML=`<div class="cita-item"><div><b>Nueva reserva · ${escapeHtml(c.nombre||'Cliente')}</b><div class="cita-meta">${escapeHtml(c.propiedadNombre||'Sin propiedad')} · ${escapeHtml(c.fecha||'')} ${escapeHtml(c.hora||'')}</div><div class="cita-meta" style="color:${colorSLA(sla.nivel)};margin-top:3px;font-weight:700;">${escapeHtml(c.codigoReserva||'')} · ${escapeHtml(sla.label)}</div></div><div style="display:flex;gap:6px;"><button class="btn btn-primary btn-sm" data-v2-confirm-reserva>Confirmar y WhatsApp</button><button class="btn btn-sm" data-v2-open-agenda>Ver</button></div></div>`;
-    box.querySelector('[data-v2-confirm-reserva]')?.addEventListener('click',()=>confirmarReservaV2(c.id));
-    box.querySelector('[data-v2-open-agenda]')?.addEventListener('click',()=>openMainView('agenda'));
-    return;
-  }
-  const citas=Object.entries(ultimasCitas||{}).map(([id,c])=>({id,...c})).filter(c=>c.fecha>=todayKey && !['cancelada','realizada'].includes(c.estado||'pendiente')).sort((a,b)=>(a.fecha+a.hora).localeCompare(b.fecha+b.hora));
-  if(citas.length){
-    const c=citas[0], ctx=buildContext(c);
-    box.innerHTML=`<div class="cita-item"><div><b>${escapeHtml(ctx.persona.nombre||'Visita')}</b><div class="cita-meta">${escapeHtml(ctx.propiedad.nombre||'Sin propiedad')} · ${escapeHtml(c.fecha)} ${escapeHtml(c.hora||'')}</div><div class="cita-meta" style="color:var(--green);margin-top:3px;">→ ${escapeHtml(ctx.nextAction||'Revisar visita')}</div></div><button class="btn btn-sm" data-v2-open-agenda>Ver agenda</button></div>`;
-    box.querySelector('[data-v2-open-agenda]')?.addEventListener('click',()=>openMainView('agenda'));
-    return;
-  }
-  box.innerHTML='<div class="empty">No hay visitas próximas que requieran atención.</div>';
-}
+
+
+
+
+async 
+
+
+async 
+
+
 
 /* ---------- Catálogo de propiedades ---------- */
 function propiedadFaltantes(p){
@@ -4458,67 +4143,9 @@ function renderPropiedadesAdmin(obj){
 /* ---------- Edición real de propiedad (Property Engine V1 — mismo ID, sin duplicar) ---------- */
 let propEditingSnapshot = null; // guarda el registro completo que se está editando (para conservar campos que el form no maneja)
 
-function cargarPropiedadEnFormulario(p){
-  propEditingSnapshot = p;
-  document.getElementById('p-edit-id').value = p.id;
-  document.getElementById('p-nombre').value = p.nombre || '';
-  document.getElementById('p-direccion').value = p.direccion || '';
-  document.getElementById('p-enlace').value = p.enlaceExterno || '';
-  document.getElementById('p-property-name').value = p.propertyName || '';
-  document.getElementById('p-property-group-id').value = p.propertyGroupId || '';
-  document.getElementById('p-unit-id').value = p.unitId || '';
-  document.getElementById('p-unit-number').value = p.unitNumber || '';
-  document.getElementById('p-unit-type').value = p.unitType || '';
-  document.getElementById('p-category').value = p.category || '';
-  document.getElementById('p-lat').value = (p.lat!=null) ? p.lat : '';
-  document.getElementById('p-lng').value = (p.lng!=null) ? p.lng : '';
-  document.getElementById('p-operacion').value = p.operacion || 'Venta';
-  document.getElementById('p-precio').value = (p.precio!=null) ? p.precio : '';
-  document.getElementById('p-recamaras').value = (p.recamaras!=null) ? p.recamaras : '';
-  document.getElementById('p-banos').value = (p.banos!=null) ? p.banos : '';
-  document.getElementById('p-m2c').value = (p.m2c!=null) ? p.m2c : '';
-  document.getElementById('p-m2t').value = (p.m2t!=null) ? p.m2t : '';
-  document.getElementById('p-descripcion').value = p.descripcion || '';
-  const fotos = Array.isArray(p.fotos) ? p.fotos : (typeof p.fotos === 'string' ? p.fotos.split('\n').map(f=>f.trim()).filter(Boolean) : []);
-  document.getElementById('p-fotos').value = fotos.join('\n');
-  renderFotosThumbs();
 
-  document.getElementById('btn-add-propiedad').textContent = 'Guardar cambios';
-  document.getElementById('btn-cancel-edit-prop').style.display = 'inline-block';
-  document.getElementById('p-edit-banner').style.display = 'block';
 
-  document.querySelector('.admin-tab-btn[data-tab="propiedades"]')?.click();
-  document.getElementById('p-nombre').scrollIntoView({behavior:'smooth', block:'center'});
-}
 
-function resetPropiedadForm(){
-  propEditingSnapshot = null;
-  document.getElementById('p-edit-id').value = '';
-  document.getElementById('p-nombre').value = '';
-  document.getElementById('p-direccion').value = '';
-  document.getElementById('p-enlace').value = '';
-  document.getElementById('p-property-name').value = '';
-  document.getElementById('p-property-group-id').value = '';
-  document.getElementById('p-unit-id').value = '';
-  document.getElementById('p-unit-number').value = '';
-  document.getElementById('p-unit-type').value = '';
-  document.getElementById('p-category').value = '';
-  document.getElementById('p-lat').value = '';
-  document.getElementById('p-lng').value = '';
-  document.getElementById('p-operacion').value = 'Venta';
-  document.getElementById('p-precio').value = '';
-  document.getElementById('p-recamaras').value = '';
-  document.getElementById('p-banos').value = '';
-  document.getElementById('p-m2c').value = '';
-  document.getElementById('p-m2t').value = '';
-  document.getElementById('p-descripcion').value = '';
-  document.getElementById('p-fotos').value = '';
-  document.getElementById('p-fotos-upload-status').textContent = '';
-  renderFotosThumbs();
-  document.getElementById('btn-add-propiedad').textContent = '+ Agregar propiedad';
-  document.getElementById('btn-cancel-edit-prop').style.display = 'none';
-  document.getElementById('p-edit-banner').style.display = 'none';
-}
 
 document.getElementById('btn-cancel-edit-prop').addEventListener('click', ()=>{
   resetPropiedadForm();
@@ -4568,7 +4195,7 @@ function renderManualPropiedadSelect(){
 
 // Crea un lead nuevo desde una cita manual del admin cuando no se vinculó uno existente —
 // mismo criterio que la agenda pública (operación según la propiedad elegida).
-async function crearLeadDesdeCitaManual({nombre, telefono, fecha, hora, propiedadId, propiedadNombre, notas}){
+async ){
   const propObj = propiedadId ? propiedades[propiedadId] : null;
   const propTxt = propiedadNombre ? ` — ${propiedadNombre}` : '';
   const operacionProp = (propObj && propObj.operacion) || 'Compra';
@@ -4816,28 +4443,7 @@ function renderHorariosFantasma(){
 // Reconstruye el contexto de una interacción (persona+propiedad+cita+estado+nextAction+lead)
 // a partir de datos que YA están en memoria (leads, propiedades). No lee ni escribe Firebase,
 // no inventa campos nuevos: solo interpreta las relaciones que ya existen vía leadId/propiedadId.
-function buildContext(cita){
-  const lead = cita.leadId ? (leads[cita.leadId] || null) : null;
-  const propiedadViva = cita.propiedadId ? (propiedades[cita.propiedadId] || null) : null;
-  return {
-    persona: {
-      nombre: (lead && lead.nombre) || cita.nombre || '',
-      telefono: (lead && lead.telefono) || cita.telefono || ''
-    },
-    propiedad: {
-      id: cita.propiedadId || null,
-      // Preferimos el nombre VIVO de la propiedad (por si se editó/renombró después);
-      // si ya no existe (borrada) o nunca hubo propiedadId, caemos al nombre cacheado en la cita.
-      nombre: (propiedadViva && propiedadViva.nombre) || cita.propiedadNombre || null
-    },
-    cita: { id: cita.id || null, fecha: cita.fecha, hora: cita.hora },
-    estado: cita.estado || 'pendiente',
-    // Respeta cualquier nextAction ya guardado (manual o del mapa); si la cita es vieja y
-    // nunca tuvo nextAction, lo deriva del estado — así nunca rompe citas creadas antes de este campo.
-    nextAction: cita.nextAction || NEXT_ACTION_POR_ESTADO[cita.estado || 'pendiente'] || '',
-    lead: lead ? { etapa: lead.etapa || null, proximaAccion: lead.proximaAccion || null } : null
-  };
-}
+
 
 // Acción de WhatsApp para una cita — ÚNICA implementación, reutilizada tanto en
 // "Próximas citas" (Resumen) como en el tab Citas (Seguimiento/Calendario).
@@ -4856,69 +4462,7 @@ function abrirWhatsAppParaCita(cita){
   window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`,'_blank');
 }
 
-function renderCitasList(citasObj){
-  const list = document.getElementById('citas-list');
-  const today = dateKey(new Date());
-  const arr = Object.entries(citasObj)
-    .map(([id,c])=>({id,...c}))
-    .filter(c=>c.fecha >= today)
-    .sort((a,b)=> (a.fecha+a.hora).localeCompare(b.fecha+b.hora));
-  if(arr.length===0){
-    list.innerHTML = `<div class="empty">Sin citas próximas.</div>`;
-    return;
-  }
-  list.innerHTML = arr.map(c=>{
-    const ctx = buildContext(c);
-    return `
-    <div class="cita-item">
-      <div>
-        <b>${escapeHtml(ctx.persona.nombre)}</b> — ${c.fecha} ${c.hora} ${ctx.propiedad.nombre?'· 🏠 '+escapeHtml(ctx.propiedad.nombre):''} ${c.manual?'<span class="cita-meta" style="color:var(--green);">· manual</span>':''}
-        <div class="cita-meta">${escapeHtml(ctx.persona.telefono)} ${c.notas?'· '+escapeHtml(c.notas):''}</div>
-        <div class="cita-meta" style="color:var(--amber);">→ Siguiente: ${escapeHtml(c.siguienteCompromisoLabel||ctx.nextAction)}</div>
-        ${c.codigoReserva?`<div class="cita-meta" style="color:var(--green);">${escapeHtml(c.codigoReserva)} · ${escapeHtml(c.estadoReserva||'solicitada')}</div>`:''}
-      </div>
-      <div style="display:flex;gap:6px;flex-wrap:wrap;">
-        ${c.tipoEvento==='reserva_visita' && c.estadoReserva==='confirmada' && c.siguienteCompromiso?.startsWith('recordatorio_') ? `<button class="btn btn-primary btn-sm" data-action="reminder" data-id="${c.id}" data-tipo="${c.siguienteCompromiso}">Enviar recordatorio</button>` : ''}
-        <button class="btn btn-sm" data-action="gcal" data-id="${c.id}">+ Google Calendar</button>
-        <button class="btn btn-sm" data-action="wa" data-id="${c.id}">WhatsApp</button>
-        <button class="btn btn-sm" data-action="del" data-id="${c.id}" style="color:var(--red);">Cancelar</button>
-      </div>
-    </div>
-  `;
-  }).join('');
 
-  list.querySelectorAll('[data-action="reminder"]').forEach(btn=>{
-    btn.addEventListener('click', ()=>enviarRecordatorioReserva(btn.dataset.id, btn.dataset.tipo));
-  });
-  list.querySelectorAll('[data-action="del"]').forEach(btn=>{
-    btn.addEventListener('click', ()=>{
-      const c = arr.find(x=>x.id===btn.dataset.id);
-      if(!confirm('¿Cancelar esta cita?')) return;
-      const estadoAnterior = c.estado || 'pendiente';
-      const trace = registrarTraceCita(c.id, { tipo: 'estado', anterior: estadoAnterior, nuevo: 'cancelada', origen: 'synapse' });
-      const updates = {};
-      updates['citas/'+c.id+'/estado'] = 'cancelada';
-      updates['citas/'+c.id+'/nextAction'] = NEXT_ACTION_POR_ESTADO.cancelada || 'Reprogramar';
-      updates['citas/'+c.id+'/historial/'+trace.traceId] = trace.entry;
-      updates['citas_publicas/'+c.fecha+'_'+c.hora] = null;
-      db.ref().update(updates)
-        .then(()=> sincronizarLeadPorEstadoCita(c, 'cancelada'))
-        .catch(err=> alert('No se pudo cancelar la cita.\n\nError: ' + err.message));
-    });
-  });
-  list.querySelectorAll('[data-action="wa"]').forEach(btn=>{
-    btn.addEventListener('click', ()=>{
-      const c = arr.find(x=>x.id===btn.dataset.id);
-      abrirWhatsAppParaCita(c);
-    });
-  });
-  list.querySelectorAll('[data-action="gcal"]').forEach(btn=>{
-    btn.addEventListener('click', ()=>{
-      const c = arr.find(x=>x.id===btn.dataset.id);
-      addCitaToGoogleCalendar(c);
-    });
-  });
-}
 
 /* ---------- Seguimiento de citas ---------- */
 function siguienteAccionPorFeedback(valor, propiedadNombre){
@@ -4962,86 +4506,9 @@ function whatsappPostVisita(c){
   window.open('https://wa.me/52'+tel+'?text='+encodeURIComponent(mensajePostVisita(c)),'_blank','noopener');
 }
 
-function renderCalendario(citasObj){
-  const grid = document.getElementById('cal-grid');
-  const label = document.getElementById('cal-month-label');
-  if(!grid || !label) return;
 
-  const year = calMonthDate.getFullYear();
-  const month = calMonthDate.getMonth();
-  label.textContent = `${MESES_ES[month]} ${year}`;
 
-  const firstDay = new Date(year, month, 1);
-  const daysInMonth = new Date(year, month+1, 0).getDate();
-  const leadingBlanks = firstDay.getDay();
-  const totalCells = leadingBlanks + daysInMonth;
-  const rows = Math.ceil(totalCells/7);
-  const totalGridCells = rows*7;
 
-  const porFecha = {};
-  Object.entries(citasObj).forEach(([id,c])=>{
-    if(!c.fecha) return;
-    (porFecha[c.fecha] = porFecha[c.fecha] || []).push({id,...c});
-  });
-
-  const todayKey = dateKey(new Date());
-  let html = '';
-  for(let i=0;i<totalGridCells;i++){
-    const dayNum = i - leadingBlanks + 1;
-    if(dayNum < 1 || dayNum > daysInMonth){
-      html += `<div class="cal-day cal-blank"></div>`;
-      continue;
-    }
-    const dKey = `${year}-${pad2(month+1)}-${pad2(dayNum)}`;
-    const citasDia = (porFecha[dKey] || []).sort((a,b)=>a.hora.localeCompare(b.hora));
-    const classes = ['cal-day'];
-    if(dKey === todayKey) classes.push('today');
-    if(dKey === calSelectedDate) classes.push('selected');
-    const dotsToShow = citasDia.slice(0,6);
-    const extra = citasDia.length - dotsToShow.length;
-    html += `
-      <div class="${classes.join(' ')}" data-date="${dKey}">
-        <div class="cal-day-num">${dayNum}</div>
-        <div class="cal-dots">
-          ${dotsToShow.map(c=>`<div class="cal-dot est-${c.estado||'pendiente'}"></div>`).join('')}
-        </div>
-        ${extra>0 ? `<div class="cal-more">+${extra}</div>` : ''}
-      </div>
-    `;
-  }
-  grid.innerHTML = html;
-
-  grid.querySelectorAll('.cal-day[data-date]').forEach(cell=>{
-    cell.addEventListener('click', ()=>{
-      calSelectedDate = cell.dataset.date;
-      renderCalendario(ultimasCitas);
-      renderCalDayDetail(ultimasCitas);
-    });
-  });
-
-  renderCalDayDetail(citasObj);
-}
-
-function renderCalDayDetail(citasObj){
-  const detail = document.getElementById('cal-day-detail');
-  if(!detail) return;
-  if(!calSelectedDate){
-    detail.innerHTML = `<div class="sub">Toca un día del calendario para ver sus citas.</div>`;
-    return;
-  }
-  const arr = Object.entries(citasObj)
-    .map(([id,c])=>({id,...c}))
-    .filter(c=>c.fecha === calSelectedDate)
-    .sort((a,b)=>a.hora.localeCompare(b.hora));
-
-  if(arr.length === 0){
-    detail.innerHTML = `<div class="sub">Sin citas el ${calSelectedDate}.</div>`;
-    return;
-  }
-  detail.innerHTML = `<div class="sub" style="margin-bottom:8px;">Citas del ${calSelectedDate}:</div>` +
-    arr.map(c=>citaSeguimientoItemHtml(c)).join('');
-  attachSeguimientoHandlers(detail);
-}
 
 document.getElementById('cal-prev').addEventListener('click', ()=>{
   calMonthDate.setMonth(calMonthDate.getMonth()-1);
@@ -5053,21 +4520,7 @@ document.getElementById('cal-next').addEventListener('click', ()=>{
 });
 
 /* ---------- Google Calendar ---------- */
-function initGoogleClient(){
-  if(!window.google || !google.accounts) { setTimeout(initGoogleClient, 300); return; }
-  tokenClient = google.accounts.oauth2.initTokenClient({
-    client_id: GOOGLE_CLIENT_ID,
-    scope: GOOGLE_SCOPE,
-    callback: (resp)=>{
-      if(resp.access_token){
-        googleAccessToken = resp.access_token;
-        document.getElementById('google-status').textContent = '● Conectado a Google Calendar';
-        document.getElementById('google-status').classList.add('ok');
-        document.getElementById('btn-sync-calendar').style.display = 'inline-block';
-      }
-    }
-  });
-}
+
 initGoogleClient();
 
 document.getElementById('btn-google-connect').addEventListener('click', ()=>{
@@ -5134,28 +4587,7 @@ document.getElementById('btn-sync-calendar').addEventListener('click', ()=>{
   });
 });
 
-function addCitaToGoogleCalendar(c){
-  if(!googleAccessToken){
-    alert('Conecta Google Calendar primero (pestaña Disponibilidad).');
-    return;
-  }
-  const start = new Date(c.fecha+'T'+c.hora+':00');
-  const end = new Date(start.getTime() + ((horario && horario.duracionMin)||30)*60000);
-  fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events', {
-    method: 'POST',
-    headers: { 'Authorization': 'Bearer ' + googleAccessToken, 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      summary: `Visita — ${c.nombre}`,
-      description: `Tel: ${c.telefono||''}\nNotas: ${c.notas||''}`,
-      start: { dateTime: start.toISOString() },
-      end: { dateTime: end.toISOString() }
-    })
-  }).then(r=>r.json()).then(()=>{
-    alert('Agregado a tu Google Calendar.');
-  }).catch(()=>{
-    alert('No se pudo agregar. Intenta reconectar Google Calendar.');
-  });
-}
+
 </script>
 </body>
 </html>
@@ -5195,55 +4627,9 @@ function addCitaToGoogleCalendar(c){
 /* ---------- Edición real de propiedad (Property Engine V1 — mismo ID, sin duplicar) ---------- */
 let propEditingSnapshot = null; // guarda el registro completo que se está editando (para conservar campos que el form no maneja)
 
-function cargarPropiedadEnFormulario(p){
-  propEditingSnapshot = p;
-  document.getElementById('p-edit-id').value = p.id;
-  document.getElementById('p-nombre').value = p.nombre || '';
-  document.getElementById('p-direccion').value = p.direccion || '';
-  document.getElementById('p-enlace').value = p.enlaceExterno || '';
-  document.getElementById('p-lat').value = (p.lat!=null) ? p.lat : '';
-  document.getElementById('p-lng').value = (p.lng!=null) ? p.lng : '';
-  document.getElementById('p-operacion').value = p.operacion || 'Venta';
-  document.getElementById('p-precio').value = (p.precio!=null) ? p.precio : '';
-  document.getElementById('p-recamaras').value = (p.recamaras!=null) ? p.recamaras : '';
-  document.getElementById('p-banos').value = (p.banos!=null) ? p.banos : '';
-  document.getElementById('p-m2c').value = (p.m2c!=null) ? p.m2c : '';
-  document.getElementById('p-m2t').value = (p.m2t!=null) ? p.m2t : '';
-  document.getElementById('p-descripcion').value = p.descripcion || '';
-  const fotos = Array.isArray(p.fotos) ? p.fotos : (typeof p.fotos === 'string' ? p.fotos.split('\n').map(f=>f.trim()).filter(Boolean) : []);
-  document.getElementById('p-fotos').value = fotos.join('\n');
-  renderFotosThumbs();
 
-  document.getElementById('btn-add-propiedad').textContent = 'Guardar cambios';
-  document.getElementById('btn-cancel-edit-prop').style.display = 'inline-block';
-  document.getElementById('p-edit-banner').style.display = 'block';
 
-  document.querySelector('.admin-tab-btn[data-tab="propiedades"]')?.click();
-  document.getElementById('p-nombre').scrollIntoView({behavior:'smooth', block:'center'});
-}
 
-function resetPropiedadForm(){
-  propEditingSnapshot = null;
-  document.getElementById('p-edit-id').value = '';
-  document.getElementById('p-nombre').value = '';
-  document.getElementById('p-direccion').value = '';
-  document.getElementById('p-enlace').value = '';
-  document.getElementById('p-lat').value = '';
-  document.getElementById('p-lng').value = '';
-  document.getElementById('p-operacion').value = 'Venta';
-  document.getElementById('p-precio').value = '';
-  document.getElementById('p-recamaras').value = '';
-  document.getElementById('p-banos').value = '';
-  document.getElementById('p-m2c').value = '';
-  document.getElementById('p-m2t').value = '';
-  document.getElementById('p-descripcion').value = '';
-  document.getElementById('p-fotos').value = '';
-  document.getElementById('p-fotos-upload-status').textContent = '';
-  renderFotosThumbs();
-  document.getElementById('btn-add-propiedad').textContent = '+ Agregar propiedad';
-  document.getElementById('btn-cancel-edit-prop').style.display = 'none';
-  document.getElementById('p-edit-banner').style.display = 'none';
-}
 
 document.getElementById('btn-cancel-edit-prop').addEventListener('click', ()=>{
   resetPropiedadForm();
@@ -5293,7 +4679,7 @@ function renderManualPropiedadSelect(){
 
 // Crea un lead nuevo desde una cita manual del admin cuando no se vinculó uno existente —
 // mismo criterio que la agenda pública (operación según la propiedad elegida).
-async function crearLeadDesdeCitaManual({nombre, telefono, fecha, hora, propiedadId, propiedadNombre, notas}){
+async ){
   const propObj = propiedadId ? propiedades[propiedadId] : null;
   const propTxt = propiedadNombre ? ` — ${propiedadNombre}` : '';
   const operacionProp = (propObj && propObj.operacion) || 'Compra';
@@ -5524,28 +4910,7 @@ function renderHorariosFantasma(){
 // Reconstruye el contexto de una interacción (persona+propiedad+cita+estado+nextAction+lead)
 // a partir de datos que YA están en memoria (leads, propiedades). No lee ni escribe Firebase,
 // no inventa campos nuevos: solo interpreta las relaciones que ya existen vía leadId/propiedadId.
-function buildContext(cita){
-  const lead = cita.leadId ? (leads[cita.leadId] || null) : null;
-  const propiedadViva = cita.propiedadId ? (propiedades[cita.propiedadId] || null) : null;
-  return {
-    persona: {
-      nombre: (lead && lead.nombre) || cita.nombre || '',
-      telefono: (lead && lead.telefono) || cita.telefono || ''
-    },
-    propiedad: {
-      id: cita.propiedadId || null,
-      // Preferimos el nombre VIVO de la propiedad (por si se editó/renombró después);
-      // si ya no existe (borrada) o nunca hubo propiedadId, caemos al nombre cacheado en la cita.
-      nombre: (propiedadViva && propiedadViva.nombre) || cita.propiedadNombre || null
-    },
-    cita: { id: cita.id || null, fecha: cita.fecha, hora: cita.hora },
-    estado: cita.estado || 'pendiente',
-    // Respeta cualquier nextAction ya guardado (manual o del mapa); si la cita es vieja y
-    // nunca tuvo nextAction, lo deriva del estado — así nunca rompe citas creadas antes de este campo.
-    nextAction: cita.nextAction || NEXT_ACTION_POR_ESTADO[cita.estado || 'pendiente'] || '',
-    lead: lead ? { etapa: lead.etapa || null, proximaAccion: lead.proximaAccion || null } : null
-  };
-}
+
 
 // Acción de WhatsApp para una cita — ÚNICA implementación, reutilizada tanto en
 // "Próximas citas" (Resumen) como en el tab Citas (Seguimiento/Calendario).
@@ -5564,146 +4929,12 @@ function abrirWhatsAppParaCita(cita){
   window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`,'_blank');
 }
 
-function renderCitasList(citasObj){
-  const list = document.getElementById('citas-list');
-  const today = dateKey(new Date());
-  const arr = Object.entries(citasObj)
-    .map(([id,c])=>({id,...c}))
-    .filter(c=>c.fecha >= today)
-    .sort((a,b)=> (a.fecha+a.hora).localeCompare(b.fecha+b.hora));
-  if(arr.length===0){
-    list.innerHTML = `<div class="empty">Sin citas próximas.</div>`;
-    return;
-  }
-  list.innerHTML = arr.map(c=>{
-    const ctx = buildContext(c);
-    return `
-    <div class="cita-item">
-      <div>
-        <b>${escapeHtml(ctx.persona.nombre)}</b> — ${c.fecha} ${c.hora} ${ctx.propiedad.nombre?'· 🏠 '+escapeHtml(ctx.propiedad.nombre):''} ${c.manual?'<span class="cita-meta" style="color:var(--green);">· manual</span>':''}
-        <div class="cita-meta">${escapeHtml(ctx.persona.telefono)} ${c.notas?'· '+escapeHtml(c.notas):''}</div>
-        <div class="cita-meta" style="color:var(--amber);">→ Siguiente: ${escapeHtml(ctx.nextAction)}</div>
-      </div>
-      <div style="display:flex;gap:6px;">
-        <button class="btn btn-sm" data-action="gcal" data-id="${c.id}">+ Google Calendar</button>
-        <button class="btn btn-sm" data-action="wa" data-id="${c.id}">WhatsApp</button>
-        <button class="btn btn-sm" data-action="del" data-id="${c.id}" style="color:var(--red);">Cancelar</button>
-      </div>
-    </div>
-  `;
-  }).join('');
 
-  list.querySelectorAll('[data-action="del"]').forEach(btn=>{
-    btn.addEventListener('click', ()=>{
-      const c = arr.find(x=>x.id===btn.dataset.id);
-      if(!confirm('¿Cancelar esta cita?')) return;
-      const estadoAnterior = c.estado || 'pendiente';
-      const trace = registrarTraceCita(c.id, { tipo: 'estado', anterior: estadoAnterior, nuevo: 'cancelada', origen: 'synapse' });
-      const updates = {};
-      updates['citas/'+c.id+'/estado'] = 'cancelada';
-      updates['citas/'+c.id+'/nextAction'] = NEXT_ACTION_POR_ESTADO.cancelada || 'Reprogramar';
-      updates['citas/'+c.id+'/historial/'+trace.traceId] = trace.entry;
-      updates['citas_publicas/'+c.fecha+'_'+c.hora] = null;
-      db.ref().update(updates)
-        .then(()=> sincronizarLeadPorEstadoCita(c, 'cancelada'))
-        .catch(err=> alert('No se pudo cancelar la cita.\n\nError: ' + err.message));
-    });
-  });
-  list.querySelectorAll('[data-action="wa"]').forEach(btn=>{
-    btn.addEventListener('click', ()=>{
-      const c = arr.find(x=>x.id===btn.dataset.id);
-      abrirWhatsAppParaCita(c);
-    });
-  });
-  list.querySelectorAll('[data-action="gcal"]').forEach(btn=>{
-    btn.addEventListener('click', ()=>{
-      const c = arr.find(x=>x.id===btn.dataset.id);
-      addCitaToGoogleCalendar(c);
-    });
-  });
-}
 
 /* ---------- Seguimiento de citas ---------- */
-function renderCalendario(citasObj){
-  const grid = document.getElementById('cal-grid');
-  const label = document.getElementById('cal-month-label');
-  if(!grid || !label) return;
 
-  const year = calMonthDate.getFullYear();
-  const month = calMonthDate.getMonth();
-  label.textContent = `${MESES_ES[month]} ${year}`;
 
-  const firstDay = new Date(year, month, 1);
-  const daysInMonth = new Date(year, month+1, 0).getDate();
-  const leadingBlanks = firstDay.getDay();
-  const totalCells = leadingBlanks + daysInMonth;
-  const rows = Math.ceil(totalCells/7);
-  const totalGridCells = rows*7;
 
-  const porFecha = {};
-  Object.entries(citasObj).forEach(([id,c])=>{
-    if(!c.fecha) return;
-    (porFecha[c.fecha] = porFecha[c.fecha] || []).push({id,...c});
-  });
-
-  const todayKey = dateKey(new Date());
-  let html = '';
-  for(let i=0;i<totalGridCells;i++){
-    const dayNum = i - leadingBlanks + 1;
-    if(dayNum < 1 || dayNum > daysInMonth){
-      html += `<div class="cal-day cal-blank"></div>`;
-      continue;
-    }
-    const dKey = `${year}-${pad2(month+1)}-${pad2(dayNum)}`;
-    const citasDia = (porFecha[dKey] || []).sort((a,b)=>a.hora.localeCompare(b.hora));
-    const classes = ['cal-day'];
-    if(dKey === todayKey) classes.push('today');
-    if(dKey === calSelectedDate) classes.push('selected');
-    const dotsToShow = citasDia.slice(0,6);
-    const extra = citasDia.length - dotsToShow.length;
-    html += `
-      <div class="${classes.join(' ')}" data-date="${dKey}">
-        <div class="cal-day-num">${dayNum}</div>
-        <div class="cal-dots">
-          ${dotsToShow.map(c=>`<div class="cal-dot est-${c.estado||'pendiente'}"></div>`).join('')}
-        </div>
-        ${extra>0 ? `<div class="cal-more">+${extra}</div>` : ''}
-      </div>
-    `;
-  }
-  grid.innerHTML = html;
-
-  grid.querySelectorAll('.cal-day[data-date]').forEach(cell=>{
-    cell.addEventListener('click', ()=>{
-      calSelectedDate = cell.dataset.date;
-      renderCalendario(ultimasCitas);
-      renderCalDayDetail(ultimasCitas);
-    });
-  });
-
-  renderCalDayDetail(citasObj);
-}
-
-function renderCalDayDetail(citasObj){
-  const detail = document.getElementById('cal-day-detail');
-  if(!detail) return;
-  if(!calSelectedDate){
-    detail.innerHTML = `<div class="sub">Toca un día del calendario para ver sus citas.</div>`;
-    return;
-  }
-  const arr = Object.entries(citasObj)
-    .map(([id,c])=>({id,...c}))
-    .filter(c=>c.fecha === calSelectedDate)
-    .sort((a,b)=>a.hora.localeCompare(b.hora));
-
-  if(arr.length === 0){
-    detail.innerHTML = `<div class="sub">Sin citas el ${calSelectedDate}.</div>`;
-    return;
-  }
-  detail.innerHTML = `<div class="sub" style="margin-bottom:8px;">Citas del ${calSelectedDate}:</div>` +
-    arr.map(c=>citaSeguimientoItemHtml(c)).join('');
-  attachSeguimientoHandlers(detail);
-}
 
 document.getElementById('cal-prev').addEventListener('click', ()=>{
   calMonthDate.setMonth(calMonthDate.getMonth()-1);
@@ -5715,21 +4946,7 @@ document.getElementById('cal-next').addEventListener('click', ()=>{
 });
 
 /* ---------- Google Calendar ---------- */
-function initGoogleClient(){
-  if(!window.google || !google.accounts) { setTimeout(initGoogleClient, 300); return; }
-  tokenClient = google.accounts.oauth2.initTokenClient({
-    client_id: GOOGLE_CLIENT_ID,
-    scope: GOOGLE_SCOPE,
-    callback: (resp)=>{
-      if(resp.access_token){
-        googleAccessToken = resp.access_token;
-        document.getElementById('google-status').textContent = '● Conectado a Google Calendar';
-        document.getElementById('google-status').classList.add('ok');
-        document.getElementById('btn-sync-calendar').style.display = 'inline-block';
-      }
-    }
-  });
-}
+
 initGoogleClient();
 
 document.getElementById('btn-google-connect').addEventListener('click', ()=>{
@@ -5796,28 +5013,7 @@ document.getElementById('btn-sync-calendar').addEventListener('click', ()=>{
   });
 });
 
-function addCitaToGoogleCalendar(c){
-  if(!googleAccessToken){
-    alert('Conecta Google Calendar primero (pestaña Disponibilidad).');
-    return;
-  }
-  const start = new Date(c.fecha+'T'+c.hora+':00');
-  const end = new Date(start.getTime() + ((horario && horario.duracionMin)||30)*60000);
-  fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events', {
-    method: 'POST',
-    headers: { 'Authorization': 'Bearer ' + googleAccessToken, 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      summary: `Visita — ${c.nombre}`,
-      description: `Tel: ${c.telefono||''}\nNotas: ${c.notas||''}`,
-      start: { dateTime: start.toISOString() },
-      end: { dateTime: end.toISOString() }
-    })
-  }).then(r=>r.json()).then(()=>{
-    alert('Agregado a tu Google Calendar.');
-  }).catch(()=>{
-    alert('No se pudo agregar. Intenta reconectar Google Calendar.');
-  });
-}
+
 </script>
 </body>
 </html>
