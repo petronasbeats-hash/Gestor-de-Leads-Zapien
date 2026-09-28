@@ -1133,10 +1133,10 @@ function synapseIntegrityCheck(leadsObj=leads){
   });
   Object.entries(ultimasCitas||{}).forEach(([id,c])=>{
     if(c.leadId&&!leadsObj?.[c.leadId]){
-      alerts.push({severity:'error',code:'APPOINTMENT_BROKEN_LEAD_REF',entity:'cita',id,message:`La cita referencia un lead inexistente: ${c.leadId}.`});
+      alerts.push({severity:'critical',code:'APPOINTMENT_BROKEN_LEAD_REF',entity:'cita',id,message:`La cita referencia un lead inexistente: ${c.leadId}.`});
     }
     if(c.propiedadId&&!propiedades?.[c.propiedadId]){
-      alerts.push({severity:'error',code:'APPOINTMENT_BROKEN_PROPERTY_REF',entity:'cita',id,message:`La cita referencia una propiedad inexistente: ${c.propiedadId}.`});
+      alerts.push({severity:'critical',code:'APPOINTMENT_BROKEN_PROPERTY_REF',entity:'cita',id,message:`La cita referencia una propiedad inexistente: ${c.propiedadId}.`});
     }
     if(c.tipoEvento==='reserva_visita'&&!c.codigoReserva){
       alerts.push({severity:'warning',code:'RESERVATION_WITHOUT_CODE',entity:'cita',id,message:'Reserva de visita sin código público de reserva.'});
