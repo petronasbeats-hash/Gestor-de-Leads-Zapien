@@ -3718,29 +3718,7 @@ document.querySelectorAll('.admin-tab-btn').forEach(btn=>{
 });
 
 /* ---------- Resumen / stats ---------- */
-function renderResumenStats(){
-  const today = new Date();
-  const todayKey = dateKey(today);
-  const in7 = new Date(today); in7.setDate(in7.getDate()+7);
-  const in7Key = dateKey(in7);
 
-  const citasSemana = Object.values(ultimasCitas||{}).filter(c=>c.fecha >= todayKey && c.fecha <= in7Key).length;
-  document.getElementById('stat-citas-semana').textContent = citasSemana;
-
-  const propActivas = Object.values(propiedades||{}).filter(p=>p.activo!==false).length;
-  document.getElementById('stat-propiedades-activas').textContent = propActivas;
-
-  const pendientes = Object.values(ultimasCitas||{}).filter(c=>c.fecha < todayKey && (c.estado||'pendiente')==='pendiente').length;
-  document.getElementById('stat-pendientes').textContent = pendientes;
-  const reservasNuevas = Object.values(ultimasCitas||{}).filter(c=>c.tipoEvento==='reserva_visita' && (c.estadoReserva||'solicitada')==='solicitada').length;
-  const elReservas=document.getElementById('v2-stat-reservas-nuevas'); if(elReservas) elReservas.textContent=reservasNuevas;
-  const citasHoy = Object.values(ultimasCitas||{}).filter(c=>c.fecha===todayKey && !['cancelada'].includes(c.estado||'pendiente')).length;
-  const accionesPendientes = Object.values(leads||{}).filter(l=>l.fechaProximaAccion && l.fechaProximaAccion<=todayKey && !esEtapaCerrada(l.etapa)).length;
-  const elHoy=document.getElementById('v2-stat-citas-hoy'); if(elHoy) elHoy.textContent=citasHoy;
-  const elAcc=document.getElementById('v2-stat-acciones'); if(elAcc) elAcc.textContent=accionesPendientes;
-  const elProps=document.getElementById('v2-stat-props'); if(elProps) elProps.textContent=propActivas;
-  renderV2NextAction(todayKey);
-}
 
 
 
