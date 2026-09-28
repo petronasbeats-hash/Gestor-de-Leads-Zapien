@@ -887,6 +887,24 @@ function synapseNext(lead){
     overrideHumano:ctx.overrideHumano
   };
 }
+function synapsePriority(lead,now=new Date()){
+  const ctx=buildLeadContext(lead);
+  const fecha=lead.fechaProximaAccion||null;
+  const hoy=now.toISOString().slice(0,10);
+  const cerrada=['ganado','cerrado_ganado','perdido'].includes(ctx.proceso.etapaId);
+  let nivel='normal',rank=3,razon='Seguimiento activo';
+  if(cerrada){ nivel='cerrada'; rank=9; razon='Flujo cerrado'; }
+  else if(fecha && fecha<hoy){ nivel='vencida'; rank=0; razon='Próxima acción vencida'; }
+  else if(fecha===hoy){ nivel='hoy'; rank=1; razon='Acción programada para hoy'; }
+  else if(!fecha && ctx.nextAction){ nivel='sin_fecha'; rank=2; razon='Tiene siguiente acción sin fecha'; }
+  return {nivel,rank,razon,fecha,flujo:ctx.clasificacion.flujo,nextAction:ctx.nextAction};
+}
+function synapseWorkQueue(leadsObj=leads){
+  return Object.entries(leadsObj||{}).map(([id,lead])=>{
+    const data={id,...lead}; return {lead:data,context:buildLeadContext(data),priority:synapsePriority(data)};
+  }).filter(x=>x.priority.rank<9 && x.context.nextAction)
+    .sort((a,b)=>(a.priority.rank-b.priority.rank)||((a.priority.fecha||'9999-12-31').localeCompare(b.priority.fecha||'9999-12-31')));
+}
 
 const ROLES_POR_OPERACION = {
   Compra: ['Comprador'],
@@ -1821,14 +1839,10 @@ function renderV2NextAction(todayKey){
     box.querySelector('[data-v2-open-agenda]')?.addEventListener('click',()=>openMainView('agenda'));
     return;
   }
-  const personas=Object.entries(leads||{}).map(([id,l])=>({id,...l}))
-    .filter(l=>!['ganado','cerrado_ganado','perdido'].includes(l.etapa||'nuevo'))
-    .map(l=>({lead:l,ctx:buildLeadContext(l)}))
-    .filter(x=>x.ctx.nextAction)
-    .sort((a,b)=>(a.lead.fechaProximaAccion||'9999-12-31').localeCompare(b.lead.fechaProximaAccion||'9999-12-31'));
+  const personas=synapseWorkQueue();
   if(personas.length){
-    const {lead,ctx}=personas[0];
-    box.innerHTML=`<div class="cita-item"><div><b>${escapeHtml(ctx.persona.nombre||'Persona')}</b><div class="cita-meta">${escapeHtml(ctx.clasificacion.label||ctx.clasificacion.flujo)} · ${escapeHtml(ctx.proceso.etapaLabel||'')}</div><div class="cita-meta" style="color:var(--green);margin-top:3px;">→ ${escapeHtml(ctx.nextAction)}</div>${ctx.protocolo?.entregable?`<div class="cita-meta">Entregable · ${escapeHtml(ctx.protocolo.entregable)}</div>`:''}</div><button class="btn btn-sm" data-v2-open-persona>Abrir persona</button></div>`;
+    const {lead,context:ctx,priority}=personas[0];
+    box.innerHTML=`<div class="cita-item"><div><b>${escapeHtml(ctx.persona.nombre||'Persona')}</b><div class="cita-meta">${escapeHtml(ctx.clasificacion.label||ctx.clasificacion.flujo)} · ${escapeHtml(ctx.proceso.etapaLabel||'')}</div><div class="cita-meta">${escapeHtml(priority.razon)}</div><div class="cita-meta" style="color:var(--green);margin-top:3px;">→ ${escapeHtml(ctx.nextAction)}</div>${ctx.protocolo?.entregable?`<div class="cita-meta">Entregable · ${escapeHtml(ctx.protocolo.entregable)}</div>`:''}</div><button class="btn btn-sm" data-v2-open-persona>Abrir persona</button></div>`;
     box.querySelector('[data-v2-open-persona]')?.addEventListener('click',()=>{openMainView('personas');openModal(lead.id);});
     return;
   }
