@@ -259,6 +259,11 @@
       <div class="v2-home-card" data-go-view="propiedades"><div class="num" id="v2-stat-props">0</div><div class="label">Propiedades activas</div></div>
       <div class="v2-home-card" data-go-view="propiedades"><div class="num" id="v2-stat-solicitudes-prop">0</div><div class="label">Solicitudes de propiedad</div></div>
     </div>
+    <div class="card" id="v2-health-card">
+      <h2 class="mono" style="font-size:14px;color:var(--green);margin:0 0 8px;">Synapse Health</h2>
+      <div id="v2-health-summary" class="sub">Verificando integridad…</div>
+      <div id="v2-health-alerts" style="margin-top:8px;"></div>
+    </div>
     <div class="card">
       <h2 class="mono" style="font-size:14px;color:var(--green);margin:0 0 12px;">Lo siguiente</h2>
       <div class="sub" style="margin-bottom:10px;">Synapse concentra aquí lo que requiere atención inmediata.</div>
@@ -1847,7 +1852,19 @@ function renderResumenStats(){
   const elHoy=document.getElementById('v2-stat-citas-hoy'); if(elHoy) elHoy.textContent=citasHoy;
   const elAcc=document.getElementById('v2-stat-acciones'); if(elAcc) elAcc.textContent=accionesPendientes;
   const elProps=document.getElementById('v2-stat-props'); if(elProps) elProps.textContent=propActivas;
+  renderV2Health();
   renderV2NextAction(todayKey);
+}
+
+function renderV2Health(){
+  const health=synapseIntegrityCheck();
+  const summary=document.getElementById('v2-health-summary'), list=document.getElementById('v2-health-alerts');
+  if(!summary||!list) return;
+  if(health.ok){summary.innerHTML='<b style="color:var(--green)">SALUDABLE</b> · Sin inconsistencias detectadas.';list.innerHTML='';return;}
+  const state=health.errors?'ERROR':'ATENCIÓN';
+  const color=health.errors?'var(--red)':'var(--amber)';
+  summary.innerHTML=`<b style="color:${color}">${state}</b> · ${health.errors} errores · ${health.warnings} avisos`;
+  list.innerHTML=health.alerts.slice(0,8).map(a=>`<div style="border-top:1px solid var(--line);padding:7px 0;font-size:12px;"><b class="mono" style="color:${a.severity==='error'?'var(--red)':'var(--amber)'}">${escapeHtml(a.code)}</b> · ${escapeHtml(a.message)} <span class="mono" style="color:var(--muted-2)">[${escapeHtml(a.id)}]</span></div>`).join('')+(health.total>8?`<div class="sub">+${health.total-8} avisos adicionales.</div>`:'');
 }
 
 function estadoSLAReserva(c){
