@@ -876,6 +876,18 @@ function buildLeadContext(lead={}){
   };
 }
 function orchestrationForLead(lead){ return buildLeadContext(lead); }
+function synapseStageReadiness(lead){
+  const ctx=buildLeadContext(lead);
+  const etapa=ctx.proceso;
+  const proto=lead?.protocolo?.[etapa.etapaId]||{};
+  const requiereProtocolo=Boolean(ctx.protocolo?.entregable);
+  const protocoloCumplido=!requiereProtocolo||Boolean(proto.cumplido);
+  const accionesCompletas=Boolean(etapa.etapaLista);
+  let status='en_progreso',reason='Quedan acciones pendientes.';
+  if(accionesCompletas&&protocoloCumplido){status='lista';reason='Acciones y protocolo completos. Lista para revisión de avance.';}
+  else if(accionesCompletas&&!protocoloCumplido){status='bloqueada';reason='Acciones completas; falta confirmar el entregable del protocolo.';}
+  return {status,reason,accionesCompletas,requiereProtocolo,protocoloCumplido,requiresHumanAdvance:true};
+}
 function orchestrationForLeadId(id){
   const lead=leads[id]; return lead?buildLeadContext({id,...lead}):null;
 }
