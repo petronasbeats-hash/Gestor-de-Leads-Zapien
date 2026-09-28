@@ -2270,8 +2270,15 @@ function renderManualPropiedadSelect(){
 async function crearLeadDesdeCitaManual({nombre, telefono, fecha, hora, propiedadId, propiedadNombre, notas}){
   const propObj = propiedadId ? propiedades[propiedadId] : null;
   const propTxt = propiedadNombre ? ` — ${propiedadNombre}` : '';
-  const operacionProp = (propObj && propObj.operacion) || 'Compra';
-  const tipoDefault = operacionProp === 'Renta' ? 'Inquilino' : 'Comprador';
+  const operacionProp = propObj?.operacion || null;
+  if(!operacionProp || !ROLES_POR_OPERACION[operacionProp]){
+    throw new Error('Synapse no puede clasificar automáticamente este lead: la propiedad no tiene una operación válida (Compra, Venta, Renta o Inversion).');
+  }
+  const rolesVisita={Compra:'Comprador',Renta:'Inquilino',Inversion:'Inversionista'};
+  const tipoDefault=rolesVisita[operacionProp];
+  if(!tipoDefault){
+    throw new Error('Synapse detectó una operación de oferta en una cita de visita. Selecciona una persona existente o corrige la operación de la propiedad antes de crear el lead.');
+  }
   const newLeadId = db.ref('leads').push().key;
   await db.ref('leads/'+newLeadId).set({
     nombre, telefono, email: '',
