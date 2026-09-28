@@ -923,6 +923,31 @@ function synapseActionContract(lead){
     automation:{mode:'suggest',requiresHuman:true}
   };
 }
+async function registrarResultadoAccion(leadId,result={}){
+  if(!leadId) return null;
+  const lead=leads[leadId]; if(!lead) return null;
+  const contract=synapseActionContract({id:leadId,...lead});
+  const eventId='ACT_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,6);
+  const event={
+    id:eventId,
+    tipo:'action_result',
+    fecha:new Date().toISOString(),
+    actionType:contract.action.type,
+    actionLabel:contract.action.label,
+    channel:result.channel||contract.action.channel,
+    resultado:result.status||'registrado',
+    nota:result.note||null,
+    evidenceExpected:contract.evidenceExpected,
+    flujo:contract.context.flujo,
+    etapa:contract.context.etapa,
+    source:'orchestration_v2'
+  };
+  await db.ref('leads/'+leadId+'/historial_acciones/'+eventId).set(event);
+  await db.ref('leads/'+leadId+'/bitacora/'+bitacoraKeyCitas()).set(
+    `Acción registrada: ${contract.action.label} · resultado: ${event.resultado}${event.nota?' · '+event.nota:''}.`
+  );
+  return event;
+}
 
 const ROLES_POR_OPERACION = {
   Compra: ['Comprador'],
