@@ -1559,7 +1559,10 @@ document.getElementById('btn-agenda').addEventListener('click', ()=>{
 document.getElementById('btn-whatsapp').addEventListener('click', ()=>{
   const phone = document.getElementById('f-telefono').value.replace(/\D/g,'');
   const nombre = document.getElementById('f-nombre').value || '{nombre}';
-  const s = STAGE_BY_ID[currentStageId];
+  const op=document.getElementById('f-operacion').value;
+  const rol=document.getElementById('f-tipo').value;
+  const s=stageByIdForOperacion(op,currentStageId,rol);
+  if(!s?.script){ alert('Synapse no encontró un guion válido para esta etapa. Revisa el flujo antes de contactar.'); return; }
   const text = encodeURIComponent(s.script.replaceAll('{nombre}', nombre));
   if(!phone){ alert('Agrega un teléfono para poder abrir WhatsApp.'); return; }
   window.open(`https://wa.me/${phone}?text=${text}`, '_blank');
@@ -3903,8 +3906,8 @@ document.getElementById('btn-save').addEventListener('click', ()=>{
   const stageChecklist = [...document.querySelectorAll('#stage-checklist input')].map(cb=>cb.checked);
   const checklist = { ...(existing?.checklist || {}) , [currentStageId]: stageChecklist };
 
-  const wasNotGanado = !existing || existing.etapa !== 'ganado';
-  const isNowGanado = currentStageId === 'ganado';
+  const wasNotGanado = !existing || !esEtapaGanada(existing.etapa);
+  const isNowGanado = esEtapaGanada(currentStageId);
 
   const data = {
     nombre,
