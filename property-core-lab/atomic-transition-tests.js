@@ -4,7 +4,7 @@ import {buildAtomicPatch,persistAtomicTransition} from "./atomic-transition.js";
 function assert(c,m){if(!c)throw new Error(m);}
 function fakeDb(){
  const calls=[];
- return {calls,ref(path){return {parent:{update:async patch=>calls.push({path,patch})}};}};
+ return {calls,ref(path){return {update:async patch=>calls.push({path,patch})};}};
 }
 export async function runAtomicTests(){
  const u=createLabUnit();
@@ -19,7 +19,9 @@ export async function runAtomicTests(){
  assert(!rp[`${LAB_ROOT}/units/LAB-YANG-07`],"PC016 rejected transition does not write snapshot");
 
  const db=fakeDb(); await persistAtomicTransition(db,accepted,"EVT-003",3);
- assert(db.calls.length===1 && Object.keys(db.calls[0].patch).length===2,"PC017 one multipath update");
+ assert(db.calls.length===1 && Object.keys(db.calls[0].patch).length===2,"PC017 one root multipath update");
+ assert(db.calls[0].path===undefined,"PC017 update anchored at RTDB root");
+ assert(Object.keys(db.calls[0].patch).every(k=>k.startsWith(LAB_ROOT+"/")),"PC017 all paths confined to LAB root");
 
  let bad=false; try{buildAtomicPatch(accepted,"EVT-004",0)}catch(e){bad=e.message==="EVENT_SEQUENCE_REQUIRED";}
  assert(bad,"PC018 invalid sequence blocked before write");
