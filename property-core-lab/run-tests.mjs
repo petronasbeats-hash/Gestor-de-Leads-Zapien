@@ -1,0 +1,9 @@
+import {runAll} from "./foundation-tests.js";
+
+try {
+  const results=runAll();
+  console.log(JSON.stringify({suite:"PROPERTY_CORE_V01_FOUNDATION",status:"PASS",results},null,2));
+} catch (error) {
+  console.error(JSON.stringify({suite:"PROPERTY_CORE_V01_FOUNDATION",status:"FAIL",error:error.message},null,2));
+  process.exitCode=1;
+}
