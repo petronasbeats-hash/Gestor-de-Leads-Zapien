@@ -1174,17 +1174,33 @@ document.getElementById('btn-delete').addEventListener('click', ()=>{
   }
 });
 
-document.getElementById('btn-agenda').addEventListener('click', ()=>{
+document.getElementById('btn-agenda').addEventListener('click', async ()=>{
   const nombre = document.getElementById('f-nombre').value.trim();
   const telefono = document.getElementById('f-telefono').value.trim();
   if(!nombre){ alert('Ponle un nombre al lead primero.'); return; }
   const base = location.origin + location.pathname.replace(/[^/]*$/, 'agenda.html');
   const url = `${base}?nombre=${encodeURIComponent(nombre)}&telefono=${encodeURIComponent(telefono)}${currentLeadId?'&leadId='+encodeURIComponent(currentLeadId):''}`;
-  navigator.clipboard?.writeText(url).then(()=>{
-    alert('Link de agenda copiado:\n' + url);
-  }).catch(()=>{
+  const shareData = {
+    title: 'Agenda · Iré Inmobiliaria',
+    text: `Hola ${nombre}, agenda tu cita aquí:`,
+    url
+  };
+
+  if(navigator.share){
+    try{
+      await navigator.share(shareData);
+      return;
+    }catch(err){
+      if(err && err.name === 'AbortError') return;
+    }
+  }
+
+  try{
+    await navigator.clipboard.writeText(url);
+    alert('Link de agenda copiado:\\n' + url);
+  }catch(err){
     prompt('Copia este link de agenda:', url);
-  });
+  }
 });
 
 document.getElementById('btn-whatsapp').addEventListener('click', ()=>{
