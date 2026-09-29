@@ -20,6 +20,6 @@ export function buildAtomicPatch(result,eventId,sequence){
 }
 export async function persistAtomicTransition(db,result,eventId,sequence){
  const patch=buildAtomicPatch(result,eventId,sequence);
- await db.ref(LAB_ROOT).parent.update(patch);
+ await db.ref().update(patch);
  return {ok:result.ok,eventId,sequence,paths:Object.keys(patch)};
 }
