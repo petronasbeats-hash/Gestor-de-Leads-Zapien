@@ -823,8 +823,8 @@ function normalizarTelefono(tel){
   return String(tel||'').replace(/\D/g,'').slice(-10);
 }
 
-// Backfill: asegura que todo lead con teléfono tenga su entrada en telefonos_index,
-// para que la agenda pública pueda detectar duplicados incluso en leads viejos.
+// Backfill autenticado: mantiene el índice interno de teléfonos para operaciones
+// administrativas y futura deduplicación sin exponer existencia de clientes al flujo público.
 function backfillIndiceTelefonos(){
   Object.entries(leads).forEach(([id,l])=>{
     const tn = normalizarTelefono(l.telefono);
@@ -833,8 +833,33 @@ function backfillIndiceTelefonos(){
   });
 }
 
+function registrarTraceLead(leadId, trace){
+  const eventId = db.ref('leads/'+leadId+'/historial').push().key;
+  const timestamp = trace.timestamp || new Date().toISOString();
+  const entry = {
+    eventId,
+    eventType: trace.eventType,
+    entityType: 'LEAD',
+    entityId: leadId,
+    timestamp,
+    actor: trace.actor || {
+      type: auth.currentUser ? 'USER' : 'SYSTEM',
+      id: auth.currentUser ? auth.currentUser.uid : null,
+      name: null
+    },
+    source: trace.source || { type: 'ADMIN', page: 'index.html' },
+    previousState: trace.previousState !== undefined ? trace.previousState : null,
+    newState: trace.newState !== undefined ? trace.newState : null,
+    metadata: trace.metadata || {},
+    traceVersion: '1.1'
+  };
+  return { eventId, entry };
+}
+
 function saveLead(id, data){
-  return db.ref('leads/'+id).set(data).then(()=>{
+  // update() preserva subárboles append-only como historial.
+  // El formulario administra los campos de data, no debe reemplazar la entidad completa.
+  return db.ref('leads/'+id).update(data).then(()=>{
     const tn = normalizarTelefono(data.telefono);
     if(tn) db.ref('telefonos_index/'+tn).set(id).catch(()=>{});
   });
@@ -1107,9 +1132,15 @@ document.getElementById('btn-add-bitacora').addEventListener('click', ()=>{
   }
   const key = new Date().toISOString().slice(0,16).replace('T',' ') + '__' + Math.random().toString(36).slice(2,6);
   const lead = leads[currentLeadId] || {};
-  const bitacora = lead.bitacora || {};
-  bitacora[key] = txt;
-  saveLead(currentLeadId, {...lead, bitacora});
+  const trace = registrarTraceLead(currentLeadId, {
+    eventType: 'LEAD_INTERACTION_ADDED',
+    metadata: { bitacoraId: key }
+  });
+  const updates = {};
+  updates['leads/'+currentLeadId+'/bitacora/'+key] = txt;
+  updates['leads/'+currentLeadId+'/historial/'+trace.eventId] = trace.entry;
+  updates['event_trace/'+trace.eventId] = trace.entry;
+  db.ref().update(updates);
   document.getElementById('bitacora-text').value = '';
   setTimeout(renderBitacoraPane, 150);
 });
@@ -1151,7 +1182,30 @@ document.getElementById('btn-save').addEventListener('click', ()=>{
     bitacora: existing?.bitacora || {},
   };
 
-  saveLead(id, data).then(()=>{
+  const leadTrace = !existing
+    ? registrarTraceLead(id, { eventType:'LEAD_CREATED', newState:currentStageId })
+    : (existing.etapa !== currentStageId
+      ? registrarTraceLead(id, {
+          eventType:'LEAD_STAGE_CHANGED',
+          previousState:existing.etapa || null,
+          newState:currentStageId
+        })
+      : null);
+
+  const savePromise = leadTrace
+    ? (()=> {
+        const updates = {};
+        Object.entries(data).forEach(([k,v])=>{ updates['leads/'+id+'/'+k] = v; });
+        updates['leads/'+id+'/historial/'+leadTrace.eventId] = leadTrace.entry;
+        updates['event_trace/'+leadTrace.eventId] = leadTrace.entry;
+        return db.ref().update(updates).then(()=>{
+          const tn = normalizarTelefono(data.telefono);
+          if(tn) db.ref('telefonos_index/'+tn).set(id).catch(()=>{});
+        });
+      })()
+    : saveLead(id, data);
+
+  savePromise.then(()=>{
     // Sincroniza el vínculo en ambos sentidos: si cambió el lead relacionado,
     // actualiza también al otro lead para que apunte de vuelta a este.
     const nuevoRelId = data.leadRelacionadoId;
@@ -1264,11 +1318,52 @@ const ESTADOS_CITA = { pendiente:'Pendiente', confirmada:'Confirmada', realizada
 // aunque hoy todavía la ejecute una persona (ver /areas/ire-lead-tracker.md — filosofía Synapse Core).
 function registrarTraceCita(citaId, trace){
   const traceId = db.ref('citas/'+citaId+'/historial').push().key;
-  const entry = {
-    tipo: trace.tipo,
-    fecha: trace.fecha || new Date().toISOString(),
-    origen: trace.origen || 'synapse'
+  const timestamp = trace.fecha || new Date().toISOString();
+  const origen = trace.origen || 'synapse';
+
+  // Event Trace V1.1 — contrato normalizado, compatible con V0.
+  // Los campos V0 se conservan para no romper historial ni consumidores existentes.
+  const EVENT_TYPE_POR_TRACE = {
+    creacion: 'APPOINTMENT_CREATED',
+    estado: trace.nuevo === 'cancelada' ? 'APPOINTMENT_CANCELLED'
+      : trace.nuevo === 'realizada' ? 'APPOINTMENT_COMPLETED'
+      : trace.nuevo === 'no_asistio' ? 'APPOINTMENT_NO_SHOW'
+      : 'APPOINTMENT_STATUS_CHANGED',
+    reprogramacion: 'APPOINTMENT_RESCHEDULED'
   };
+  const SOURCE_POR_ORIGEN = {
+    synapse: { type: 'ADMIN', page: 'index.html' },
+    agenda: { type: 'PUBLIC_AGENDA', page: 'agenda.html' },
+    reservar: { type: 'PUBLIC_AGENDA', page: 'reservar.html' },
+    system: { type: 'SYSTEM', page: null }
+  };
+
+  const entry = {
+    // Compatibilidad V0
+    tipo: trace.tipo,
+    fecha: timestamp,
+    origen,
+
+    // Contrato V1.1
+    eventId: traceId,
+    eventType: trace.eventType || EVENT_TYPE_POR_TRACE[trace.tipo] || 'APPOINTMENT_UPDATED',
+    entityType: 'APPOINTMENT',
+    entityId: citaId,
+    timestamp,
+    actor: trace.actor || {
+      type: auth.currentUser ? 'USER' : 'SYSTEM',
+      id: auth.currentUser ? auth.currentUser.uid : null,
+      name: null
+    },
+    source: trace.source || SOURCE_POR_ORIGEN[origen] || { type: 'SYSTEM', page: null },
+    previousState: trace.previousState !== undefined ? trace.previousState
+      : (trace.anterior !== undefined ? trace.anterior : null),
+    newState: trace.newState !== undefined ? trace.newState
+      : (trace.nuevo !== undefined ? trace.nuevo : null),
+    metadata: trace.metadata || {},
+    traceVersion: '1.1'
+  };
+
   if(trace.anterior !== undefined) entry.anterior = trace.anterior;
   if(trace.nuevo !== undefined) entry.nuevo = trace.nuevo;
   if(trace.fechaAnterior !== undefined) entry.fechaAnterior = trace.fechaAnterior;
@@ -1316,8 +1411,8 @@ function bitacoraKeyCitas(){
 
 const ETAPAS_ANTES_DE_VISITA_PROGRAMADA = ['nuevo','contactado','calificado','requisitos'];
 
-// Sincroniza el lead cuando se agenda una cita nueva (manual o pública) — sin que Sebas
-// tenga que mover la tarjeta a mano. Respeta la etapa según venta o renta porque
+// Sincroniza el lead cuando se agenda una cita manual desde el panel autenticado.
+// Respeta la etapa según venta o renta porque
 // "visita_programada" y "visita_realizada" son ids compartidos en ambos flujos.
 async function sincronizarLeadPorNuevaCita(leadId, fecha, hora, propiedadNombre){
   if(!leadId) return;
@@ -1333,9 +1428,21 @@ async function sincronizarLeadPorNuevaCita(leadId, fecha, hora, propiedadNombre)
   if(ETAPAS_ANTES_DE_VISITA_PROGRAMADA.includes(lead.etapa)){
     updates.etapa = 'visita_programada';
   }
-  await db.ref('leads/'+leadId).update(updates);
-  await db.ref('leads/'+leadId+'/bitacora/'+bitacoraKeyCitas())
-    .set(`Cita agendada para ${cuando}${propTxt} — etapa sincronizada automáticamente.`);
+  const bitacoraId = bitacoraKeyCitas();
+  const trace = registrarTraceLead(leadId, {
+    eventType: 'LEAD_APPOINTMENT_SYNCED',
+    actor: { type: 'AUTOMATION', id: 'synapse', name: 'Synapse' },
+    source: { type: 'AUTOMATION', page: null },
+    previousState: lead.etapa || null,
+    newState: updates.etapa || lead.etapa || null,
+    metadata: { appointmentDate: fecha, appointmentTime: hora, bitacoraId }
+  });
+  const rootUpdates = {};
+  Object.entries(updates).forEach(([k,v])=>{ rootUpdates['leads/'+leadId+'/'+k] = v; });
+  rootUpdates['leads/'+leadId+'/bitacora/'+bitacoraId] = `Cita agendada para ${cuando}${propTxt} — etapa sincronizada automáticamente.`;
+  rootUpdates['leads/'+leadId+'/historial/'+trace.eventId] = trace.entry;
+  rootUpdates['event_trace/'+trace.eventId] = trace.entry;
+  await db.ref().update(rootUpdates);
 }
 
 // Sincroniza el lead en el Gestor cuando cambia el estado de una cita.
@@ -1348,32 +1455,51 @@ async function sincronizarLeadPorEstadoCita(cita, nuevoEstado){
   const lead = snap.val();
   if(!lead) return;
 
+  let updates = null;
+  let bitacoraTexto = null;
   if(nuevoEstado === 'realizada'){
-    const updates = {
+    updates = {
       proximaAccion: `Dar seguimiento — feedback de la visita${propTxt}`,
       fechaProximaAccion: todayStr()
     };
-    if(ETAPAS_PRE_VISITA.includes(lead.etapa)){
-      updates.etapa = 'visita_realizada';
-    }
-    await db.ref('leads/'+cita.leadId).update(updates);
-    await db.ref('leads/'+cita.leadId+'/bitacora/'+bitacoraKeyCitas())
-      .set(`Visita realizada el ${cuando}${propTxt}. Próxima acción: pedir feedback.`);
+    if(ETAPAS_PRE_VISITA.includes(lead.etapa)) updates.etapa = 'visita_realizada';
+    bitacoraTexto = `Visita realizada el ${cuando}${propTxt}. Próxima acción: pedir feedback.`;
   } else if(nuevoEstado === 'no_asistio'){
-    await db.ref('leads/'+cita.leadId).update({
+    updates = {
       proximaAccion: `Reagendar visita — no se presentó${propTxt}`,
       fechaProximaAccion: todayStr()
-    });
-    await db.ref('leads/'+cita.leadId+'/bitacora/'+bitacoraKeyCitas())
-      .set(`No se presentó a la cita del ${cuando}${propTxt}. Próxima acción: reagendar.`);
+    };
+    bitacoraTexto = `No se presentó a la cita del ${cuando}${propTxt}. Próxima acción: reagendar.`;
   } else if(nuevoEstado === 'cancelada'){
-    await db.ref('leads/'+cita.leadId).update({
+    updates = {
       proximaAccion: `Reagendar visita — cita cancelada${propTxt}`,
       fechaProximaAccion: todayStr()
-    });
-    await db.ref('leads/'+cita.leadId+'/bitacora/'+bitacoraKeyCitas())
-      .set(`Cita cancelada — era el ${cuando}${propTxt}. Próxima acción: reagendar.`);
+    };
+    bitacoraTexto = `Cita cancelada — era el ${cuando}${propTxt}. Próxima acción: reagendar.`;
   }
+  if(!updates) return;
+
+  const bitacoraId = bitacoraKeyCitas();
+  const trace = registrarTraceLead(cita.leadId, {
+    eventType: 'LEAD_APPOINTMENT_STATUS_SYNCED',
+    actor: { type: 'AUTOMATION', id: 'synapse', name: 'Synapse' },
+    source: { type: 'AUTOMATION', page: null },
+    previousState: lead.etapa || null,
+    newState: updates.etapa || lead.etapa || null,
+    metadata: {
+      appointmentId: cita.id || null,
+      appointmentStatus: nuevoEstado,
+      appointmentDate: cita.fecha || null,
+      appointmentTime: cita.hora || null,
+      bitacoraId
+    }
+  });
+  const rootUpdates = {};
+  Object.entries(updates).forEach(([k,v])=>{ rootUpdates['leads/'+cita.leadId+'/'+k] = v; });
+  rootUpdates['leads/'+cita.leadId+'/bitacora/'+bitacoraId] = bitacoraTexto;
+  rootUpdates['leads/'+cita.leadId+'/historial/'+trace.eventId] = trace.entry;
+  rootUpdates['event_trace/'+trace.eventId] = trace.entry;
+  await db.ref().update(rootUpdates);
 }
 
 /* ---------- Horario semanal ---------- */
@@ -1596,6 +1722,29 @@ function propiedadFaltantes(p){
   if(!p.direccion || !p.direccion.trim()) falta.push('dirección');
   if(p.lat==null || p.lng==null) falta.push('coordenadas');
   return falta;
+}
+
+function registrarTracePropiedad(propiedadId, trace){
+  const eventId = db.ref('propiedades/'+propiedadId+'/historial').push().key;
+  const timestamp = trace.timestamp || new Date().toISOString();
+  const entry = {
+    eventId,
+    eventType: trace.eventType,
+    entityType: 'PROPERTY',
+    entityId: propiedadId,
+    timestamp,
+    actor: trace.actor || {
+      type: auth.currentUser ? 'USER' : 'SYSTEM',
+      id: auth.currentUser ? auth.currentUser.uid : null,
+      name: null
+    },
+    source: trace.source || { type: 'ADMIN', page: 'index.html' },
+    previousState: trace.previousState !== undefined ? trace.previousState : null,
+    newState: trace.newState !== undefined ? trace.newState : null,
+    metadata: trace.metadata || {},
+    traceVersion: '1.1'
+  };
+  return { eventId, entry };
 }
 
 function renderPropiedadesAdmin(obj){
@@ -2433,13 +2582,34 @@ function addCitaToGoogleCalendar(c){
   list.querySelectorAll('[data-action="toggle-prop"]').forEach(btn=>{
     btn.addEventListener('click', ()=>{
       const p = arr.find(x=>x.id===btn.dataset.id);
-      db.ref('propiedades/'+p.id+'/activo').set(p.activo===false ? true : false);
+      const nuevoActivo = p.activo===false ? true : false;
+      const trace = registrarTracePropiedad(p.id, {
+        eventType: nuevoActivo ? 'PROPERTY_ACTIVATED' : 'PROPERTY_DEACTIVATED',
+        previousState: p.activo!==false,
+        newState: nuevoActivo
+      });
+      const updates = {};
+      updates['propiedades/'+p.id+'/activo'] = nuevoActivo;
+      updates['propiedades/'+p.id+'/historial/'+trace.eventId] = trace.entry;
+      updates['event_trace/'+trace.eventId] = trace.entry;
+      db.ref().update(updates);
     });
   });
   list.querySelectorAll('[data-action="del-prop"]').forEach(btn=>{
     btn.addEventListener('click', ()=>{
       if(!confirm('¿Eliminar esta propiedad del catálogo?')) return;
-      db.ref('propiedades/'+btn.dataset.id).remove();
+      const propiedadId = btn.dataset.id;
+      const p = propiedades[propiedadId] || {};
+      const trace = registrarTracePropiedad(propiedadId, {
+        eventType: 'PROPERTY_DELETED',
+        previousState: { activo: p.activo!==false },
+        newState: null,
+        metadata: { nombre: p.nombre || null }
+      });
+      const updates = {};
+      updates['propiedades/'+propiedadId] = null;
+      updates['event_trace/'+trace.eventId] = trace.entry;
+      db.ref().update(updates);
     });
   });
 }
@@ -2621,6 +2791,7 @@ document.getElementById('btn-add-manual').addEventListener('click', ()=>{
         creado
       };
       updates['citas/'+citaId+'/historial/'+trace.traceId] = trace.entry;
+      updates['event_trace/'+trace.traceId] = trace.entry;
       return db.ref().update(updates);
     })
     .then(()=> leadId ? sincronizarLeadPorNuevaCita(leadId, fecha, hora, propiedadNombre) : null)
@@ -2735,7 +2906,16 @@ document.getElementById('btn-add-propiedad').addEventListener('click', ()=>{
     // CREAR: nuevo registro con push().key
     payload.activo = true;
     const propId = db.ref('propiedades').push().key;
-    writePromise = db.ref('propiedades/'+propId).set(payload);
+    const trace = registrarTracePropiedad(propId, {
+      eventType: 'PROPERTY_CREATED',
+      newState: { activo: true },
+      metadata: { nombre: payload.nombre || null, operacion: payload.operacion || null }
+    });
+    const updates = {};
+    updates['propiedades/'+propId] = payload;
+    updates['propiedades/'+propId+'/historial/'+trace.eventId] = trace.entry;
+    updates['event_trace/'+trace.eventId] = trace.entry;
+    writePromise = db.ref().update(updates);
   }
 
   writePromise
@@ -2799,6 +2979,85 @@ function buildContext(cita){
   };
 }
 
+/* ---------- CONTEXT ENGINE V2.0 ---------- */
+// Capa determinista sobre buildContext(): interpreta relaciones y eventos existentes.
+// No escribe Firebase, no ejecuta acciones y no usa IA; produce contexto operativo reusable.
+function eventosRecientesEntidad(entity){
+  return entity && entity.historial ? Object.values(entity.historial)
+    .slice()
+    .sort((a,b)=>String(b.timestamp || b.fecha || '').localeCompare(String(a.timestamp || a.fecha || '')))
+    .slice(0,5) : [];
+}
+
+function buildOperationalContext(cita){
+  const base = buildContext(cita);
+  const lead = cita.leadId ? (leads[cita.leadId] || null) : null;
+  const propiedad = cita.propiedadId ? (propiedades[cita.propiedadId] || null) : null;
+  const citaEvents = eventosRecientesEntidad(cita);
+  const leadEvents = eventosRecientesEntidad(lead);
+  const propertyEvents = eventosRecientesEntidad(propiedad);
+
+  const signals = [];
+  if(!lead) signals.push({ type:'MISSING_LEAD', level:'info' });
+  if(!propiedad && cita.propiedadId) signals.push({ type:'MISSING_PROPERTY', level:'warning' });
+  if(base.estado === 'no_asistio') signals.push({ type:'RESCHEDULE_NEEDED', level:'action' });
+  if(base.estado === 'cancelada') signals.push({ type:'RESCHEDULE_NEEDED', level:'action' });
+  if(base.estado === 'realizada') signals.push({ type:'FOLLOWUP_NEEDED', level:'action' });
+
+  // Anticipación temporal determinista: compara fechas reales, no estima probabilidades.
+  const ahora = new Date();
+  if(cita.fecha && cita.hora && ['pendiente','confirmada'].includes(base.estado)){
+    const fechaCita = new Date(cita.fecha+'T'+cita.hora);
+    if(!isNaN(fechaCita.getTime()) && fechaCita < ahora){
+      signals.push({ type:'APPOINTMENT_OVERDUE', level:'warning' });
+    }
+  }
+  if(lead && lead.fechaProximaAccion){
+    const limiteAccion = new Date(lead.fechaProximaAccion+'T23:59:59');
+    if(!isNaN(limiteAccion.getTime()) && limiteAccion < ahora){
+      signals.push({ type:'NEXT_ACTION_OVERDUE', level:'action' });
+    }
+  }
+
+  const actionProposals = [];
+  const has = type => signals.some(s=>s.type===type);
+  if(has('RESCHEDULE_NEEDED') || has('APPOINTMENT_OVERDUE')){
+    actionProposals.push({
+      actionType: 'REVIEW_APPOINTMENT',
+      label: 'Revisar / reprogramar cita',
+      reason: has('APPOINTMENT_OVERDUE') ? 'La cita quedó pendiente después de su horario.' : 'El estado de la cita requiere reprogramación.',
+      requiresHumanConfirmation: true
+    });
+  }
+  if(has('FOLLOWUP_NEEDED') || has('NEXT_ACTION_OVERDUE')){
+    actionProposals.push({
+      actionType: 'CONTACT_LEAD',
+      label: 'Contactar y dar seguimiento',
+      reason: has('NEXT_ACTION_OVERDUE') ? 'La próxima acción del lead está vencida.' : 'La visita ya ocurrió y requiere seguimiento.',
+      requiresHumanConfirmation: true
+    });
+  }
+
+  return {
+    contextVersion: '2.0',
+    generatedAt: new Date().toISOString(),
+    subject: {
+      appointmentId: cita.id || null,
+      leadId: cita.leadId || null,
+      propertyId: cita.propiedadId || null
+    },
+    current: base,
+    recentEvents: {
+      appointment: citaEvents,
+      lead: leadEvents,
+      property: propertyEvents
+    },
+    signals,
+    actionProposals,
+    suggestedNextAction: base.nextAction || (lead && lead.proximaAccion) || ''
+  };
+}
+
 // Acción de WhatsApp para una cita — ÚNICA implementación, reutilizada tanto en
 // "Próximas citas" (Resumen) como en el tab Citas (Seguimiento/Calendario).
 // Usa siempre el contexto actual (persona/propiedad vivos), no snapshots viejos.
@@ -2855,6 +3114,7 @@ function renderCitasList(citasObj){
       updates['citas/'+c.id+'/estado'] = 'cancelada';
       updates['citas/'+c.id+'/nextAction'] = NEXT_ACTION_POR_ESTADO.cancelada || 'Reprogramar';
       updates['citas/'+c.id+'/historial/'+trace.traceId] = trace.entry;
+      updates['event_trace/'+trace.traceId] = trace.entry;
       updates['citas_publicas/'+c.fecha+'_'+c.hora] = null;
       db.ref().update(updates)
         .then(()=> sincronizarLeadPorEstadoCita(c, 'cancelada'))
@@ -2876,6 +3136,62 @@ function renderCitasList(citasObj){
 }
 
 /* ---------- Seguimiento de citas ---------- */
+function timelineCitaHtml(c){
+  const eventos = c.historial ? Object.entries(c.historial)
+    .map(([id,e])=>({ id, ...e }))
+    .sort((a,b)=>String(a.timestamp || a.fecha || '').localeCompare(String(b.timestamp || b.fecha || ''))) : [];
+  if(!eventos.length) return '';
+
+  const labels = {
+    APPOINTMENT_CREATED: 'Cita creada',
+    APPOINTMENT_STATUS_CHANGED: 'Estado actualizado',
+    APPOINTMENT_CANCELLED: 'Cita cancelada',
+    APPOINTMENT_COMPLETED: 'Visita realizada',
+    APPOINTMENT_NO_SHOW: 'No asistió',
+    APPOINTMENT_RESCHEDULED: 'Cita reprogramada',
+    APPOINTMENT_FOLLOWUP_ADDED: 'Seguimiento agregado'
+  };
+
+  return `
+    <details style="margin-top:10px;">
+      <summary class="cita-meta" style="cursor:pointer;color:var(--green);">Trayectoria · ${eventos.length} evento${eventos.length===1?'':'s'}</summary>
+      <div style="margin-top:8px;border-left:1px solid var(--line);padding-left:10px;">
+        ${eventos.map(e=>{
+          const fecha = e.timestamp || e.fecha;
+          const label = labels[e.eventType] || e.tipo || 'Evento';
+          const cambio = e.previousState !== undefined && e.newState !== undefined && e.newState !== null
+            ? ` · ${escapeHtml(String(e.previousState || '—'))} → ${escapeHtml(String(e.newState))}` : '';
+          const source = e.source && e.source.type ? ` · ${escapeHtml(e.source.type)}` : '';
+          return `<div class="cita-meta" style="margin:6px 0;"><b>${escapeHtml(label)}</b>${cambio}${source}<br><span>${fecha ? new Date(fecha).toLocaleString('es-MX') : ''}</span></div>`;
+        }).join('')}
+      </div>
+    </details>
+  `;
+}
+
+function contextActionsHtml(c){
+  const op = buildOperationalContext(c);
+  if(!op.actionProposals.length) return '';
+  return `<div style="margin-top:6px;">${op.actionProposals.map(a=>{
+    const enabled = a.actionType === 'CONTACT_LEAD' && telefonoValidoParaWhatsApp(op.current.persona.telefono);
+    return `<button class="btn btn-sm" type="button" ${enabled ? `data-action="context-contact" data-id="${escapeHtml(c.id)}"` : 'disabled'} title="${escapeHtml(a.reason)}">Sugerencia · ${escapeHtml(a.label)}</button>`;
+  }).join(' ')}</div>`;
+}
+
+function contextSignalsHtml(c){
+  const op = buildOperationalContext(c);
+  if(!op.signals.length) return '';
+  const labels = {
+    MISSING_LEAD: 'Sin lead vinculado',
+    MISSING_PROPERTY: 'Propiedad no disponible',
+    RESCHEDULE_NEEDED: 'Requiere reprogramación',
+    FOLLOWUP_NEEDED: 'Requiere seguimiento',
+    APPOINTMENT_OVERDUE: 'Cita pendiente vencida',
+    NEXT_ACTION_OVERDUE: 'Próxima acción vencida'
+  };
+  return `<div class="cita-meta" style="margin-top:4px;color:var(--amber);">Contexto · ${op.signals.map(s=>escapeHtml(labels[s.type] || s.type)).join(' · ')}</div>`;
+}
+
 function citaSeguimientoItemHtml(c){
   const ctx = buildContext(c);
   const estadoActual = ctx.estado;
@@ -2887,6 +3203,8 @@ function citaSeguimientoItemHtml(c){
           <b>${escapeHtml(ctx.persona.nombre)}</b> — ${c.fecha} ${c.hora} ${ctx.propiedad.nombre?'· 🏠 '+escapeHtml(ctx.propiedad.nombre):''}
           <div class="cita-meta">${escapeHtml(ctx.persona.telefono)}</div>
           <div class="cita-meta" style="color:var(--amber);">→ Siguiente: ${escapeHtml(ctx.nextAction)}</div>
+          ${contextSignalsHtml(c)}
+          ${contextActionsHtml(c)}
         </div>
         <select class="seg-estado est-${estadoActual}" data-action="seg-estado" data-id="${c.id}">
           ${Object.entries(ESTADOS_CITA).map(([val,label])=>`<option value="${val}" ${val===estadoActual?'selected':''}>${label}</option>`).join('')}
@@ -2896,6 +3214,7 @@ function citaSeguimientoItemHtml(c){
       <div class="seg-notas">
         ${notas.length ? notas.map(([nid,n])=>`<div class="seg-nota-item">🗒️ ${new Date(n.fecha).toLocaleString('es-MX',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})} — ${escapeHtml(n.texto)}</div>`).join('') : ''}
       </div>
+      ${timelineCitaHtml(c)}
       <div class="seg-add-row">
         <input type="text" data-nota-input="${c.id}" placeholder="Agregar nota de seguimiento...">
         <button class="btn btn-sm" data-action="seg-add-nota" data-id="${c.id}">Agregar</button>
@@ -2917,12 +3236,32 @@ function attachSeguimientoHandlers(container){
       updates['citas/'+id+'/estado'] = estadoNuevo;
       updates['citas/'+id+'/nextAction'] = NEXT_ACTION_POR_ESTADO[estadoNuevo] || '';
       updates['citas/'+id+'/historial/'+trace.traceId] = trace.entry;
+      updates['event_trace/'+trace.traceId] = trace.entry;
       db.ref().update(updates)
         .then(()=>{
           sel.className = 'seg-estado est-' + estadoNuevo;
           return sincronizarLeadPorEstadoCita(cita, estadoNuevo);
         })
         .catch(err=> alert('No se pudo actualizar el estado.\n\nError: ' + err.message));
+    });
+  });
+
+  container.querySelectorAll('[data-action="context-contact"]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const cita = ultimasCitas[btn.dataset.id];
+      if(!cita || !auth.currentUser) return;
+      const trace = registrarTraceCita(cita.id, {
+        tipo: 'accion_confirmada',
+        origen: 'synapse',
+        eventType: 'ACTION_CONFIRMED',
+        metadata: { actionType: 'CONTACT_LEAD', channel: 'WHATSAPP' }
+      });
+      const updates = {};
+      updates['citas/'+cita.id+'/historial/'+trace.traceId] = trace.entry;
+      updates['event_trace/'+trace.traceId] = trace.entry;
+      db.ref().update(updates)
+        .then(()=> abrirWhatsAppParaCita(cita))
+        .catch(err=> alert('No se pudo registrar la acción.\n\nError: ' + err.message));
     });
   });
 
@@ -2942,10 +3281,23 @@ function attachSeguimientoHandlers(container){
       if(!auth.currentUser){ alert('Tu sesión se cerró, vuelve a iniciar sesión.'); return; }
       btn.disabled = true;
       const notaId = db.ref('citas/'+id+'/seguimiento').push().key;
-      db.ref('citas/'+id+'/seguimiento/'+notaId).set({
+      const fechaSeguimiento = new Date().toISOString();
+      const trace = registrarTraceCita(id, {
+        tipo: 'seguimiento',
+        fecha: fechaSeguimiento,
+        origen: 'synapse',
+        eventType: 'APPOINTMENT_FOLLOWUP_ADDED',
+        seguimientoId: notaId,
+        metadata: { seguimientoId: notaId }
+      });
+      const updates = {};
+      updates['citas/'+id+'/seguimiento/'+notaId] = {
         texto,
-        fecha: new Date().toISOString()
-      })
+        fecha: fechaSeguimiento
+      };
+      updates['citas/'+id+'/historial/'+trace.traceId] = trace.entry;
+      updates['event_trace/'+trace.traceId] = trace.entry;
+      db.ref().update(updates)
         .then(()=>{ input.value = ''; })
         .catch(err=> alert('No se pudo guardar la nota.\n\nError: ' + err.message))
         .finally(()=>{ btn.disabled = false; });
