@@ -547,7 +547,6 @@ etapa: 'visita_programada',
     fechaCierre: null,
     checklist: {},
     bitacora: { [bitacoraKey()]: `Nodo creado desde agenda pública. Intención: ${document.getElementById('f-intencion')?.value || 'No especificada'}. Cita: ${selectedSlot.label}${propTxt}.` }
- }
   });
   if(telNorm){
     db.ref('telefonos_index/'+telNorm).set(newLeadId).catch(()=>{});
