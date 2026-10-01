@@ -14,3 +14,5 @@ jobs:
           node-version: '22'
       - name: Check inline JavaScript syntax
         run: python3 scripts/check-inline-js.py
+
+# Recheck against main after reservar.html syntax hotfix.
