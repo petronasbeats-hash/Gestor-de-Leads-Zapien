@@ -1601,7 +1601,7 @@ function renderPropiedadesAdmin(obj){
       <div>
         <b>${escapeHtml(p.nombre)}</b> ${p.activo===false?'<span class="cita-meta">(inactiva)</span>':''}
         <div class="cita-meta">${escapeHtml(p.direccion||'')}${(p.lat!=null&&p.lng!=null)?' · '+p.lat+', '+p.lng:' · sin coordenadas'}</div>
-        <div class="cita-meta">${p.operacion?p.operacion+' · ':''}${p.precio?'
+        <div class="cita-meta">${p.operacion?p.operacion+' · ':''}${p.precio ? '$' + escapeHtml(String(p.precio)) : 'Sin precio'}</div>
         ${faltantes.length ? `<div class="cita-meta" style="color:var(--amber);">⚠ Falta: ${faltantes.join(', ')}</div>` : `<div class="cita-meta" style="color:var(--green);">✓ Ficha completa</div>`}
       </div>
       <div style="display:flex;gap:6px;">
