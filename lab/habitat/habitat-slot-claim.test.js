@@ -4,14 +4,17 @@ const {claimSlot, releaseOwnedClaim} = require("./habitat-slot-claim.js");
 function fakeDb(){
   const store = new Map();
   const db = {ref(path){
-    return {async transaction(update){
-      // Simulates serialized RTDB transactions for deterministic contract tests.
-      const next = update(store.has(path) ? store.get(path) : null);
-      if(next === undefined) return {committed:false};
-      if(next === null) store.delete(path);
-      else store.set(path,next);
-      return {committed:true,snapshot:{val:()=>next}};
-    }};
+    return {
+      async transaction(update){
+        // Simulates serialized RTDB transactions for deterministic contract tests.
+        const current = store.has(path) ? store.get(path) : null;
+        const next = update(current && typeof current==="object" ? {...current} : current);
+        if(next === undefined) return {committed:false,snapshot:{val:()=>current}};
+        if(next === null) store.delete(path);
+        else store.set(path,next);
+        return {committed:true,snapshot:{val:()=>next}};
+      }
+    };
   }};
   return {db,store};
 }
