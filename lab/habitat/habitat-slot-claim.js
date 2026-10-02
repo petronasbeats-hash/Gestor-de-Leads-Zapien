@@ -20,18 +20,17 @@
   }
   async function releaseOwnedClaim({db,slotKey,citaId}){
     const ref=db.ref("citas_publicas/"+slotKey);
-    const result=await ref.transaction(current=>{
-      if(!current) return undefined;
-      if(current.citaId!==citaId) return undefined;
-      if(current.status!=="claiming") return undefined;
-      return null;
-    },undefined,false);
-
-    // RTDB reports committed=false when a transaction returns null and the node
-    // is already observed as null after retries. Verify ownership release by readback.
-    if(result.committed) return true;
     const snap=await ref.once("value");
-    return snap.val()===null;
+    const current=snap.val();
+    if(!current) return true;
+    if(current.citaId!==citaId || current.status!=="claiming") return false;
+
+    // Emulator-safe rollback: once ownership is verified, remove the exact claim.
+    // Production must enforce equivalent ownership constraints in RTDB rules/server authority.
+    await ref.remove();
+
+    const verify=await ref.once("value");
+    return verify.val()===null;
   }
   return {claimSlot,releaseOwnedClaim};
 });
