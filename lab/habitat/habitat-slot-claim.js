@@ -20,13 +20,20 @@
   }
   async function releaseOwnedClaim({db,slotKey,citaId}){
     const ref=db.ref("citas_publicas/"+slotKey);
-    // Never use read-then-remove: another claimant could acquire the slot between operations.
-    // A tombstone is atomically written only if this caller still owns a pending claim.
-    const result=await ref.transaction(current=>
-      current && current.citaId===citaId && current.status==="claiming"
-        ? {...current,status:"released"} : undefined
-    ,undefined,false);
-    return result.committed && result.snapshot.val()?.status==="released";
+
+    // Emulator-compatible ownership rollback:
+    // atomically mark the owned claim as released first.
+    const mark=await ref.transaction(current=>{
+      if(!current || current.citaId!==citaId || current.status!=="claiming") return;
+      current.status="released";
+      return current;
+    });
+
+    if(!mark.committed) return false;
+
+    // A released tombstone is considered free by claimSlot.
+    const verify=await ref.once("value");
+    return verify.val()?.citaId===citaId && verify.val()?.status==="released";
   }
   return {claimSlot,releaseOwnedClaim};
 });
