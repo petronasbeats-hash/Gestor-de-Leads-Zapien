@@ -1,0 +1,17 @@
+const assert = require('node:assert/strict');
+const {assess,makeIntent} = require('./habitat-availability.js');
+const pub = {activo:true,unitId:'u-1'};
+const unit = {unitId:'u-1',commercialAvailability:'available',occupancyStatus:'vacant',operationalStatus:'ready'};
+assert.equal(assess({activo:true},null).canRequestVisit,true);
+assert.equal(assess({activo:true},null).canRequestHold,false);
+assert.equal(assess(pub,null).reason,'UNIT_UNVERIFIED');
+assert.equal(assess(pub,unit).canRequestVisit,true);
+assert.equal(assess(pub,unit).canRequestHold,false);
+assert.equal(assess(pub,{...unit,occupancyStatus:'occupied'}).canRequestVisit,false);
+assert.equal(assess(pub,{...unit,operationalStatus:'maintenance'}).canRequestVisit,false);
+assert.equal(assess(pub,{...unit,commercialAvailability:'held'}).canRequestVisit,false);
+assert.equal(assess(pub,{...unit,commercialAvailability:'unknown'}).canRequestVisit,false);
+assert.equal(assess({...pub,activo:false},unit).canRequestVisit,false);
+assert.equal(makeIntent({intentType:'request_visit',propiedadId:'p-1'}).status,'draft');
+assert.throws(()=>makeIntent({intentType:'book',propiedadId:'p-1'}));
+console.log('Habitat adapter: 12 tests passed');
