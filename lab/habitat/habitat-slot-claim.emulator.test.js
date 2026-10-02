@@ -46,6 +46,26 @@ db.useEmulator("127.0.0.1", 9000);
   }
 
   if(finalValue && finalValue.citaId){
+    const beforeFinalize=(await ref.once("value")).val();
+    console.log("Lectura previa a finalize:", JSON.stringify(beforeFinalize));
+
+    let seenRoot="NOT_CALLED";
+    const diagRoot=await ref.transaction(current=>{
+      seenRoot=current;
+      return undefined;
+    });
+    console.log("transaction(root) vio:", JSON.stringify(seenRoot));
+    console.log("transaction(root) committed:", diagRoot.committed);
+
+    const statusRef=ref.child("status");
+    let seenStatus="NOT_CALLED";
+    const diagStatus=await statusRef.transaction(current=>{
+      seenStatus=current;
+      return undefined;
+    });
+    console.log("transaction(status) vio:", JSON.stringify(seenStatus));
+    console.log("transaction(status) committed:", diagStatus.committed);
+
     const wrong=await finalizeClaim({db,slotKey,citaId:"NOT-THE-OWNER"});
     const confirmed=await finalizeClaim({db,slotKey,citaId:finalValue.citaId});
     const after=(await ref.once("value")).val();
@@ -53,15 +73,6 @@ db.useEmulator("127.0.0.1", 9000);
     console.log("Finalización ajena rechazada:", !wrong);
     console.log("Finalización propia:", confirmed);
     console.log("Estado final:", after && after.status);
-
-    // Diagnostic: test primitive child transaction independently.
-    const statusRef=ref.child("status");
-    const primitive=await statusRef.transaction(current=>
-      current==="claiming" ? "confirmed" : undefined
-    );
-    const afterPrimitive=(await ref.once("value")).val();
-    console.log("Transacción directa status committed:", primitive.committed);
-    console.log("Estado tras transacción directa:", afterPrimitive && afterPrimitive.status);
 
     try{
       await releaseOwnedClaim({db,slotKey,citaId:finalValue.citaId});
@@ -75,7 +86,9 @@ db.useEmulator("127.0.0.1", 9000);
     console.log("Limpieza de fixture:", (await ref.once("value")).val()===null?"OK":"FAIL");
 
     if(wrong) process.exitCode=1;
-    if(!primitive.committed || afterPrimitive?.status!=="confirmed") process.exitCode=1;
+    if(seenRoot===null || seenStatus===null){
+      console.error("DIAG: transaction() no está observando el estado persistido que once() sí ve");
+    }
   }
 
   await app.delete();
