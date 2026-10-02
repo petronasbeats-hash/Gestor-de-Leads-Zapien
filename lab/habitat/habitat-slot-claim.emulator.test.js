@@ -51,11 +51,11 @@ db.useEmulator("127.0.0.1", 9000);
     const cleanupValue = cleanupSnap.val();
     console.log("Release reportado:", released ? "true" : "false");
     console.log("Nodo tras limpieza:", cleanupValue === null ? "null" : JSON.stringify(cleanupValue));
-    if(cleanupValue !== null){
-      console.error("FAIL: el claim siguió presente tras rollback");
+    if(!cleanupValue || cleanupValue.status !== "released"){
+      console.error("FAIL: el claim no quedó liberado de forma atómica");
       process.exitCode=1;
     } else {
-      console.log("Limpieza: OK");
+      console.log("Limpieza: OK (tombstone released)");
     }
   }
 
