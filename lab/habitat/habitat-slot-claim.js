@@ -27,14 +27,10 @@
     return !!result.committed;
   }
 
-  async function releaseOwnedClaim({db,slotKey,citaId}){
-    const ref=db.ref("citas_publicas/"+slotKey);
-    const snap=await ref.once("value");
-    const current=snap.val();
-    if(!current || current.citaId!==citaId || current.status!=="claiming") return false;
-    await ref.remove();
-    const verify=await ref.once("value");
-    return verify.val()===null;
+  async function releaseOwnedClaim(){
+    // Fail closed. Client-side read-then-remove is race-prone; a secure
+    // server-authorized rollback must be implemented before integration.
+    throw new Error("ROLLBACK_REQUIRES_SERVER_AUTHORITY");
   }
   return {claimSlot,finalizeClaim,releaseOwnedClaim};
 });
