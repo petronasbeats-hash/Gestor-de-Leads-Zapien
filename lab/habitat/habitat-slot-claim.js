@@ -18,20 +18,23 @@
     if(!result.committed) return {claimed:false,reason:"SLOT_TAKEN"};
     return {claimed:true,claim};
   }
+  async function finalizeClaim({db,slotKey,citaId}){
+    const ref=db.ref("citas_publicas/"+slotKey);
+    const result=await ref.transaction(current=>{
+      if(!current || current.citaId!==citaId || current.status!=="claiming") return;
+      return {...current,status:"confirmed"};
+    });
+    return !!result.committed;
+  }
+
   async function releaseOwnedClaim({db,slotKey,citaId}){
     const ref=db.ref("citas_publicas/"+slotKey);
-
-    // Emulator-compatible ownership rollback:
-    // atomically mark the owned claim as released first.
-    const mark=await ref.transaction(current=>{
-      if(!current || current.citaId!==citaId || current.status!=="claiming") return;
-      return {...current,status:"released"};
-    });
-
-    if(!mark.committed) return false;
-    const value = mark.snapshot && typeof mark.snapshot.val==="function"
-      ? mark.snapshot.val() : null;
-    return !!value && value.citaId===citaId && value.status==="released";
+    const snap=await ref.once("value");
+    const current=snap.val();
+    if(!current || current.citaId!==citaId || current.status!=="claiming") return false;
+    await ref.remove();
+    const verify=await ref.once("value");
+    return verify.val()===null;
   }
-  return {claimSlot,releaseOwnedClaim};
+  return {claimSlot,finalizeClaim,releaseOwnedClaim};
 });
