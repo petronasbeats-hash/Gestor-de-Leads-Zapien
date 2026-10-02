@@ -47,7 +47,16 @@ db.useEmulator("127.0.0.1", 9000);
 
   if(finalValue && finalValue.citaId){
     const released = await releaseOwnedClaim({db,slotKey,citaId:finalValue.citaId});
-    console.log("Limpieza:", released ? "OK" : "NO LIBERADO");
+    const cleanupSnap = await ref.once("value");
+    const cleanupValue = cleanupSnap.val();
+    console.log("Release reportado:", released ? "true" : "false");
+    console.log("Nodo tras limpieza:", cleanupValue === null ? "null" : JSON.stringify(cleanupValue));
+    if(cleanupValue !== null){
+      console.error("FAIL: el claim siguió presente tras rollback");
+      process.exitCode=1;
+    } else {
+      console.log("Limpieza: OK");
+    }
   }
 
   await app.delete();
