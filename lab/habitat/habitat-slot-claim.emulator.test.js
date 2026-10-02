@@ -49,10 +49,20 @@ db.useEmulator("127.0.0.1", 9000);
     const wrong=await finalizeClaim({db,slotKey,citaId:"NOT-THE-OWNER"});
     const confirmed=await finalizeClaim({db,slotKey,citaId:finalValue.citaId});
     const after=(await ref.once("value")).val();
+
     console.log("Finalización ajena rechazada:", !wrong);
     console.log("Finalización propia:", confirmed);
     console.log("Estado final:", after && after.status);
-    if(wrong || !confirmed || after?.status!=="confirmed") process.exitCode=1;
+
+    // Diagnostic: test primitive child transaction independently.
+    const statusRef=ref.child("status");
+    const primitive=await statusRef.transaction(current=>
+      current==="claiming" ? "confirmed" : undefined
+    );
+    const afterPrimitive=(await ref.once("value")).val();
+    console.log("Transacción directa status committed:", primitive.committed);
+    console.log("Estado tras transacción directa:", afterPrimitive && afterPrimitive.status);
+
     try{
       await releaseOwnedClaim({db,slotKey,citaId:finalValue.citaId});
       process.exitCode=1;
@@ -60,10 +70,12 @@ db.useEmulator("127.0.0.1", 9000);
       if(err.message!=="ROLLBACK_REQUIRES_SERVER_AUTHORITY") process.exitCode=1;
       else console.log("Rollback inseguro: deshabilitado correctamente");
     }
-    // Cleanup is test-only and targets a reserved future slot; never use this
-    // unconditional remove in the public booking flow.
+
     await ref.remove();
     console.log("Limpieza de fixture:", (await ref.once("value")).val()===null?"OK":"FAIL");
+
+    if(wrong) process.exitCode=1;
+    if(!primitive.committed || afterPrimitive?.status!=="confirmed") process.exitCode=1;
   }
 
   await app.delete();
