@@ -30,7 +30,7 @@ function fakeDb(){
   assert.equal(store.get("citas_publicas/"+slotKey).citaId,winner);
   assert.equal(await releaseOwnedClaim({db,slotKey,citaId:loser}),false,"Loser cannot release winner");
   assert.equal(await releaseOwnedClaim({db,slotKey,citaId:winner}),true,"Owner can rollback pending claim");
-  assert.equal(store.has("citas_publicas/"+slotKey),false);
+  assert.equal(store.get("citas_publicas/"+slotKey).status,"released");
   assert.equal((await claimSlot({...base,citaId:"C"})).claimed,true,"Slot reusable after rollback");
   store.get("citas_publicas/"+slotKey).status="confirmed";
   assert.equal(await releaseOwnedClaim({db,slotKey,citaId:"C"}),false,"Confirmed claim cannot be rolled back");
