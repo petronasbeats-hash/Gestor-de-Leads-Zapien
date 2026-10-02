@@ -1,6 +1,6 @@
 const firebase = require("firebase/compat/app");
 require("firebase/compat/database");
-const {claimSlot, releaseOwnedClaim} = require("./habitat-slot-claim.js");
+const {claimSlot, finalizeClaim, releaseOwnedClaim} = require("./habitat-slot-claim.js");
 
 const app = firebase.initializeApp({
   projectId: "demo-synapse-lab",
@@ -46,17 +46,24 @@ db.useEmulator("127.0.0.1", 9000);
   }
 
   if(finalValue && finalValue.citaId){
-    const released = await releaseOwnedClaim({db,slotKey,citaId:finalValue.citaId});
-    const cleanupSnap = await ref.once("value");
-    const cleanupValue = cleanupSnap.val();
-    console.log("Release reportado:", released ? "true" : "false");
-    console.log("Nodo tras limpieza:", cleanupValue === null ? "null" : JSON.stringify(cleanupValue));
-    if(!cleanupValue || cleanupValue.status !== "released"){
-      console.error("FAIL: el claim no quedó liberado de forma atómica");
+    const wrong=await finalizeClaim({db,slotKey,citaId:"NOT-THE-OWNER"});
+    const confirmed=await finalizeClaim({db,slotKey,citaId:finalValue.citaId});
+    const after=(await ref.once("value")).val();
+    console.log("Finalización ajena rechazada:", !wrong);
+    console.log("Finalización propia:", confirmed);
+    console.log("Estado final:", after && after.status);
+    if(wrong || !confirmed || after?.status!=="confirmed") process.exitCode=1;
+    try{
+      await releaseOwnedClaim({db,slotKey,citaId:finalValue.citaId});
       process.exitCode=1;
-    } else {
-      console.log("Limpieza: OK (tombstone released)");
+    }catch(err){
+      if(err.message!=="ROLLBACK_REQUIRES_SERVER_AUTHORITY") process.exitCode=1;
+      else console.log("Rollback inseguro: deshabilitado correctamente");
     }
+    // Cleanup is test-only and targets a reserved future slot; never use this
+    // unconditional remove in the public booking flow.
+    await ref.remove();
+    console.log("Limpieza de fixture:", (await ref.once("value")).val()===null?"OK":"FAIL");
   }
 
   await app.delete();
