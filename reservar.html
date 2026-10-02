@@ -260,7 +260,6 @@ function loadPublicAvailability(){
   db.ref('propiedades').on('value', snap=>{
     propiedades = snap.val() || {};
     renderPropiedadPicker();
-    renderManualPropiedadSelect();
     renderSlots();
   });
   db.ref('units').on('value', snap=>{
