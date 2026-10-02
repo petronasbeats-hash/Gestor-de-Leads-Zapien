@@ -14,23 +14,19 @@
       availabilityVersion:availabilityVersion||null,
       intentType:"request_visit", status:"claiming"
     };
-    const result=await ref.transaction(current=>current===null?claim:undefined,undefined,false);
+    const result=await ref.transaction(current=>(current===null || current.status==='released')?claim:undefined,undefined,false);
     if(!result.committed) return {claimed:false,reason:"SLOT_TAKEN"};
     return {claimed:true,claim};
   }
   async function releaseOwnedClaim({db,slotKey,citaId}){
     const ref=db.ref("citas_publicas/"+slotKey);
-    const snap=await ref.once("value");
-    const current=snap.val();
-    if(!current) return true;
-    if(current.citaId!==citaId || current.status!=="claiming") return false;
-
-    // Emulator-safe rollback: once ownership is verified, remove the exact claim.
-    // Production must enforce equivalent ownership constraints in RTDB rules/server authority.
-    await ref.remove();
-
-    const verify=await ref.once("value");
-    return verify.val()===null;
+    // Never use read-then-remove: another claimant could acquire the slot between operations.
+    // A tombstone is atomically written only if this caller still owns a pending claim.
+    const result=await ref.transaction(current=>
+      current && current.citaId===citaId && current.status==="claiming"
+        ? {...current,status:"released"} : undefined
+    ,undefined,false);
+    return result.committed && result.snapshot.val()?.status==="released";
   }
   return {claimSlot,releaseOwnedClaim};
 });
