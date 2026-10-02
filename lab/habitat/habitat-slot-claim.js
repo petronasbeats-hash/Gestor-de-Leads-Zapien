@@ -25,15 +25,13 @@
     // atomically mark the owned claim as released first.
     const mark=await ref.transaction(current=>{
       if(!current || current.citaId!==citaId || current.status!=="claiming") return;
-      current.status="released";
-      return current;
+      return {...current,status:"released"};
     });
 
     if(!mark.committed) return false;
-
-    // A released tombstone is considered free by claimSlot.
-    const verify=await ref.once("value");
-    return verify.val()?.citaId===citaId && verify.val()?.status==="released";
+    const value = mark.snapshot && typeof mark.snapshot.val==="function"
+      ? mark.snapshot.val() : null;
+    return !!value && value.citaId===citaId && value.status==="released";
   }
   return {claimSlot,releaseOwnedClaim};
 });
