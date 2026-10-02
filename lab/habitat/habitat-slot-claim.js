@@ -19,10 +19,19 @@
     return {claimed:true,claim};
   }
   async function releaseOwnedClaim({db,slotKey,citaId}){
-    const result=await db.ref("citas_publicas/"+slotKey)
-      .transaction(current=>current && current.citaId===citaId &&
-        current.status==="claiming"?null:undefined,undefined,false);
-    return result.committed;
+    const ref=db.ref("citas_publicas/"+slotKey);
+    const result=await ref.transaction(current=>{
+      if(!current) return undefined;
+      if(current.citaId!==citaId) return undefined;
+      if(current.status!=="claiming") return undefined;
+      return null;
+    },undefined,false);
+
+    // RTDB reports committed=false when a transaction returns null and the node
+    // is already observed as null after retries. Verify ownership release by readback.
+    if(result.committed) return true;
+    const snap=await ref.once("value");
+    return snap.val()===null;
   }
   return {claimSlot,releaseOwnedClaim};
 });
