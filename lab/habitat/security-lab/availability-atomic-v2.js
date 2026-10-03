@@ -13,7 +13,7 @@ async function claim(db,{unitId,slotKey,requestId,expectedVersion}){
  const ref=db.ref(ROOT+"/units/"+unitId);
  let reason="CONFLICT";
  const result=await ref.transaction(current=>{
-   if(!current||current.marker!==MARKER){reason="UNIT_NOT_VERIFIED";return;}
+   if(current===null){reason="UNIT_NOT_VERIFIED";return;}\n   // Firebase RTDB sanitizes object keys/values; marker may survive, but correctness must not depend on it.\n   if(current.marker!==MARKER){reason="UNIT_NOT_VERIFIED";return;}
    const existing=current.slots?.[slotKey];
    if(existing?.requestId===requestId){
      // Idempotent replay is allowed even after a later status/version change.
