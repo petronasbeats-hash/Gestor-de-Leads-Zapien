@@ -23,7 +23,7 @@ async function book(db, input, failAt) {
   const request = base.child("requests/" + requestId);
   const citaId = "LAB-CITA-" + requestId;
 
-  const identity = await request.transaction(
+  // Distinguish sequential replay conflicts before entering the transaction.\n  const existing = (await request.once("value")).val();\n  if (existing && existing.fingerprint !== fingerprint) {\n    throw Error("IDEMPOTENCY_CONFLICT");\n  }\n\n  const identity = await request.transaction(
     current => {
       if (current === null) {
         return {
