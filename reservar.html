@@ -167,6 +167,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <script src="lab/habitat/habitat-availability.js"></script>
+<script src="lab/habitat/habitat-slot-claim.js"></script>
 
 <script>
 /* =========================================================
@@ -623,22 +624,35 @@ document.getElementById('btn-confirm-booking').addEventListener('click', async (
   btn.disabled = true; btn.textContent = 'Agendando…';
 
   try{
-    // 1. crear/actualizar el lead PRIMERO — si esto falla, no se toca el horario todavía
+    if(!window.HabitatSlotClaim || typeof window.HabitatSlotClaim.claimSlot !== 'function'){
+      throw new Error('HABITAT_SLOT_CLAIM_UNAVAILABLE');
+    }
+
+    // 1. Reservar el horario PRIMERO mediante una transacción atómica.
+    // Solo un cliente puede ganar este slot.
+    const citaId = db.ref('citas').push().key;
+    const claimResult = await window.HabitatSlotClaim.claimSlot({
+      db,
+      slotKey: slotFlagKey,
+      citaId,
+      propiedadId,
+      unitId,
+      availabilityVersion
+    });
+
+    if(!claimResult.claimed){
+      alert('Ese horario acaba de ser tomado. Elige otro disponible.');
+      overlay.classList.remove('open');
+      renderSlots();
+      return;
+    }
+
+    // 2. Con el horario ya ganado, crear/actualizar lead y guardar la cita.
+    // El slot queda confirmado desde la misma transacción de claim.
     const nombreCompleto = apellido ? `${nombre} ${apellido}` : nombre;
     const leadIdFinal = await upsertLeadParaCita({nombre, apellido, telefono, notas, propiedadId, propiedadNombre});
 
-    // 2. marcar el horario ocupado Y guardar la cita como UNA sola operación atómica:
-    // o se guardan las dos juntas, o no se guarda ninguna — así no puede quedar
-    // un horario "fantasma" ocupado sin que exista su cita.
-    const citaId = db.ref('citas').push().key;
-    const updates = {};
-    updates['citas_publicas/'+slotFlagKey] = {
-      propiedadId: propiedadId || null,
-      unitId,
-      intentType: 'request_visit',
-      availabilityVersion
-    };
-    updates['citas/'+citaId] = {
+    await db.ref('citas/'+citaId).set({
       nombre: nombreCompleto, telefono, notas,
       propiedadId, propiedadNombre,
       unitId,
@@ -649,8 +663,7 @@ document.getElementById('btn-confirm-booking').addEventListener('click', async (
       leadId: leadIdFinal || null,
       estado: 'pendiente',
       creado: new Date().toISOString()
-    };
-    await db.ref().update(updates);
+    });
 
     const propObj = propiedadId ? propiedades[propiedadId] : null;
     const mapsLink = mapsLinkFor(propObj);
@@ -668,9 +681,10 @@ document.getElementById('btn-confirm-booking').addEventListener('click', async (
     `;
   }catch(err){
     console.error(err);
-    alert('Ese horario ya no está disponible, elige otro.');
+    alert('No pudimos completar la reserva. El horario quedó protegido para evitar una doble reserva. Contáctanos por WhatsApp para validar el estado.');
     btn.disabled = false; btn.textContent = 'Confirmar cita';
     overlay.classList.remove('open');
+    renderSlots();
   }
 });
 
