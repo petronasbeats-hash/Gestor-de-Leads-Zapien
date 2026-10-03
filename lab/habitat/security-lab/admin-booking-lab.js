@@ -23,7 +23,14 @@ async function book(db, input, failAt) {
   const request = base.child("requests/" + requestId);
   const citaId = "LAB-CITA-" + requestId;
 
-  // Distinguish sequential replay conflicts before entering the transaction.\n  const existing = (await request.once("value")).val();\n  if (existing && existing.fingerprint !== fingerprint) {\n    throw Error("IDEMPOTENCY_CONFLICT");\n  }\n\n  const identity = await request.transaction(
+  // Fast sequential conflict detection.
+  const existing = (await request.once("value")).val();
+  if (existing && existing.fingerprint !== fingerprint) {
+    throw Error("IDEMPOTENCY_CONFLICT");
+  }
+
+  // Authoritative identity reservation.
+  const identity = await request.transaction(
     current => {
       if (current === null) {
         return {
@@ -35,20 +42,27 @@ async function book(db, input, failAt) {
           marker: MARKER
         };
       }
-      if (current.fingerprint === fingerprint) return current;
-      return; // Abort: requestId already belongs to another payload.
+
+      if (current.fingerprint === fingerprint) {
+        return current;
+      }
+
+      return;
     },
     undefined,
     false
   );
 
-  if (!identity.committed) throw Error("IDEMPOTENCY_CONFLICT");
+  if (!identity.committed) {
+    throw Error("IDEMPOTENCY_CONFLICT");
+  }
 
   const identityValue = identity.snapshot.val();
   if (!identityValue || identityValue.fingerprint !== fingerprint) {
     throw Error("IDEMPOTENCY_CONFLICT");
   }
 
+  // Atomic shared-slot exclusion boundary.
   const slot = base.child("slots/" + slotKey);
   const claim = await slot.transaction(
     current => {
@@ -61,6 +75,7 @@ async function book(db, input, failAt) {
           marker: MARKER
         };
       }
+
       if (
         current.marker === MARKER &&
         current.requestId === requestId &&
@@ -69,24 +84,37 @@ async function book(db, input, failAt) {
       ) {
         return current;
       }
+
       return;
     },
     undefined,
     false
   );
 
-  if (!claim.committed) return { ok: false, reason: "SLOT_TAKEN" };
+  if (!claim.committed) {
+    return { ok: false, reason: "SLOT_TAKEN" };
+  }
 
-  if (failAt === "after_claim") throw Error("INJECTED_AFTER_CLAIM");
+  if (failAt === "after_claim") {
+    throw Error("INJECTED_AFTER_CLAIM");
+  }
 
   const cita = base.child("citas/" + citaId);
   await cita.transaction(
-    current => current || { requestId, slotKey, unitId, marker: MARKER },
+    current =>
+      current || {
+        requestId,
+        slotKey,
+        unitId,
+        marker: MARKER
+      },
     undefined,
     false
   );
 
-  if (failAt === "after_cita") throw Error("INJECTED_AFTER_CITA");
+  if (failAt === "after_cita") {
+    throw Error("INJECTED_AFTER_CITA");
+  }
 
   await base.child("events/" + requestId + "/cita_created").set({
     type: "CITA_CREATED",
