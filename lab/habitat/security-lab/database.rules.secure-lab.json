@@ -1,0 +1,36 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+    "public_properties": {
+      ".read": true
+    },
+    "public_availability": {
+      ".read": true
+    },
+    "citas_publicas": {
+      ".read": false,
+      ".write": false
+    },
+    "booking_requests": {
+      ".read": false,
+      ".write": false
+    },
+    "citas": {
+      ".read": false,
+      ".write": false
+    },
+    "system_events": {
+      ".read": false,
+      ".write": false
+    },
+    "leads": {
+      ".read": false,
+      ".write": false
+    },
+    "telefonos_index": {
+      ".read": false,
+      ".write": false
+    }
+  }
+}
