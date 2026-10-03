@@ -15,5 +15,12 @@ const {createBookingModel}=require("./server-booking-model.js");
   const broken=createBookingModel();
   await assert.rejects(()=>broken.book({requestId:"A",slotKey:"2099-12-02_12:00",unitId:"YANG-01"},"after_claim"),/INJECTED_AFTER_CLAIM/);
   assert.equal(broken.citas.size,0);
-  assert.equal((await broken.recover("A")).recovered,false); // recovery returns book result
+  assert.equal((await broken.recover("A")).ok,true);
+  assert.equal(broken.citas.size,1);
+  assert.equal((await broken.recover("A")).reason,"NOT_PROCESSING");
+  const afterCita=createBookingModel();
+  await assert.rejects(()=>afterCita.book({requestId:"B",slotKey:"2099-12-03_12:00",unitId:"YANG-01"},"after_cita"),/INJECTED_AFTER_CITA/);
+  assert.equal((await afterCita.recover("B")).ok,true);
+  assert.equal(afterCita.citas.size,1);
+  console.log("PASS: 20-way race, replay, conflict, after-claim and after-cita recovery");
 })().catch(e=>{console.error(e);process.exitCode=1});
