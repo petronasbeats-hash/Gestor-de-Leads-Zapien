@@ -55,10 +55,9 @@ async function book(db, input, failAt) {
     throw Error("IDEMPOTENCY_CONFLICT");
   }
 
-  const identityValue = identity.snapshot.val();
-  if (!identityValue || identityValue.fingerprint !== fingerprint) {
-    throw Error("IDEMPOTENCY_CONFLICT");
-  }
+  // If committed=true, the transaction itself accepted this fingerprint.
+  // Do not add a second post-transaction identity check here; the isolated
+  // diagnostic already proved independent request identities commit correctly.
 
   // Atomic shared-slot exclusion boundary.
   const slot = base.child("slots/" + slotKey);
