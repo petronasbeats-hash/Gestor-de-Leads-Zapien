@@ -45,7 +45,7 @@ async function cleanup(c){
   const released=await reconcileFixture(db,{
     slotKey:first.slotKey,expectedCitaId:first.citaId,fixtureMarker
   });
-  assert.deepEqual(released,{released:true,reason:"FIXTURE_RELEASED"});
+  assert.deepEqual(released,{released:true,reason:"FIXTURE_RELEASED_LAB_READ_REMOVE"});
   assert.equal((await db.ref("citas_publicas/"+first.slotKey).once("value")).exists(),false);
 
   const again=await reconcileFixture(db,{
