@@ -70,7 +70,12 @@ async function cleanupOne(f){
   assert.equal(rec2.recovered,true);
   assert.equal(rec2.result.ok,true);
 
-  console.log("PASS: RTDB emulator 20-way race, replay, after-claim and after-cita recovery");
+  const events=(await db.ref("system_events").once("value")).val()||{};
+  const eventList=Object.values(events);
+  assert(eventList.some(e=>e.type==="HABITAT_BOOKING_CONFIRMED"));
+  assert(eventList.some(e=>e.type==="HABITAT_BOOKING_RECOVERY_REQUIRED"));
+  assert(eventList.some(e=>e.type==="HABITAT_BOOKING_RECOVERED"));
+  console.log("PASS: RTDB emulator race, replay, recovery and event trace");
 })()
 .catch(e=>{console.error(e);process.exitCode=1;})
 .finally(async()=>{
