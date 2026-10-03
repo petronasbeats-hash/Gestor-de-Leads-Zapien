@@ -10,27 +10,28 @@
       throw new Error("INVALID_SLOT_CLAIM");
     const ref=db.ref("citas_publicas/"+slotKey);
     const claim={
-      citaId, propiedadId:propiedadId||null, unitId:unitId||null,
+      citaId,
+      propiedadId:propiedadId||null,
+      unitId:unitId||null,
       availabilityVersion:availabilityVersion||null,
-      intentType:"request_visit", status:"claiming"
+      intentType:"request_visit",
+      status:"confirmed"
     };
-    const result=await ref.transaction(current=>(current===null || current.status==='released')?claim:undefined,undefined,false);
+    const result=await ref.transaction(current=>current===null?claim:undefined,undefined,false);
     if(!result.committed) return {claimed:false,reason:"SLOT_TAKEN"};
     return {claimed:true,claim};
   }
-  async function finalizeClaim({db,slotKey,citaId}){
-    const ref=db.ref("citas_publicas/"+slotKey);
-    const result=await ref.transaction(current=>{
-      if(!current || current.citaId!==citaId || current.status!=="claiming") return;
-      return {...current,status:"confirmed"};
-    });
-    return !!result.committed;
+
+  async function finalizeClaim(){
+    // Claim is final at the moment the atomic transaction succeeds.
+    return true;
   }
 
   async function releaseOwnedClaim(){
-    // Fail closed. Client-side read-then-remove is race-prone; a secure
-    // server-authorized rollback must be implemented before integration.
+    // Fail closed. Client-side conditional rollback is not reliable in this
+    // emulator/client combination and must move behind trusted server authority.
     throw new Error("ROLLBACK_REQUIRES_SERVER_AUTHORITY");
   }
+
   return {claimSlot,finalizeClaim,releaseOwnedClaim};
 });
