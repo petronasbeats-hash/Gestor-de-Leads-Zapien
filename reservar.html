@@ -472,6 +472,12 @@ function renderSlots(){
     return;
   }
   const selectedProperty = selectedPropiedadId ? propiedades[selectedPropiedadId] : null;
+  // SECURITY GATE (LAB): multiunit requests require trusted server-side booking.
+  // Client-side assessment remains informational, never authoritative.
+  if(selectedProperty && selectedProperty.unitId){
+    container.innerHTML = '<div class="empty">Estamos verificando los horarios de esta unidad. Solicita asistencia por WhatsApp mientras habilitamos la reserva segura.</div>';
+    return;
+  }
   if(selectedProperty){
     const assessment = habitatAssessmentForProperty(selectedProperty);
     if(!assessment.canRequestVisit){
@@ -618,6 +624,11 @@ document.getElementById('btn-confirm-booking').addEventListener('click', async (
   const propiedadNombre = document.getElementById('f-propiedad-nombre').value || null;
   const propObjSeleccionada = propiedadId ? propiedades[propiedadId] : null;
   const habitatAssessment = habitatAssessmentForProperty(propObjSeleccionada);
+  // Defense in depth: never use public RTDB client writes for multiunit bookings.
+  if(propObjSeleccionada && propObjSeleccionada.unitId){
+    alert('La reserva automática de esta unidad está en verificación. Contáctanos por WhatsApp para solicitar tu visita.');
+    return;
+  }
   if(!habitatAssessment.canRequestVisit){
     alert(habitatReasonLabel(habitatAssessment.reason) || 'La disponibilidad cambió. Elige otra unidad o inténtalo más tarde.');
     renderSlots();
