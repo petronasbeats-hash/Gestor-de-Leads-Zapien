@@ -4,6 +4,7 @@
 const MARKER="habitat-atomic-v2-cas";
 const ROOT="lab_atomic_availability_v2_cas";
 const HOST=process.env.FIREBASE_DATABASE_EMULATOR_HOST;
+// Emulator-only admin token; never use this transport in production or browser code.
 const AUTH_NS="owner";
 function guard(){if(HOST!=="127.0.0.1:9100")throw Error("EMULATOR_REQUIRED");}
 function validate({unitId,slotKey,requestId,expectedVersion}){
@@ -11,7 +12,7 @@ function validate({unitId,slotKey,requestId,expectedVersion}){
  if(!/^LAB-HAB-[A-Z0-9-]+$/.test(unitId)||!/^2099-\d\d-\d\d_\d\d:\d\d$/.test(slotKey)||!/^LAB-ADMIN-[A-Z0-9-]+$/.test(requestId))throw Error("INVALID_LAB_INPUT");
  if(!Number.isSafeInteger(expectedVersion)||expectedVersion<1)throw Error("INVALID_VERSION");
 }
-function url(unitId){return `http://${HOST}/${ROOT}/units/${encodeURIComponent(unitId)}.json?ns=demo-habitat-security-lab-default-rtdb&auth=${AUTH_NS}`;}
+function url(unitId){return `http://${HOST}/${ROOT}/units/${encodeURIComponent(unitId)}.json?ns=demo-habitat-security-lab-default-rtdb&access_token=${AUTH_NS}`;}
 async function readWithEtag(unitId){
  const res=await fetch(url(unitId),{headers:{"X-Firebase-ETag":"true"}});
  if(!res.ok)throw Error("READ_FAILED_"+res.status+" (emulator REST authentication/rules; never loosen public rules)");
