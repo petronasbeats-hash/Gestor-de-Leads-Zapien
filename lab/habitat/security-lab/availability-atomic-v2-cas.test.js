@@ -20,6 +20,7 @@ async function clean(){const v=(await ref.once("value")).val();if(v?.marker===MA
  const current=(await ref.once("value")).val();
  const winner=current.slots[slot].requestId;
  assert.equal((await claim({unitId,slotKey:slot,requestId:winner,expectedVersion:1})).replayed,true);
+ assert.equal((await claim({unitId,slotKey:"2099-12-30_12:30",requestId:winner,expectedVersion:1})).reason,"IDEMPOTENCY_CONFLICT");
  const [status,booking]=await Promise.all([
   changeStatus({unitId,expectedVersion:1,commercialStatus:"occupied",visitsEnabled:false}),
   claim({unitId,slotKey:second,requestId:"LAB-ADMIN-CAS-RACE",expectedVersion:1})
