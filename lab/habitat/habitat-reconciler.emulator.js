@@ -20,12 +20,12 @@ function assertSlotKey(key){
 }
 
 async function inspectCandidate(db,slotKey,expectedCitaId){
-  validateLab(db);
-  assertSlotKey(slotKey);
+  validateLab(db); assertSlotKey(slotKey);
   if(!expectedCitaId||typeof expectedCitaId!=="string")
     throw Error("INVALID_CITA_ID");
 
-  const slot=(await db.ref("citas_publicas/"+slotKey).once("value")).val();
+  const slotRef=db.ref("citas_publicas/"+slotKey);
+  const slot=(await slotRef.once("value")).val();
   if(!slot)return {eligible:false,reason:"SLOT_ABSENT"};
   if(slot.citaId!==expectedCitaId)return {eligible:false,reason:"OWNER_CHANGED"};
   if(slot.status!=="confirmed")return {eligible:false,reason:"NOT_CONFIRMED"};
@@ -37,8 +37,7 @@ async function inspectCandidate(db,slotKey,expectedCitaId){
 }
 
 async function reconcileFixture(db,{slotKey,expectedCitaId,fixtureMarker}){
-  validateLab(db);
-  assertSlotKey(slotKey);
+  validateLab(db); assertSlotKey(slotKey);
 
   if(!/^LAB-ORPHAN-RECON-[A-Z0-9-]+$/.test(expectedCitaId) ||
      fixtureMarker!=="habitat-reconciler-emulator-v1")
@@ -47,25 +46,23 @@ async function reconcileFixture(db,{slotKey,expectedCitaId,fixtureMarker}){
   const candidate=await inspectCandidate(db,slotKey,expectedCitaId);
   if(!candidate.eligible)return {released:false,reason:candidate.reason};
 
-  // Re-check cita immediately before touching the slot. This narrows the race
-  // window but does NOT make production release safe; production requires a
-  // trusted booking protocol that coordinates both records.
   const citaNow=(await db.ref("citas/"+expectedCitaId).once("value")).val();
   if(citaNow)return {released:false,reason:"CITA_APPEARED"};
 
   const ref=db.ref("citas_publicas/"+slotKey);
-  const result=await ref.transaction(current=>{
-    if(!current ||
-       current.citaId!==expectedCitaId ||
-       current.status!=="confirmed" ||
-       current.fixtureMarker!==fixtureMarker)
-      return;
-    return null;
-  },undefined,false);
 
-  return result.committed
-    ? {released:true,reason:"FIXTURE_RELEASED"}
-    : {released:false,reason:"SLOT_CHANGED"};
+  // IMPORTANT: in this client/emulator combination, a destructive follow-up
+  // transaction after a prior read can observe current=null. Do not infer that
+  // as ownership. Instead perform a final read + identity check, then remove.
+  // This remains LAB ONLY because read-then-remove is not race-safe for prod.
+  const current=(await ref.once("value")).val();
+  if(!current)return {released:false,reason:"SLOT_ABSENT"};
+  if(current.citaId!==expectedCitaId)return {released:false,reason:"OWNER_CHANGED"};
+  if(current.status!=="confirmed")return {released:false,reason:"NOT_CONFIRMED"};
+  if(current.fixtureMarker!==fixtureMarker)return {released:false,reason:"FIXTURE_MARKER_MISMATCH"};
+
+  await ref.remove();
+  return {released:true,reason:"FIXTURE_RELEASED_LAB_READ_REMOVE"};
 }
 
 module.exports={inspectCandidate,reconcileFixture};
