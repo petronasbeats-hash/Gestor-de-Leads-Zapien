@@ -16,7 +16,7 @@ async function clean(){const v=(await ref.once("value")).val();if(v?.marker===MA
  const endpoint="http://127.0.0.1:9100/"+ROOT+"/units/"+unitId+".json?ns=demo-habitat-security-lab-default-rtdb";
  const anonymous=await fetch(endpoint);
  assert.equal(anonymous.status,401,"Private lab node must deny public REST reads");
- const trusted=await fetch(endpoint+"&auth=owner",{headers:{"X-Firebase-ETag":"true"}});
+ const trusted=await fetch(endpoint+"&access_token=owner",{headers:{"X-Firebase-ETag":"true"}});
  assert.equal(trusted.status,200,"Emulator owner REST access must succeed");
  assert.ok(trusted.headers.get("etag"),"ETag required for CAS");
  assert.equal((await trusted.json()).marker,MARKER);
