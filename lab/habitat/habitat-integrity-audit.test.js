@@ -1,0 +1,10 @@
+const assert=require('node:assert/strict');
+const {inspect}=require('./habitat-integrity-audit.js');
+const key='2099-12-31_23:30';
+const cita={fecha:'2099-12-31',hora:'23:30'};
+const slot={citaId:'C1',status:'confirmed'};
+assert.equal(inspect({[key]:slot},{C1:cita}).issues.length,0);
+assert(inspect({[key]:slot},{}).issues.some(x=>x.type==='CONFIRMED_SLOT_WITHOUT_CITA'));
+assert(inspect({},{C1:cita}).issues.some(x=>x.type==='CITA_WITHOUT_SLOT'));
+assert(inspect({[key]:slot},{C1:cita,C2:cita}).issues.some(x=>x.type==='DUPLICATE_CITAS_FOR_SLOT'));
+console.log('PASS: audit integrity cases');
