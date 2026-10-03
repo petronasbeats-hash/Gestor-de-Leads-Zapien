@@ -5,6 +5,12 @@ on:
     paths:
       - "lab/habitat/security-lab/**"
       - ".github/workflows/habitat-security-lab.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "lab/habitat/security-lab/**"
+      - "reservar.html"
+      - ".github/workflows/habitat-security-lab.yml"
   workflow_dispatch:
 permissions:
   contents: read
