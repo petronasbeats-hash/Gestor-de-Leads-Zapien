@@ -15,7 +15,7 @@ async function book(db,input,failAt){
   const base=db.ref("lab_admin_booking");
   const request=base.child("requests/"+requestId);
   const citaId="LAB-CITA-"+requestId;
-  // One atomic slot transaction is the exclusion boundary. Every execution
+  // Reserve the request fingerprint first: a reused ID with different payload\n  // must not claim a second slot.\n  const identity=await request.transaction(current=>{\n    if(current&&current.fingerprint!==fingerprint)return;\n    return current||{fingerprint,slotKey,unitId,citaId,status:"processing",marker:MARKER};\n  },undefined,false);\n  if(!identity.committed)throw Error("IDEMPOTENCY_CONFLICT");\n  // One atomic slot transaction is the exclusion boundary. Every execution
   // of a repeated request has the same owner and deterministic cita ID.
   const slot=base.child("slots/"+slotKey);
   const claim=await slot.transaction(current=>{
@@ -25,12 +25,6 @@ async function book(db,input,failAt){
     return;
   },undefined,false);
   if(!claim.committed)return {ok:false,reason:"SLOT_TAKEN"};
-  const existing=(await request.once("value")).val();
-  if(existing&&existing.fingerprint!==fingerprint)throw Error("IDEMPOTENCY_CONFLICT");
-  await request.transaction(current=>{
-    if(current&&current.fingerprint!==fingerprint)return;
-    return current||{fingerprint,slotKey,unitId,citaId,status:"processing",marker:MARKER};
-  },undefined,false);
   if(failAt==="after_claim")throw Error("INJECTED_AFTER_CLAIM");
   const cita=base.child("citas/"+citaId);
   await cita.transaction(current=>current||{requestId,slotKey,unitId,marker:MARKER},undefined,false);
