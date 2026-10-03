@@ -9,15 +9,9 @@ function guard(input) {
   if (process.env.FIREBASE_DATABASE_EMULATOR_HOST !== "127.0.0.1:9100") {
     throw Error("EMULATOR_9100_REQUIRED");
   }
-  if (!/^LAB-ADMIN-[A-Z0-9-]+$/.test(input.requestId)) {
-    throw Error("LAB_REQUEST_ONLY");
-  }
-  if (!/^2099-\d\d-\d\d_\d\d:\d\d$/.test(input.slotKey)) {
-    throw Error("LAB_SLOT_ONLY");
-  }
-  if (!/^LAB-HAB-[A-Z0-9-]+$/.test(input.unitId)) {
-    throw Error("LAB_UNIT_ONLY");
-  }
+  if (!/^LAB-ADMIN-[A-Z0-9-]+$/.test(input.requestId)) throw Error("LAB_REQUEST_ONLY");
+  if (!/^2099-\d\d-\d\d_\d\d:\d\d$/.test(input.slotKey)) throw Error("LAB_SLOT_ONLY");
+  if (!/^LAB-HAB-[A-Z0-9-]+$/.test(input.unitId)) throw Error("LAB_UNIT_ONLY");
 }
 
 async function book(db, input, failAt) {
@@ -29,39 +23,32 @@ async function book(db, input, failAt) {
   const request = base.child("requests/" + requestId);
   const citaId = "LAB-CITA-" + requestId;
 
-  // Fast path for sequential replay/conflict detection.
-  const preexisting = (await request.once("value")).val();
-  if (preexisting && preexisting.fingerprint !== fingerprint) {
-    throw Error("IDEMPOTENCY_CONFLICT");
-  }
-
-  // Authoritative request identity reservation.
   const identity = await request.transaction(
     current => {
-      if (current && current.fingerprint !== fingerprint) return;
-      return current || {
-        fingerprint,
-        slotKey,
-        unitId,
-        citaId,
-        status: "processing",
-        marker: MARKER
-      };
+      if (current === null) {
+        return {
+          fingerprint,
+          slotKey,
+          unitId,
+          citaId,
+          status: "processing",
+          marker: MARKER
+        };
+      }
+      if (current.fingerprint === fingerprint) return current;
+      return; // Abort: requestId already belongs to another payload.
     },
     undefined,
     false
   );
 
-  if (!identity.committed) {
+  if (!identity.committed) throw Error("IDEMPOTENCY_CONFLICT");
+
+  const identityValue = identity.snapshot.val();
+  if (!identityValue || identityValue.fingerprint !== fingerprint) {
     throw Error("IDEMPOTENCY_CONFLICT");
   }
 
-  const persistedIdentity = (await request.once("value")).val();
-  if (!persistedIdentity || persistedIdentity.fingerprint !== fingerprint) {
-    throw Error("IDEMPOTENCY_CONFLICT");
-  }
-
-  // Atomic slot exclusion boundary.
   const slot = base.child("slots/" + slotKey);
   const claim = await slot.transaction(
     current => {
@@ -88,29 +75,18 @@ async function book(db, input, failAt) {
     false
   );
 
-  if (!claim.committed) {
-    return { ok: false, reason: "SLOT_TAKEN" };
-  }
+  if (!claim.committed) return { ok: false, reason: "SLOT_TAKEN" };
 
-  if (failAt === "after_claim") {
-    throw Error("INJECTED_AFTER_CLAIM");
-  }
+  if (failAt === "after_claim") throw Error("INJECTED_AFTER_CLAIM");
 
   const cita = base.child("citas/" + citaId);
   await cita.transaction(
-    current => current || {
-      requestId,
-      slotKey,
-      unitId,
-      marker: MARKER
-    },
+    current => current || { requestId, slotKey, unitId, marker: MARKER },
     undefined,
     false
   );
 
-  if (failAt === "after_cita") {
-    throw Error("INJECTED_AFTER_CITA");
-  }
+  if (failAt === "after_cita") throw Error("INJECTED_AFTER_CITA");
 
   await base.child("events/" + requestId + "/cita_created").set({
     type: "CITA_CREATED",
