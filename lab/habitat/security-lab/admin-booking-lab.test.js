@@ -13,7 +13,7 @@ async function clean(){
   for(const id of ids){
     for(const [path,expected] of [["requests/"+id,MARKER],["citas/LAB-CITA-"+id,MARKER]]){
       const ref=base.child(path),v=(await ref.once("value")).val();
-      if(v?.marker===expected)await ref.remove();
+      if(v?.marker===expected || (path.startsWith("requests/") && v && Object.keys(v).length===1 && v.status==="confirmed"))await ref.remove();
     }
     const e=base.child("events/"+id),v=(await e.once("value")).val();
     if(v&&Object.values(v).every(x=>x.marker===MARKER))await e.remove();
