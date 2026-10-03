@@ -57,4 +57,23 @@ async function changeStatus({unitId,expectedVersion,commercialStatus,visitsEnabl
  }
  throw Error("CAS_RETRY_EXHAUSTED");
 }
-module.exports={claim,changeStatus,MARKER,ROOT};
+// Safe compensation only for an unconfirmed synthetic claim belonging to this request.
+// Never use compensation after a downstream booking may have committed.
+async function releaseClaim({unitId,slotKey,requestId}){
+ guard();
+ if(!/^LAB-HAB-[A-Z0-9-]+$/.test(unitId)||!/^2099-\\d\\d-\\d\\d_\\d\\d:\\d\\d$/.test(slotKey)||!/^LAB-ADMIN-[A-Z0-9-]+$/.test(requestId))throw Error("INVALID_LAB_INPUT");
+ for(let attempt=0;attempt<50;attempt++){
+  const {etag,value}=await readWithEtag(unitId);
+  if(!value||value.marker!==MARKER)return {ok:false,reason:"UNIT_NOT_VERIFIED"};
+  const existing=value.slots?.[slotKey];
+  if(!existing)return {ok:true,released:false};
+  if(existing.requestId!==requestId||existing.status!=="claimed")return {ok:false,reason:"CLAIM_OWNERSHIP_CONFLICT"};
+  const slots={...value.slots};
+  delete slots[slotKey];
+  const res=await putIfMatch(unitId,etag,{...value,slots});
+  if(res.status===200)return {ok:true,released:true};
+  if(res.status!==412)throw Error("WRITE_FAILED_"+res.status);
+ }
+ throw Error("CAS_RETRY_EXHAUSTED");
+}
+module.exports={claim,changeStatus,releaseClaim,MARKER,ROOT};
