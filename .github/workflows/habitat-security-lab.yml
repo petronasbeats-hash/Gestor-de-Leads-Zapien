@@ -4,12 +4,14 @@ on:
     branches: [lab/property-engine-v2]
     paths:
       - "lab/habitat/security-lab/**"
+      - "lab/property-core/**"
       - ".github/workflows/habitat-security-lab.yml"
   pull_request:
     branches: [main]
     paths:
       - "lab/habitat/security-lab/**"
       - "reservar.html"
+      - "lab/property-core/**"
       - ".github/workflows/habitat-security-lab.yml"
   workflow_dispatch:
 permissions:
@@ -45,6 +47,8 @@ jobs:
           node --check process-crash-recovery.test.js
           node --check reservar-multiunit-guard.test.js
           node reservar-multiunit-guard.test.js
+          node --check ../../property-core/v0.1/property-model.js
+          node ../../property-core/v0.1/property-model.test.js
       - name: Run isolated RTDB emulator tests
         env:
           FIREBASE_DATABASE_EMULATOR_HOST: 127.0.0.1:9100
