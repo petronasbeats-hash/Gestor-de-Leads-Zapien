@@ -14,7 +14,8 @@ function validate({unitId,slotKey,requestId,expectedVersion}){
 function url(unitId){return `http://${HOST}/${ROOT}/units/${encodeURIComponent(unitId)}.json?ns=demo-habitat-security-lab-default-rtdb&auth=${AUTH_NS}`;}
 async function readWithEtag(unitId){
  const res=await fetch(url(unitId),{headers:{"X-Firebase-ETag":"true"}});
- if(!res.ok)throw Error("READ_FAILED_"+res.status);
+ if(!res.ok)throw Error("READ_FAILED_"+res.status+" (emulator REST authentication/rules; never loosen public rules)");
+ if(!res.headers.get("etag"))throw Error("MISSING_ETAG");
  return {etag:res.headers.get("etag"),value:await res.json()};
 }
 async function putIfMatch(unitId,etag,value){
@@ -27,6 +28,8 @@ async function claim(input){
   const {etag,value}=await readWithEtag(unitId);
   if(!value||value.marker!==MARKER)return {ok:false,reason:"UNIT_NOT_VERIFIED"};
   const existing=value.slots?.[slotKey];
+  // Reject reuse of one request identity for a different slot on this unit.
+  if(Object.entries(value.slots||{}).some(([key,slot])=>key!==slotKey&&slot.requestId===requestId))return {ok:false,reason:"IDEMPOTENCY_CONFLICT"};
   if(existing?.requestId===requestId)return {ok:true,replayed:true};
   if(existing)return {ok:false,reason:"SLOT_TAKEN"};
   if(value.version!==expectedVersion)return {ok:false,reason:"STALE_AVAILABILITY"};
