@@ -1,4 +1,7 @@
 {
+  "database": {
+    "rules": "database.rules.secure-lab.json"
+  },
   "emulators": {
     "database": {
       "host": "127.0.0.1",
@@ -7,8 +10,5 @@
     "ui": {
       "enabled": false
     }
-  },
-  "database": {
-    "rules": "database.rules.secure-lab.json"
   }
 }
