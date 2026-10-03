@@ -185,9 +185,20 @@ const firebaseConfig = {
 const GOOGLE_CLIENT_ID = "856006955419-firc8kbakkt7tde4582jq3u00q1jpsru.apps.googleusercontent.com";
 const GOOGLE_SCOPE = "https://www.googleapis.com/auth/calendar";
 
+// LAB ONLY: fail closed instead of ever connecting this branch's booking form
+// to production. Run on localhost/127.0.0.1 with Firebase emulators.
+if(!['localhost','127.0.0.1'].includes(location.hostname)){
+  document.body.innerHTML = '<main style="padding:2rem;font-family:sans-serif">Habitat Lab solo está disponible en localhost con emuladores.</main>';
+  throw new Error('HABITAT_LAB_LOCAL_ONLY');
+}
+firebaseConfig.projectId = 'demo-synapse-lab';
+firebaseConfig.databaseURL = 'https://demo-synapse-lab.firebaseio.com';
+firebaseConfig.authDomain = 'demo-synapse-lab.firebaseapp.com';
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 const auth = firebase.auth();
+db.useEmulator('127.0.0.1',9000);
+auth.useEmulator('http://127.0.0.1:9099');
 
 const DAY_KEYS = ["dom","lun","mar","mie","jue","vie","sab"];
 const DAY_LABELS = {dom:"Domingo",lun:"Lunes",mar:"Martes",mie:"Miércoles",jue:"Jueves",vie:"Viernes",sab:"Sábado"};
