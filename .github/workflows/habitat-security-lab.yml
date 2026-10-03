@@ -49,6 +49,8 @@ jobs:
           node reservar-multiunit-guard.test.js
           node --check ../../property-core/v0.1/property-model.js
           node ../../property-core/v0.1/property-model.test.js
+          node --check ../../property-core/v0.1/property-events.js
+          node ../../property-core/v0.1/property-events.test.js
       - name: Run isolated RTDB emulator tests
         env:
           FIREBASE_DATABASE_EMULATOR_HOST: 127.0.0.1:9100
