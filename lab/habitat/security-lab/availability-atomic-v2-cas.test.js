@@ -12,6 +12,15 @@ async function clean(){const v=(await ref.once("value")).val();if(v?.marker===MA
 (async()=>{
  await clean();
  await ref.set({marker:MARKER,commercialStatus:"available",visitsEnabled:true,version:1});
+ // Security preflight: unauthenticated REST remains denied, emulator owner access succeeds.
+ const endpoint="http://127.0.0.1:9100/"+ROOT+"/units/"+unitId+".json?ns=demo-habitat-security-lab-default-rtdb";
+ const anonymous=await fetch(endpoint);
+ assert.equal(anonymous.status,401,"Private lab node must deny public REST reads");
+ const trusted=await fetch(endpoint+"&auth=owner",{headers:{"X-Firebase-ETag":"true"}});
+ assert.equal(trusted.status,200,"Emulator owner REST access must succeed");
+ assert.ok(trusted.headers.get("etag"),"ETag required for CAS");
+ assert.equal((await trusted.json()).marker,MARKER);
+ console.log("PASS: public REST denied, trusted emulator REST authorized with ETag");
  const results=await Promise.all(Array.from({length:20},(_,i)=>claim({unitId,slotKey:slot,requestId:"LAB-ADMIN-CAS-"+String(i+1).padStart(2,"0"),expectedVersion:1})));
  const summary=results.reduce((a,r)=>{const k=r.ok?(r.replayed?"OK_REPLAY":"OK"):r.reason;a[k]=(a[k]||0)+1;return a;},{});
  console.log("DIAG CAS contenders:",summary);
