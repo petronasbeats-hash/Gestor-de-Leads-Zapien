@@ -22,6 +22,10 @@ function assertFixture({requestId,slotKey,unitId}){
 async function read(db,path){
   return (await db.ref(path).once("value")).val();
 }
+async function emit(db,type,requestId,extra={}){
+  const ref=db.ref("system_events").push();
+  await ref.set({type,requestId,source:"habitat_server_booking_emulator_v01",at:Date.now(),...extra});
+}
 
 async function bookFixture(db,{requestId,slotKey,unitId,propiedadId},injectFailure){
   validateLab(db);
@@ -31,6 +35,7 @@ async function bookFixture(db,{requestId,slotKey,unitId,propiedadId},injectFailu
   const reqRef=db.ref(reqPath);
   const fingerprint=JSON.stringify([slotKey,unitId,propiedadId||null]);
   const previous=await read(db,reqPath);
+  if(!previous)await emit(db,"HABITAT_BOOKING_REQUEST_RECEIVED",requestId,{slotKey,unitId});
 
   if(previous){
     if(previous.fingerprint!==fingerprint)throw Error("IDEMPOTENCY_CONFLICT");
@@ -59,7 +64,9 @@ async function bookFixture(db,{requestId,slotKey,unitId,propiedadId},injectFailu
   },undefined,false);
 
   if(!claim.committed){
-    await reqRef.set({
+    await emit(db,"HABITAT_BOOKING_REJECTED_SLOT_TAKEN",requestId,{slotKey});
+    await emit(db,"HABITAT_SLOT_CLAIMED",requestId,{slotKey,citaId});
+  await reqRef.set({
       requestId,fingerprint,slotKey,unitId,propiedadId:propiedadId||null,
       status:"rejected",updatedAt:Date.now()
     });
@@ -86,6 +93,7 @@ async function bookFixture(db,{requestId,slotKey,unitId,propiedadId},injectFailu
       estado:"pendiente",
       fixtureMarker:"server-booking-emulator-v01"
     });
+    await emit(db,"HABITAT_CITA_CREATED",requestId,{slotKey,citaId});
   }
 
   if(injectFailure==="after_cita")throw Error("INJECTED_AFTER_CITA");
@@ -96,6 +104,7 @@ async function bookFixture(db,{requestId,slotKey,unitId,propiedadId},injectFailu
 
   await slotRef.update({status:"confirmed"});
   await reqRef.update({status:"confirmed",updatedAt:Date.now()});
+  await emit(db,"HABITAT_BOOKING_CONFIRMED",requestId,{slotKey,citaId});
 
   return {ok:true,citaId,replayed:false};
 }
@@ -106,12 +115,14 @@ async function recoverFixture(db,requestId){
   const request=await read(db,"booking_requests/"+requestId);
   if(!request||request.status!=="processing")
     return {recovered:false,reason:"NOT_PROCESSING"};
+  await emit(db,"HABITAT_BOOKING_RECOVERY_REQUIRED",requestId,{slotKey:request.slotKey});
   const result=await bookFixture(db,{
     requestId,
     slotKey:request.slotKey,
     unitId:request.unitId,
     propiedadId:request.propiedadId||null
   });
+  await emit(db,"HABITAT_BOOKING_RECOVERED",requestId,{slotKey:request.slotKey,citaId:result.citaId||null});
   return {recovered:true,result};
 }
 
