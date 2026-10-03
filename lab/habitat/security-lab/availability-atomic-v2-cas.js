@@ -60,8 +60,7 @@ async function changeStatus({unitId,expectedVersion,commercialStatus,visitsEnabl
 // Safe compensation only for an unconfirmed synthetic claim belonging to this request.
 // Never use compensation after a downstream booking may have committed.
 async function releaseClaim({unitId,slotKey,requestId}){
- guard();
- if(!/^LAB-HAB-[A-Z0-9-]+$/.test(unitId)||!/^2099-\\d\\d-\\d\\d_\\d\\d:\\d\\d$/.test(slotKey)||!/^LAB-ADMIN-[A-Z0-9-]+$/.test(requestId))throw Error("INVALID_LAB_INPUT");
+ validate({unitId,slotKey,requestId,expectedVersion:1});
  for(let attempt=0;attempt<50;attempt++){
   const {etag,value}=await readWithEtag(unitId);
   if(!value||value.marker!==MARKER)return {ok:false,reason:"UNIT_NOT_VERIFIED"};
