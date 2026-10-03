@@ -2,7 +2,7 @@
 const assert=require("node:assert/strict");
 const {initializeApp,deleteApp}=require("firebase-admin/app");
 const {getDatabase}=require("firebase-admin/database");
-const {claim,changeStatus,MARKER,ROOT}=require("./availability-atomic-v2-cas");
+const {claim,changeStatus,releaseClaim,MARKER,ROOT}=require("./availability-atomic-v2-cas");
 if(process.env.FIREBASE_DATABASE_EMULATOR_HOST!=="127.0.0.1:9100")throw Error("EMULATOR_REQUIRED");
 const app=initializeApp({projectId:"demo-habitat-security-lab",databaseURL:"https://demo-habitat-security-lab-default-rtdb.firebaseio.com"},"atomic-v2-cas-test");
 const db=getDatabase(app);
@@ -42,5 +42,11 @@ async function clean(){const v=(await ref.once("value")).val();if(v?.marker===MA
  assert.equal(status.ok,true);
  assert.equal((await claim({unitId,slotKey:"2099-12-30_14:00",requestId:"LAB-ADMIN-CAS-LATE",expectedVersion:2})).reason,"UNIT_NOT_VISITABLE");
  assert.equal((await claim({unitId,slotKey:slot,requestId:winner,expectedVersion:1})).replayed,true);
+ // Compensation: a different request cannot release the winner's claim.
+ assert.equal((await releaseClaim({unitId,slotKey:slot,requestId:"LAB-ADMIN-OTHER"})).reason,"CLAIM_OWNERSHIP_CONFLICT");
+ assert.equal((await releaseClaim({unitId,slotKey:slot,requestId:winner})).released,true);
+ assert.equal((await releaseClaim({unitId,slotKey:slot,requestId:winner})).released,false);
+ assert.equal((await ref.once("value")).val().slots?.[slot],undefined);
+ console.log("PASS: CAS ownership-checked compensation and idempotent release");
  console.log("PASS: CAS atomic unit-status/slot coordination, 20 contenders, status race and replay");
 })().catch(e=>{console.error(e);process.exitCode=1}).finally(async()=>{await clean();await deleteApp(app)});
