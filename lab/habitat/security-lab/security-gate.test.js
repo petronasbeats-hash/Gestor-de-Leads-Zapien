@@ -1,6 +1,7 @@
 "use strict";
 const assert=require("node:assert/strict");
-const admin=require("firebase-admin");
+const admin=require("firebase-admin/app");
+const {getDatabase}=require("firebase-admin/database");
 const firebase=require("firebase/compat/app");
 require("firebase/compat/database");
 const projectId="demo-habitat-security-lab";
@@ -9,7 +10,7 @@ if(process.env.FIREBASE_DATABASE_EMULATOR_HOST!==host)
   throw Error("Start isolated emulator on port 9100 and export FIREBASE_DATABASE_EMULATOR_HOST="+host);
 const url="https://"+projectId+".firebaseio.com";
 const app=admin.initializeApp({projectId,databaseURL:url},"habitat-security-lab");
-const db=app.database();
+const db=getDatabase(app);
 const clientApp=firebase.initializeApp({projectId,databaseURL:url},"habitat-security-public");
 const client=clientApp.database();
 client.useEmulator("127.0.0.1",9100);
