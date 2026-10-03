@@ -8,12 +8,15 @@ const projectId="demo-habitat-security-lab";
 const host="127.0.0.1:9100";
 if(process.env.FIREBASE_DATABASE_EMULATOR_HOST!==host)
   throw Error("Start isolated emulator on port 9100 and export FIREBASE_DATABASE_EMULATOR_HOST="+host);
-const url="https://"+projectId+".firebaseio.com";
+const namespace=projectId+"-default-rtdb";
+const url="https://"+namespace+".firebaseio.com";
 const app=admin.initializeApp({projectId,databaseURL:url},"habitat-security-lab");
 const db=getDatabase(app);
+if(!db.ref().toString().includes(namespace))throw Error("ADMIN_NAMESPACE_MISMATCH");
 const clientApp=firebase.initializeApp({projectId,databaseURL:url},"habitat-security-public");
 const client=clientApp.database();
 client.useEmulator("127.0.0.1",9100);
+if(!client.ref().toString().includes(namespace))throw Error("CLIENT_NAMESPACE_MISMATCH");
 async function denied(path){
   try{await client.ref(path).set({unsafe:true});throw Error("CLIENT_WRITE_UNEXPECTEDLY_ALLOWED: "+path)}
   catch(e){if(String(e).includes("CLIENT_WRITE_UNEXPECTEDLY_ALLOWED"))throw e;
