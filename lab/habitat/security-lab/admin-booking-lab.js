@@ -28,8 +28,10 @@ async function book(db, input, failAt) {
   // observation point before the atomic decision.
 
   // Authoritative identity reservation.
+  const identityTrace = [];
   const identity = await request.transaction(
     current => {
+      identityTrace.push(current === null ? null : current);
       if (current === null) {
         return {
           fingerprint,
@@ -52,7 +54,11 @@ async function book(db, input, failAt) {
   );
 
   if (!identity.committed) {
-    throw Error("IDEMPOTENCY_CONFLICT");
+    const err = Error("IDEMPOTENCY_CONFLICT");
+    err.identityTrace = identityTrace;
+    err.requestId = requestId;
+    err.fingerprint = fingerprint;
+    throw err;
   }
 
   // If committed=true, the transaction itself accepted this fingerprint.
