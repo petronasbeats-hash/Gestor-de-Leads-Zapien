@@ -126,7 +126,7 @@ async function book(db, input, failAt) {
   });
 
   await slot.child("status").set("confirmed");
-  await request.child("status").set("confirmed");
+  // Write the complete identity object, never a status-only request node.\n  await request.set({fingerprint,slotKey,unitId,citaId,status:"confirmed",marker:MARKER});
 
   await base.child("events/" + requestId + "/confirmed").set({
     type: "BOOKING_CONFIRMED",
