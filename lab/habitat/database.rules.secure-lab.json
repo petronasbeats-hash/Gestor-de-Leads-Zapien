@@ -1,0 +1,42 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+    "disponibilidad": {
+      ".read": true,
+      ".write": false
+    },
+    "propiedades": {
+      ".read": true,
+      ".write": false
+    },
+    "units": {
+      ".read": true,
+      ".write": false
+    },
+    "citas_publicas": {
+      ".read": true,
+      ".write": false
+    },
+    "booking_requests": {
+      ".read": false,
+      ".write": false
+    },
+    "citas": {
+      ".read": false,
+      ".write": false
+    },
+    "system_events": {
+      ".read": false,
+      ".write": false
+    },
+    "leads": {
+      ".read": false,
+      ".write": false
+    },
+    "telefonos_index": {
+      ".read": false,
+      ".write": false
+    }
+  }
+}
