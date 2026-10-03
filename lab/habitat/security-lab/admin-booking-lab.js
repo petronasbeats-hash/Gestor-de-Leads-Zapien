@@ -23,11 +23,9 @@ async function book(db, input, failAt) {
   const request = base.child("requests/" + requestId);
   const citaId = "LAB-CITA-" + requestId;
 
-  // Fast sequential conflict detection.
-  const existing = (await request.once("value")).val();
-  if (existing && existing.fingerprint !== fingerprint) {
-    throw Error("IDEMPOTENCY_CONFLICT");
-  }
+  // The transaction is the single authority for request identity.
+  // Avoid a pre-read here: under concurrency it creates an unnecessary
+  // observation point before the atomic decision.
 
   // Authoritative identity reservation.
   const identity = await request.transaction(
