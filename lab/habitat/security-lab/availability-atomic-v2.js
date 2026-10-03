@@ -25,7 +25,7 @@ async function claim(db,{unitId,slotKey,requestId,expectedVersion}){
    if(current.commercialStatus!=="available"||current.visitsEnabled!==true){reason="UNIT_NOT_VISITABLE";return;}
    reason="CLAIMED";
    return {...current,slots:{...current.slots,[slotKey]:{requestId,status:"claimed",marker:MARKER}}};
- },undefined,false);
+ },undefined,true);
  return result.committed?{ok:true,replayed:reason==="REPLAY"}:{ok:false,reason};
 }
 async function changeStatus(db,{unitId,expectedVersion,commercialStatus,visitsEnabled}){
@@ -39,7 +39,7 @@ async function changeStatus(db,{unitId,expectedVersion,commercialStatus,visitsEn
    if(current.version!==expectedVersion){reason="STALE_AVAILABILITY";return;}
    reason="UPDATED";
    return {...current,commercialStatus,visitsEnabled,version:current.version+1};
- },undefined,false);
+ },undefined,true);
  return result.committed?{ok:true,version:result.snapshot.val().version}:{ok:false,reason};
 }
 module.exports={claim,changeStatus,MARKER,ROOT};
