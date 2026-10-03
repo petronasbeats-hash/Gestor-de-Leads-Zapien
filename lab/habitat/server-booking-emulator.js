@@ -65,8 +65,7 @@ async function bookFixture(db,{requestId,slotKey,unitId,propiedadId},injectFailu
 
   if(!claim.committed){
     await emit(db,"HABITAT_BOOKING_REJECTED_SLOT_TAKEN",requestId,{slotKey});
-    await emit(db,"HABITAT_SLOT_CLAIMED",requestId,{slotKey,citaId});
-  await reqRef.set({
+    await reqRef.set({
       requestId,fingerprint,slotKey,unitId,propiedadId:propiedadId||null,
       status:"rejected",updatedAt:Date.now()
     });
@@ -77,6 +76,7 @@ async function bookFixture(db,{requestId,slotKey,unitId,propiedadId},injectFailu
     requestId,fingerprint,slotKey,unitId,propiedadId:propiedadId||null,
     citaId,status:"processing",updatedAt:Date.now()
   });
+  await emit(db,"HABITAT_SLOT_CLAIMED",requestId,{slotKey,citaId});
 
   if(injectFailure==="after_claim")throw Error("INJECTED_AFTER_CLAIM");
 
