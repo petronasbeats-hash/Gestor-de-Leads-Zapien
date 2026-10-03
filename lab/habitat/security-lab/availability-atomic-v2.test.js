@@ -14,6 +14,9 @@ async function clean(){const v=(await ref.once("value")).val();if(v?.marker===MA
  await ref.set({marker:MARKER,commercialStatus:"available",visitsEnabled:true,version:1});
  const contenders=Array.from({length:20},(_,i)=>claim(db,{unitId,slotKey:slot,requestId:"LAB-ADMIN-ATOMIC-"+String(i+1).padStart(2,"0"),expectedVersion:1}));
  const results=await Promise.all(contenders);
+ const summary=results.reduce((acc,r)=>{const k=r.ok?(r.replayed?"OK_REPLAY":"OK"):r.reason;acc[k]=(acc[k]||0)+1;return acc;},{});
+ console.log("DIAG contenders:",summary);
+ console.log("DIAG unit after contenders:",JSON.stringify((await ref.once("value")).val()));
  assert.equal(results.filter(r=>r.ok).length,1);
  assert.equal(results.filter(r=>r.reason==="SLOT_TAKEN").length,19);
  const winner=(await ref.once("value")).val().slots[slot].requestId;
