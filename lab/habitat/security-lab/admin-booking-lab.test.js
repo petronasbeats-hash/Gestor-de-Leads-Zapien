@@ -34,6 +34,14 @@ async function clean(){
   const fail={requestId:"LAB-ADMIN-FAIL",slotKey:failSlot,unitId:"LAB-HAB-YANG-01"};
   await assert.rejects(()=>book(db,fail,"after_cita"),/INJECTED_AFTER_CITA/);
   assert.equal((await book(db,fail)).ok,true);
+  // Guard against silent status-only writes or incomplete request identity.
+  const stored=(await base.child("requests/"+same.requestId).once("value")).val();
+  assert.equal(stored.status,"confirmed");
+  assert.equal(stored.fingerprint,JSON.stringify([same.slotKey,same.unitId]));
+  assert.equal(stored.citaId,"LAB-CITA-"+same.requestId);
+  const recovered=(await base.child("requests/"+fail.requestId).once("value")).val();
+  assert.equal(recovered.status,"confirmed");
+  assert.equal(recovered.fingerprint,JSON.stringify([fail.slotKey,fail.unitId]));
   const events=(await base.child("events/"+same.requestId).once("value")).val();
   assert.deepEqual(Object.keys(events).sort(),["cita_created","confirmed"]);
   assert.equal((await base.child("citas/LAB-CITA-"+same.requestId).once("value")).val().requestId,same.requestId);
