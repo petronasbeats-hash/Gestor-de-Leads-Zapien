@@ -1,0 +1,28 @@
+"use strict";
+const assert=require("node:assert/strict");
+const {initializeApp,deleteApp}=require("firebase-admin/app");
+const {getDatabase}=require("firebase-admin/database");
+const {unit}=require("./property-model");
+const {create,advance,ROOT,MARKER}=require("./property-store");
+if(process.env.FIREBASE_DATABASE_EMULATOR_HOST!=="127.0.0.1:9100")throw Error("EMULATOR_REQUIRED");
+const app=initializeApp({projectId:"demo-habitat-security-lab",databaseURL:"https://demo-habitat-security-lab-default-rtdb.firebaseio.com"},"property-store-test");
+const db=getDatabase(app),entityId="LAB-HAB-PROPERTY-STORE",ref=db.ref(ROOT+"/entities/"+entityId);
+const base=unit({unitId:entityId,buildingId:"LAB-BUILDING",propertyId:"LAB-PROPERTY",number:"01",type:"suite"});
+const change={to:"captured",actorId:"LAB-ADMIN-01",eventId:"LAB-EVENT-01",at:"2026-10-03T18:00:00-06:00"};
+(async()=>{
+ const old=(await ref.once("value")).val();
+ if(old&&old.marker!==MARKER)throw Error("UNOWNED_FIXTURE");
+ if(old)await ref.remove();
+ await create(db,base);
+ await assert.rejects(create(db,base),/ENTITY_EXISTS/);
+ const results=await Promise.all(Array.from({length:20},()=>advance(db,entityId,change)));
+ assert.equal(results.every(r=>r.revision===2),true);
+ const snapshot=(await ref.once("value")).val();
+ assert.equal(snapshot.revision,2);
+ assert.equal(Object.keys(snapshot.events).length,1);
+ assert.equal(snapshot.record.verification,"captured");
+ await assert.rejects(advance(db,entityId,{...change,to:"verification"}),/EVENT_ID_CONFLICT/);
+ await assert.rejects(advance(db,entityId,{...change,eventId:"LAB-EVENT-02",to:"active",evidenceId:"LAB-PHOTO-01"}),/INVALID_TRANSITION/);
+ assert.equal((await ref.once("value")).val().revision,2);
+ console.log("PASS: Property Core atomic record/event persistence, 20 replay contenders, no silent transition");
+})().catch(e=>{console.error(e);process.exitCode=1}).finally(async()=>{const v=(await ref.once("value")).val();if(v?.marker===MARKER)await ref.remove();await deleteApp(app)});
