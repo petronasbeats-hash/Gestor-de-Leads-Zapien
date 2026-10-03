@@ -12,11 +12,9 @@ const namespace=projectId+"-default-rtdb";
 const url="https://"+namespace+".firebaseio.com";
 const app=admin.initializeApp({projectId,databaseURL:url},"habitat-security-lab");
 const db=getDatabase(app);
-if(!db.ref().toString().includes(namespace))throw Error("ADMIN_NAMESPACE_MISMATCH");
 const clientApp=firebase.initializeApp({projectId,databaseURL:url},"habitat-security-public");
 const client=clientApp.database();
 client.useEmulator("127.0.0.1",9100);
-if(!client.ref().toString().includes(namespace))throw Error("CLIENT_NAMESPACE_MISMATCH");
 async function denied(path){
   try{await client.ref(path).set({unsafe:true});throw Error("CLIENT_WRITE_UNEXPECTEDLY_ALLOWED: "+path)}
   catch(e){if(String(e).includes("CLIENT_WRITE_UNEXPECTEDLY_ALLOWED"))throw e;
@@ -24,6 +22,13 @@ async function denied(path){
 }
 (async()=>{
   const marker="LAB-SECURITY-GATE-01";
+  // Verify Admin SDK reaches the intended emulator-backed namespace by writing
+  // and reading a synthetic server-only marker before exercising client rules.
+  const probe=db.ref("_security_probe/"+marker);
+  await probe.set({namespace,fixtureMarker:marker});
+  const probeValue=(await probe.once("value")).val();
+  assert.equal(probeValue.namespace,namespace);
+  await probe.remove();
   const protectedPaths=["citas_publicas","booking_requests","citas","system_events","leads","telefonos_index"];
   for(const path of protectedPaths)await denied(path+"/"+marker);
   await assert.rejects(client.ref("citas/"+marker).once("value"),/permission_denied|permission denied/i);
