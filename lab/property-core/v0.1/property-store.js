@@ -40,7 +40,8 @@ async function advance(db,entityId,change){
    const persisted=latest.events?.[change.eventId];
    if(matches(persisted))return latest;
    if(persisted)throw Error("EVENT_ID_CONFLICT");
-   if(latest.record.verification!==change.to&&failure==="ENTITY_NOT_FOUND")throw Error("TRANSITION_CONFLICT");
+   try{transition(latest.record,change)}catch(e){throw Error(e.message)}
+   throw Error("TRANSITION_CONFLICT");
   }
   throw Error(failure||"TRANSITION_CONFLICT");
  }
