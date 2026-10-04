@@ -15,4 +15,8 @@ assert.equal(currentPublication(state(make({verification:"verification"})),p,b).
 assert.equal(currentPublication(state(make(),5,{...publication,evidenceIds:[]}),p,b).reason,"EVIDENCE_REQUIRED");
 assert.equal(currentPublication(state(make(),5,{...publication,unitId:"LAB-OTHER"}),p,b).reason,"PUBLICATION_UNIT_MISMATCH");
 assert.equal(currentPublication(state(make(),5,null),p,b).reason,"NOT_PUBLISHED");
+assert.equal(currentPublication({revision:5,publication},p,b).reason,"INVALID_RECORD");
+assert.equal(currentPublication(state(make({propertyId:"LAB-OTHER"})),p,b).reason,"BROKEN_RELATION");
+assert.equal(currentPublication(state(make(),5,{...publication,priceMXN:null}),p,b).reason,"INVALID_PRICE");
+assert.equal(currentPublication(state(make(),5,{...publication,evidenceIds:null}),p,b).reason,"EVIDENCE_REQUIRED");
 console.log("PASS: current publication fail-closed after revision, occupancy, operation, verification or evidence changes");
