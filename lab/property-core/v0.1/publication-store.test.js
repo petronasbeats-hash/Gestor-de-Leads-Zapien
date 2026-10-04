@@ -15,12 +15,10 @@ const u=unit({unitId:entityId,propertyId:p.propertyId,buildingId:b.buildingId,nu
  if(old&&old.marker!==MARKER)throw Error("UNOWNED_FIXTURE");
  if(old)await ref.remove();
  await create(db,u);
- for(const [i,to] of ["captured","verification","verified","active"].entries()){
-  await advance(db,entityId,{to,actorId:"LAB-ADMIN",eventId:"LAB-PUB-E"+i,at:"2026-10-04T10:00:00-06:00",evidenceId:"LAB-EVIDENCE"});
- }
- // Lab fixture simulates separately verified occupancy/operation; production writer not implemented.
+ // Isolate publication transaction from the separately tested verification workflow.
+ // This synthetic fixture is never a production activation or evidence approval.
  const current=(await ref.once("value")).val();
- await ref.update({record:{...current.record,occupancy:"vacant",operation:"available"},revision:current.revision+1});
+ await ref.update({record:{...current.record,verification:"active",occupancy:"vacant",operation:"available"},revision:current.revision+1});
  const revision=(await ref.once("value")).val().revision;
  const args={entityId,expectedRevision:revision,property:p,building:b,priceMXN:3500,evidenceIds:["LAB-EVIDENCE"],requestId:"LAB-PUB-REQUEST"};
  const results=await Promise.all(Array.from({length:20},()=>publish(db,args)));
