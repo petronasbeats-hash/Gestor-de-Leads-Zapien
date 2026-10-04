@@ -1,0 +1,17 @@
+"use strict";
+const assert=require("node:assert/strict");
+const {property,building,unit}=require("./property-model");
+const {preparePublication,revalidatePublication}=require("./publication-snapshot");
+const p=property({propertyId:"LAB-REV-P1",name:"P"}),b=building({buildingId:"LAB-REV-B1",propertyId:p.propertyId,name:"B"});
+const make=(v={})=>unit({unitId:"LAB-REV-U1",propertyId:p.propertyId,buildingId:b.buildingId,number:"1",type:"suite",verification:"active",occupancy:"vacant",operation:"available",...v});
+const meta={priceMXN:3500,evidenceIds:["LAB-EVIDENCE-01"]};
+const ticket=preparePublication(p,b,make(),meta,4);
+assert.equal(ticket.allowed,true);
+assert.equal(revalidatePublication(ticket,make(),4,p,b,meta).allowed,true);
+assert.equal(revalidatePublication(ticket,make(),5,p,b,meta).reason,"STALE_REVISION");
+assert.equal(revalidatePublication(ticket,make({operation:"maintenance"}),4,p,b,meta).reason,"NOT_OPERATIONAL");
+assert.equal(revalidatePublication(ticket,make({occupancy:"occupied"}),4,p,b,meta).reason,"NOT_VACANT");
+assert.equal(revalidatePublication(ticket,make(),4,p,b,{...meta,evidenceIds:[]}).reason,"EVIDENCE_REQUIRED");
+assert.equal(revalidatePublication({...ticket,unitId:"LAB-OTHER"},make(),4,p,b,meta).reason,"INVALID_TICKET");
+assert.throws(()=>preparePublication(p,b,make(),meta,0),/INVALID_REVISION/);
+console.log("PASS: revision-bound publication revalidation denies stale, changed, invalid or evidence-free requests");
