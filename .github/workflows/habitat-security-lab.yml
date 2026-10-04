@@ -66,10 +66,12 @@ jobs:
           node ../../property-core/v0.1/public-catalog.test.js
           node --check ../../property-core/v0.1/evidence-verification.js
           node ../../property-core/v0.1/evidence-verification.test.js
+          node --check ../../property-core/v0.1/trusted-evidence-store.js
+          node --check ../../property-core/v0.1/trusted-evidence-store.test.js
           node --check ../../property-core/v0.1/property-store.js
           node --check ../../property-core/v0.1/property-store.test.js
       - name: Run isolated RTDB emulator tests
         env:
           FIREBASE_DATABASE_EMULATOR_HOST: 127.0.0.1:9100
         run: |
-          npx firebase emulators:exec --config firebase.json --project demo-habitat-security-lab --only database             "node admin-booking-lab.test.js && node process-crash-recovery.test.js inject-claim && node process-crash-recovery.test.js verify-claim && node process-crash-recovery.test.js inject-cita && node process-crash-recovery.test.js verify-cita && node availability-gate-lab.test.js && node availability-atomic-v2-cas.test.js && NODE_PATH=$PWD/node_modules node ../../property-core/v0.1/property-store.test.js && NODE_PATH=$PWD/node_modules node ../../property-core/v0.1/publication-store.test.js"
+          npx firebase emulators:exec --config firebase.json --project demo-habitat-security-lab --only database             "node admin-booking-lab.test.js && node process-crash-recovery.test.js inject-claim && node process-crash-recovery.test.js verify-claim && node process-crash-recovery.test.js inject-cita && node process-crash-recovery.test.js verify-cita && node availability-gate-lab.test.js && node availability-atomic-v2-cas.test.js && NODE_PATH=$PWD/node_modules node ../../property-core/v0.1/property-store.test.js && NODE_PATH=$PWD/node_modules node ../../property-core/v0.1/publication-store.test.js && NODE_PATH=$PWD/node_modules node ../../property-core/v0.1/trusted-evidence-store.test.js"
