@@ -22,5 +22,11 @@ const otherBuilding=building({buildingId:"LAB-CATALOG-B2",propertyId:other.prope
 const otherUnit=unit({unitId:"LAB-CATALOG-U1",propertyId:other.propertyId,buildingId:otherBuilding.buildingId,number:"1",type:"studio",verification:"active",occupancy:"vacant",operation:"available"});
 const isolated=publicCatalog([row(make("LAB-CATALOG-U1")),{property:other,building:otherBuilding,entity:{record:otherUnit,revision:4,publication:publication(otherUnit.unitId)}}]);
 assert.equal(isolated.items.length,2);
+const malformed={...row(make("LAB-CATALOG-BAD"))};
+malformed.entity={...malformed.entity,record:{...malformed.entity.record,number:null}};
+const resilient=publicCatalog([malformed,row(make("LAB-CATALOG-GOOD"))]);
+assert.equal(resilient.items.length,1);
+assert.equal(resilient.items[0].unitId,"LAB-CATALOG-GOOD");
+assert.equal(resilient.rejected[0].reason,"INVALID_CATALOG_ROW");
 assert.throws(()=>publicCatalog(null),/INVALID_CATALOG_INPUT/);
 console.log("PASS: minimal public catalog exposes only current eligible units and no internal evidence/events");
