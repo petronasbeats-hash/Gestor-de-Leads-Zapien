@@ -35,5 +35,20 @@ const u=unit({unitId:entityId,propertyId:p.propertyId,buildingId:b.buildingId,nu
  assert.equal(Object.keys(saved.publicationRequests).length,1);
  await assert.rejects(publish(db,{...args,requestId:"LAB-PUB-NEW"}),/STALE_REVISION/);
  await assert.rejects(publish(db,{...args,priceMXN:4000}),/REQUEST_ID_CONFLICT/);
- console.log("PASS: atomic publication 20 identical contenders, single revision, stale and conflicting requests rejected");
+ // Two distinct requests race against one fresh revision: exactly one may commit.
+ const latest=(await ref.once("value")).val();
+ await ref.update({publication:null,publicationRequests:null,revision:latest.revision+1});
+ const fresh=(await ref.once("value")).val().revision;
+ const competing=await Promise.allSettled([
+  publish(db,{...args,expectedRevision:fresh,requestId:"LAB-PUB-RACE-A"}),
+  publish(db,{...args,expectedRevision:fresh,requestId:"LAB-PUB-RACE-B",priceMXN:3600})
+ ]);
+ assert.equal(competing.filter(x=>x.status==="fulfilled").length,1);
+ assert.equal(competing.filter(x=>x.status==="rejected"&&/STALE_REVISION/.test(x.reason.message)).length,1);
+ const raced=(await ref.once("value")).val();
+ assert.equal(raced.revision,fresh+1);
+ assert.equal(Object.keys(raced.publicationRequests).length,1);
+ assert.equal(raced.publication.requestId,competing.find(x=>x.status==="fulfilled").value.requestId);
+
+ console.log("PASS: atomic publication 20 identical contenders, single revision, distinct race single winner, stale and conflicting requests rejected");
 })().catch(e=>{console.error(e);process.exitCode=1}).finally(async()=>{const v=(await ref.once("value")).val();if(v?.marker===MARKER)await ref.remove();await deleteApp(app)});
