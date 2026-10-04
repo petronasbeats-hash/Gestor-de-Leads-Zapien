@@ -1,0 +1,18 @@
+"use strict";
+const assert=require("node:assert/strict");
+const {property,building,unit,synapseProjection,commercialEligibility}=require("./property-model");
+const {catalog}=require("./adn-inventory");
+const p=property({propertyId:"LAB-NORTH-16",name:"Mini Departamentos 16 Norte"});
+const b=building({buildingId:"LAB-NORTH-16-B1",propertyId:p.propertyId,name:"Edificio 1"});
+const u1=unit({unitId:"LAB-NORTH-16-U1",propertyId:p.propertyId,buildingId:b.buildingId,number:"1",type:"apartment"});
+const u2=unit({unitId:"LAB-NORTH-16-U2",propertyId:p.propertyId,buildingId:b.buildingId,number:"2",type:"apartment",occupancy:"occupied",operation:"available",verification:"active"});
+assert.equal(catalog.length,13);
+assert.equal(new Set([...catalog.map(x=>x.identity.unitId),u1.unitId,u2.unitId]).size,15);
+assert.equal(synapseProjection(p,b,u1).propertyGroupId,p.propertyId);
+assert.equal(synapseProjection(p,b,u1).activo,false);
+assert.equal(commercialEligibility(u2).reason,"NOT_VACANT");
+assert.throws(()=>synapseProjection(p,b,catalog[0].identity),/BROKEN_RELATION/);
+const verifiedVacant=unit({unitId:"LAB-NORTH-16-U1",propertyId:p.propertyId,buildingId:b.buildingId,number:"1",type:"apartment",occupancy:"vacant",operation:"available",verification:"active"});
+assert.equal(synapseProjection(p,b,verifiedVacant).activo,true);
+assert.equal(catalog.every(x=>!x.projection.activo),true);
+console.log("PASS: reusable two-property, 15-unit isolation, broken relations rejected and independent eligibility");
