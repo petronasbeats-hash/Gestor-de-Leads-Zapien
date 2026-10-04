@@ -6,6 +6,7 @@ function publicCatalog(rows){
  const items=[],rejected=[],seen=new Set();
  for(const row of rows){
   const id=typeof row?.entity?.record?.unitId==="string"?row.entity.record.unitId:null;
+  if(row?.entityId!==undefined&&row.entityId!==id){rejected.push({unitId:id,reason:"ENTITY_ID_MISMATCH"});continue;}
   let status;
   try{status=currentPublication(row?.entity,row?.property,row?.building)}
   catch(_error){status={visible:false,reason:"INVALID_CATALOG_ROW"}}
