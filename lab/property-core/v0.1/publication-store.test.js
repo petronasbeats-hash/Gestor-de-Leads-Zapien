@@ -26,22 +26,26 @@ const u=unit({unitId:entityId,propertyId:p.propertyId,buildingId:b.buildingId,nu
  assert.equal(before?.revision,revision,"fixture revision must persist");
  assert.equal(before?.record?.unitId,entityId,"fixture record must persist");
  console.log("DIAGNOSTIC publication fixture durable",JSON.stringify({marker:before.marker,revision:before.revision,unitId:before.record.unitId}));
- const first=await publish(db,args);
- const results=await Promise.all(Array.from({length:20},()=>publish(db,args)));
+ const trustedLoader=async()=>[{evidenceId:"LAB-EVIDENCE",unitId:entityId,propertyId:p.propertyId,status:"verified"}];
+ await assert.rejects(publish(db,args),/TRUSTED_EVIDENCE_LOADER_REQUIRED/);
+ await assert.rejects(publish(db,args,async()=>[]),/EVIDENCE_NOT_FOUND/);
+ await assert.rejects(publish(db,args,async()=>[{evidenceId:"LAB-EVIDENCE",unitId:entityId,propertyId:p.propertyId,status:"pending"}]),/EVIDENCE_NOT_VERIFIED/);
+ const first=await publish(db,args,trustedLoader);
+ const results=await Promise.all(Array.from({length:20},()=>publish(db,args,trustedLoader)));
  assert.equal(first.requestId,args.requestId);
  assert.equal(results.every(x=>x.requestId===args.requestId),true);
  const saved=(await ref.once("value")).val();
  assert.equal(saved.revision,revision+1);
  assert.equal(Object.keys(saved.publicationRequests).length,1);
- await assert.rejects(publish(db,{...args,requestId:"LAB-PUB-NEW"}),/STALE_REVISION/);
- await assert.rejects(publish(db,{...args,priceMXN:4000}),/REQUEST_ID_CONFLICT/);
+ await assert.rejects(publish(db,{...args,requestId:"LAB-PUB-NEW"},trustedLoader),/STALE_REVISION/);
+ await assert.rejects(publish(db,{...args,priceMXN:4000},trustedLoader),/REQUEST_ID_CONFLICT/);
  // Two distinct requests race against one fresh revision: exactly one may commit.
  const latest=(await ref.once("value")).val();
  await ref.update({publication:null,publicationRequests:null,revision:latest.revision+1});
  const fresh=(await ref.once("value")).val().revision;
  const competing=await Promise.allSettled([
-  publish(db,{...args,expectedRevision:fresh,requestId:"LAB-PUB-RACE-A"}),
-  publish(db,{...args,expectedRevision:fresh,requestId:"LAB-PUB-RACE-B",priceMXN:3600})
+  publish(db,{...args,expectedRevision:fresh,requestId:"LAB-PUB-RACE-A"},trustedLoader),
+  publish(db,{...args,expectedRevision:fresh,requestId:"LAB-PUB-RACE-B",priceMXN:3600},trustedLoader)
  ]);
  assert.equal(competing.filter(x=>x.status==="fulfilled").length,1);
  assert.equal(competing.filter(x=>x.status==="rejected"&&/STALE_REVISION/.test(x.reason.message)).length,1);
