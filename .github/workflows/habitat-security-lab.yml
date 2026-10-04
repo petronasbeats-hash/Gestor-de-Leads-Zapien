@@ -64,6 +64,8 @@ jobs:
           node ../../property-core/v0.1/publication-status.test.js
           node --check ../../property-core/v0.1/public-catalog.js
           node ../../property-core/v0.1/public-catalog.test.js
+          node --check ../../property-core/v0.1/evidence-verification.js
+          node ../../property-core/v0.1/evidence-verification.test.js
           node --check ../../property-core/v0.1/property-store.js
           node --check ../../property-core/v0.1/property-store.test.js
       - name: Run isolated RTDB emulator tests
