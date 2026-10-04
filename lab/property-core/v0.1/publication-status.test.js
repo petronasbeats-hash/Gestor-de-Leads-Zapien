@@ -1,0 +1,18 @@
+"use strict";
+const assert=require("node:assert/strict");
+const {property,building,unit}=require("./property-model");
+const {currentPublication}=require("./publication-status");
+const p=property({propertyId:"LAB-STATUS-P1",name:"Property"});
+const b=building({buildingId:"LAB-STATUS-B1",propertyId:p.propertyId,name:"Building"});
+const make=(overrides={})=>unit({unitId:"LAB-STATUS-U1",propertyId:p.propertyId,buildingId:b.buildingId,number:"1",type:"suite",verification:"active",occupancy:"vacant",operation:"available",...overrides});
+const publication={unitId:"LAB-STATUS-U1",revision:5,priceMXN:3500,evidenceIds:["LAB-EVIDENCE"],requestId:"LAB-STATUS-REQUEST"};
+const state=(record=make(),revision=5,pub=publication)=>({record,revision,publication:pub});
+assert.equal(currentPublication(state(),p,b).visible,true);
+assert.equal(currentPublication(state(make(),6),p,b).reason,"STALE_PUBLICATION");
+assert.equal(currentPublication(state(make({occupancy:"occupied"})),p,b).reason,"NOT_VACANT");
+assert.equal(currentPublication(state(make({operation:"maintenance"})),p,b).reason,"NOT_OPERATIONAL");
+assert.equal(currentPublication(state(make({verification:"verification"})),p,b).reason,"NOT_ACTIVE");
+assert.equal(currentPublication(state(make(),5,{...publication,evidenceIds:[]}),p,b).reason,"EVIDENCE_REQUIRED");
+assert.equal(currentPublication(state(make(),5,{...publication,unitId:"LAB-OTHER"}),p,b).reason,"PUBLICATION_UNIT_MISMATCH");
+assert.equal(currentPublication(state(make(),5,null),p,b).reason,"NOT_PUBLISHED");
+console.log("PASS: current publication fail-closed after revision, occupancy, operation, verification or evidence changes");
