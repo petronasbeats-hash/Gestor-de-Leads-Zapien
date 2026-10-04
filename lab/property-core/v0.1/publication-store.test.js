@@ -21,6 +21,11 @@ const u=unit({unitId:entityId,propertyId:p.propertyId,buildingId:b.buildingId,nu
  await ref.update({record:{...current.record,verification:"active",occupancy:"vacant",operation:"available"},revision:current.revision+1});
  const revision=(await ref.once("value")).val().revision;
  const args={entityId,expectedRevision:revision,property:p,building:b,priceMXN:3500,evidenceIds:["LAB-EVIDENCE"],requestId:"LAB-PUB-REQUEST"};
+ const before=(await ref.once("value")).val();
+ assert.equal(before?.marker,MARKER,"fixture marker must persist");
+ assert.equal(before?.revision,revision,"fixture revision must persist");
+ assert.equal(before?.record?.unitId,entityId,"fixture record must persist");
+ console.log("DIAGNOSTIC publication fixture durable",JSON.stringify({marker:before.marker,revision:before.revision,unitId:before.record.unitId}));
  const first=await publish(db,args);
  const results=await Promise.all(Array.from({length:20},()=>publish(db,args)));
  assert.equal(first.requestId,args.requestId);
