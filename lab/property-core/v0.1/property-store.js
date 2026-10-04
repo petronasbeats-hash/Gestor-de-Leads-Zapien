@@ -18,11 +18,12 @@ async function advance(db,entityId,change){
  if(!/^[A-Za-z0-9_-]{2,80}$/.test(entityId||""))throw Error("INVALID_ID");
  const ref=db.ref(ROOT+"/entities/"+entityId);
  let failure=null;
+ const matches=(existing)=>existing&&existing.to===change.to&&existing.actorId===change.actorId&&existing.at===change.at&&existing.evidenceId===(change.evidenceId||null);
  const tx=await ref.transaction(current=>{
   if(!current||current.marker!==MARKER){failure="ENTITY_NOT_FOUND";return;}
   const existing=current.events?.[change.eventId];
   if(existing){
-   if(existing.to===change.to&&existing.actorId===change.actorId&&existing.at===change.at&&existing.evidenceId===(change.evidenceId||null))return current;
+   if(matches(existing))return current;
    failure="EVENT_ID_CONFLICT";return;
   }
   try{
@@ -31,7 +32,13 @@ async function advance(db,entityId,change){
    return {...current,record:next.record,events:{...current.events,[change.eventId]:next.event},revision:current.revision+1};
   }catch(e){failure=e.message;return;}
  },undefined,false);
- if(!tx.committed)throw Error(failure||"TRANSITION_CONFLICT");
+ if(!tx.committed){
+  // A transaction callback may be retried against a stale local snapshot.
+  // Re-read the durable state before rejecting an idempotent replay.
+  const latest=(await ref.once("value")).val();
+  if(latest?.marker===MARKER&&matches(latest.events?.[change.eventId]))return latest;
+  throw Error(failure||"TRANSITION_CONFLICT");
+ }
  return tx.snapshot.val();
 }
 module.exports={create,advance,ROOT,MARKER};
