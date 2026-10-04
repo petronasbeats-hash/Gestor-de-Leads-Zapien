@@ -36,5 +36,9 @@ assert.deepEqual(sequence.rejected.map(x=>x.reason),["INVALID_CATALOG_ROW","DUPL
 const recovery=publicCatalog([invalid,valid]);
 assert.equal(recovery.items.length,1);
 assert.equal(recovery.rejected[0].reason,"INVALID_CATALOG_ROW");
+const mismatched=publicCatalog([{...row(make("LAB-CATALOG-U1")),entityId:"LAB-CATALOG-OTHER"},row(make("LAB-CATALOG-GOOD"))]);
+assert.equal(mismatched.items.length,1);
+assert.equal(mismatched.rejected[0].reason,"ENTITY_ID_MISMATCH");
+assert.equal(mismatched.items[0].unitId,"LAB-CATALOG-GOOD");
 assert.throws(()=>publicCatalog(null),/INVALID_CATALOG_INPUT/);
 console.log("PASS: minimal public catalog exposes only current eligible units and no internal evidence/events");
