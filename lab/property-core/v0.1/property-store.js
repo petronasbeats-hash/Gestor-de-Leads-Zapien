@@ -17,6 +17,8 @@ async function advance(db,entityId,change){
  guard();
  if(!/^[A-Za-z0-9_-]{2,80}$/.test(entityId||""))throw Error("INVALID_ID");
  const ref=db.ref(ROOT+"/entities/"+entityId);
+ // Prime the Admin SDK local snapshot before the first transaction callback.
+ await ref.once("value");
  let failure=null;
  const matches=(existing)=>existing&&existing.to===change.to&&existing.actorId===change.actorId&&existing.at===change.at&&(existing.evidenceId??null)===(change.evidenceId??null);
  const tx=await ref.transaction(current=>{
