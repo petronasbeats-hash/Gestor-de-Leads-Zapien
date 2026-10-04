@@ -7,6 +7,7 @@ async function publish(db,{entityId,expectedRevision,property,building,priceMXN,
  guard();
  if(!/^[A-Za-z0-9_-]{2,80}$/.test(entityId||"")||!/^[A-Za-z0-9_-]{2,80}$/.test(requestId||"")||!Number.isSafeInteger(expectedRevision)||expectedRevision<1)throw Error("INVALID_REQUEST");
  const ref=db.ref(ROOT+"/entities/"+entityId);
+ await ref.once("value");
  const request={expectedRevision,priceMXN,evidenceIds};
  const same=(a,b)=>JSON.stringify(a)===JSON.stringify(b);
  let failure=null;
