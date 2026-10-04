@@ -1,0 +1,18 @@
+"use strict";
+const assert=require("node:assert/strict");
+const {property,building,unit}=require("./property-model");
+const {publicCatalog}=require("./public-catalog");
+const p=property({propertyId:"LAB-CATALOG-P1",name:"Pilot"}),b=building({buildingId:"LAB-CATALOG-B1",propertyId:p.propertyId,name:"Building"});
+const make=(id,overrides={})=>unit({unitId:id,propertyId:p.propertyId,buildingId:b.buildingId,number:id,type:"studio",verification:"active",occupancy:"vacant",operation:"available",...overrides});
+const publication=id=>({unitId:id,revision:4,priceMXN:2800,evidenceIds:["PRIVATE-EVIDENCE-01"],requestId:"PRIVATE-REQUEST"});
+const row=(record,revision=4)=>({property:p,building:b,entity:{record,revision,publication:publication(record.unitId),events:{"PRIVATE-EVENT":{actorId:"PRIVATE-ADMIN"}}}});
+const result=publicCatalog([row(make("LAB-CATALOG-U1")),row(make("LAB-CATALOG-U2",{occupancy:"occupied"})),row(make("LAB-CATALOG-U3"),5),null]);
+assert.equal(result.items.length,1);
+assert.equal(result.rejected.length,3);
+assert.deepEqual(Object.keys(result.items[0]).sort(),["currency","monthlyRentMXN","propertyGroupId","propertyName","unitId","unitNumber","unitType"].sort());
+assert.equal(JSON.stringify(result).includes("PRIVATE"),false);
+assert.equal(result.rejected[0].reason,"NOT_VACANT");
+assert.equal(result.rejected[1].reason,"STALE_PUBLICATION");
+assert.equal(result.rejected[2].reason,"NOT_PUBLISHED");
+assert.throws(()=>publicCatalog(null),/INVALID_CATALOG_INPUT/);
+console.log("PASS: minimal public catalog exposes only current eligible units and no internal evidence/events");
