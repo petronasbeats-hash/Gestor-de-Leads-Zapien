@@ -11,6 +11,8 @@ async function publish(db,{entityId,expectedRevision,property,building,priceMXN,
  const request={expectedRevision,priceMXN,evidenceIds};
  const same=(a,b)=>JSON.stringify(a)===JSON.stringify(b);
  let failure=null;
+ for(let attempt=0;attempt<4;attempt++){
+ failure=null;
  const tx=await ref.transaction(current=>{
   if(!current||current.marker!==MARKER){failure="ENTITY_NOT_FOUND";return;}
   const existing=current.publicationRequests?.[requestId];
@@ -38,8 +40,13 @@ async function publish(db,{entityId,expectedRevision,property,building,priceMXN,
    const decision=publicationDecision(property,building,latest.record,{priceMXN,evidenceIds});
    if(!decision.allowed)throw Error(decision.reason);
   }
+  // Emulator Admin SDK may initially supply null while a concurrent local write
+  // is being reconciled. Retry only when durable state still matches revision.
+  if(failure==="ENTITY_NOT_FOUND"&&latest?.marker===MARKER&&latest.revision===expectedRevision&&attempt<3)continue;
   throw Error(failure||"PUBLICATION_CONFLICT");
  }
  throw Error("INTERNAL_PUBLICATION_ERROR");
+ }
+ throw Error("PUBLICATION_RETRY_EXHAUSTED");
 }
 module.exports={publish};
