@@ -1,0 +1,14 @@
+"use strict";
+const assert=require("node:assert/strict");
+const {verifyPublicationEvidence:verify}=require("./evidence-verification");
+const base={evidenceIds:["LAB-EVIDENCE-1"],unitId:"LAB-UNIT-1",propertyId:"LAB-PROPERTY-1"};
+const record={evidenceId:"LAB-EVIDENCE-1",unitId:base.unitId,propertyId:base.propertyId,status:"verified"};
+assert.equal(verify({...base,records:[record]}).verified,true);
+assert.equal(verify({...base,records:undefined}).reason,"TRUSTED_EVIDENCE_REQUIRED");
+assert.equal(verify({...base,records:[]}).reason,"EVIDENCE_NOT_FOUND");
+assert.equal(verify({...base,records:[{...record,status:"pending"}]}).reason,"EVIDENCE_NOT_VERIFIED");
+assert.equal(verify({...base,records:[{...record,unitId:"OTHER"}]}).reason,"EVIDENCE_SCOPE_MISMATCH");
+assert.equal(verify({...base,evidenceIds:[record.evidenceId,record.evidenceId],records:[record]}).reason,"DUPLICATE_EVIDENCE");
+assert.equal(verify({...base,evidenceIds:[],records:[record]}).reason,"EVIDENCE_REQUIRED");
+assert.equal(verify({...base,evidenceIds:["bad/id"],records:[record]}).reason,"INVALID_EVIDENCE_ID");
+console.log("PASS: trusted evidence contract rejects missing, unverified, cross-unit and duplicate records");
