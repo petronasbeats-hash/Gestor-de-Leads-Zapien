@@ -1,0 +1,18 @@
+"use strict";
+const {currentPublication}=require("./publication-status");
+// Pure public projection; callers supply trusted current snapshots.
+function publicCatalog(rows){
+ if(!Array.isArray(rows))throw Error("INVALID_CATALOG_INPUT");
+ const items=[],rejected=[];
+ for(const row of rows){
+  const id=typeof row?.entity?.record?.unitId==="string"?row.entity.record.unitId:null;
+  let status;
+  try{status=currentPublication(row?.entity,row?.property,row?.building)}
+  catch(_error){status={visible:false,reason:"INVALID_CATALOG_ROW"}}
+  if(!status.visible){rejected.push({unitId:id,reason:status.reason});continue}
+  const {entity,property}=row,p=status.publication;
+  items.push(Object.freeze({propertyGroupId:property.propertyId,propertyName:property.name,unitId:entity.record.unitId,unitNumber:entity.record.number,unitType:entity.record.type,monthlyRentMXN:p.priceMXN,currency:"MXN"}));
+ }
+ return Object.freeze({items:Object.freeze(items),rejected:Object.freeze(rejected)});
+}
+module.exports={publicCatalog};
