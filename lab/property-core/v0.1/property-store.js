@@ -18,7 +18,7 @@ async function advance(db,entityId,change){
  if(!/^[A-Za-z0-9_-]{2,80}$/.test(entityId||""))throw Error("INVALID_ID");
  const ref=db.ref(ROOT+"/entities/"+entityId);
  let failure=null;
- const matches=(existing)=>existing&&existing.to===change.to&&existing.actorId===change.actorId&&existing.at===change.at&&existing.evidenceId===(change.evidenceId||null);
+ const matches=(existing)=>existing&&existing.to===change.to&&existing.actorId===change.actorId&&existing.at===change.at&&(existing.evidenceId??null)===(change.evidenceId??null);
  const tx=await ref.transaction(current=>{
   if(!current||current.marker!==MARKER){failure="ENTITY_NOT_FOUND";return;}
   const existing=current.events?.[change.eventId];
