@@ -36,7 +36,12 @@ async function advance(db,entityId,change){
   // A transaction callback may be retried against a stale local snapshot.
   // Re-read the durable state before rejecting an idempotent replay.
   const latest=(await ref.once("value")).val();
-  if(latest?.marker===MARKER&&matches(latest.events?.[change.eventId]))return latest;
+  if(latest?.marker===MARKER){
+   const persisted=latest.events?.[change.eventId];
+   if(matches(persisted))return latest;
+   if(persisted)throw Error("EVENT_ID_CONFLICT");
+   if(latest.record.verification!==change.to&&failure==="ENTITY_NOT_FOUND")throw Error("TRANSITION_CONFLICT");
+  }
   throw Error(failure||"TRANSITION_CONFLICT");
  }
  return tx.snapshot.val();
