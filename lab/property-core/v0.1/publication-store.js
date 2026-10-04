@@ -19,7 +19,8 @@ async function publish(_db,{entityId,expectedRevision,property,building,priceMXN
   if(!current||current.marker!==MARKER)throw Error("ENTITY_NOT_FOUND");
   const existing=current.publicationRequests?.[requestId];
   if(existing){
-   if(same(existing.request,request))return existing.publication;
+   // RTDB can return object keys in a different order; compare explicit fields.
+   if(existing.request?.expectedRevision===request.expectedRevision&&existing.request?.priceMXN===request.priceMXN&&JSON.stringify(existing.request?.evidenceIds)===JSON.stringify(request.evidenceIds))return existing.publication;
    throw Error("REQUEST_ID_CONFLICT");
   }
   if(current.revision!==expectedRevision)throw Error("STALE_REVISION");
