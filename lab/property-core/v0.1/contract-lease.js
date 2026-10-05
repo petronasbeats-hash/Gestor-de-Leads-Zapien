@@ -20,7 +20,7 @@ function transition(contract,{to,actorId,eventId,at,authorizationRef=null}){
  id(actorId,"ACTOR_ID");id(eventId,"EVENT_ID");req(at,"AT");
  if(["approved","active","terminated"].includes(to))id(authorizationRef,"AUTHORIZATION_REF");
  const next=Object.freeze({...contract,state:to,revision:contract.revision+1});
- const event=Object.freeze({eventId,type:"property.contract."+to+".v1",contractId:contract.contractId,organizationId:contract.organizationId,tenantRef:contract.tenantRef,unitRef:contract.unitRef,rentAmountMinor:contract.rentAmountMinor,currency:contract.currency,billingSchedule:contract.billingSchedule,effectiveAt:at,authorizationRef:authorizationRef||null,from:contract.state,to,actorId,schemaVersion:1});
+ const event=Object.freeze({eventId,type:to==="active"?"property.contract.activated.v1":"property.contract."+to+".v1",contractId:contract.contractId,organizationId:contract.organizationId,tenantRef:contract.tenantRef,unitRef:contract.unitRef,rentAmountMinor:contract.rentAmountMinor,currency:contract.currency,billingSchedule:contract.billingSchedule,effectiveAt:at,authorizationRef:authorizationRef||null,from:contract.state,to,actorId,schemaVersion:1});
  return Object.freeze({contract:next,event});
 }
 function renew(contract,{newEndDate,actorId,eventId,at,authorizationRef}){
