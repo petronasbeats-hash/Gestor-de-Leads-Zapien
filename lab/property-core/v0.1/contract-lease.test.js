@@ -6,7 +6,7 @@ let c=base();assert.equal(c.state,"draft");assert.equal(c.currency,"MXN");assert
 let x=transition(c,{to:"review",actorId:"agent01",eventId:"evt01",at:"2026-09-20T12:00:00-06:00"});c=x.contract;
 x=transition(c,{to:"approved",actorId:"agent01",eventId:"evt02",at:"2026-09-21T12:00:00-06:00",authorizationRef:"auth01"});c=x.contract;
 x=transition(c,{to:"active",actorId:"agent01",eventId:"evt03",at:"2026-10-01T00:00:00-06:00",authorizationRef:"auth02"});c=x.contract;
-assert.equal(x.event.type,"property.contract.active.v1");assert.equal(x.event.rentAmountMinor,350000);assert.equal(x.event.organizationId,"org01");
+assert.equal(x.event.type,"property.contract.activated.v1");assert.equal(x.event.rentAmountMinor,350000);assert.equal(x.event.organizationId,"org01");
 const r=renew(c,{newEndDate:"2027-09-30",actorId:"agent01",eventId:"evt04",at:"2027-03-01T10:00:00-06:00",authorizationRef:"auth03"});
 assert.equal(r.event.type,"property.contract.renewed.v1");assert.equal(r.contract.endDate,"2027-09-30");
 assert.throws(()=>renew(c,{newEndDate:"2027-03-31",actorId:"agent01",eventId:"evt05",at:"x",authorizationRef:"auth04"}),/INVALID_RENEWAL_TERM/);
