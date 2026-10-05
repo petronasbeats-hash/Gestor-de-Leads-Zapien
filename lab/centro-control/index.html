@@ -7,10 +7,10 @@
 <p class="muted">Seguimiento de Synapse Lab + Property Core · Corte verificado: 4 octubre 2026</p>
 <section class="hero grid"><div class="card" style="grid-column:span 2"><div class="label">Avance global por hitos definidos</div><div class="big" id="global">—</div><div class="bar"><span id="globalbar"></span></div><p id="globalnote" class="muted"></p><p class="small warning">Este porcentaje mide hitos del plan de laboratorio y liberación definidos abajo. No es una estimación de líneas de código ni significa que producción esté lista.</p></div><div class="card"><div class="label">Estado de producción</div><div class="value">SIN CAMBIOS</div><p class="muted small">Sin merge a main ni despliegue autorizado.</p><div class="label">Último CI verificado</div><p class="done">✓ Syntax gate · ✓ Habitat security lab</p><p class="small muted">Commit b09cc261 · Consultar Actions para resultados posteriores.</p></div></section>
 <section class="grid"><div class="card"><div class="label">Hitos terminados</div><div class="value" id="done">—</div><p class="muted small">Exigen evidencia comprobable</p></div><div class="card"><div class="label">Hitos en desarrollo</div><div class="value" id="doing">—</div><p class="muted small">No cuentan como terminados</p></div><div class="card"><div class="label">Hitos pendientes</div><div class="value" id="todo">—</div><p class="muted small">Trabajo por realizar</p></div></section>
-<h2 class="section">Mapa de avance</h2><div class="grid" id="engines"></div>
+<h2 class="section">Monitor de pruebas</h2><div class="card"><div class="row"><strong>GitHub Actions · rama de laboratorio</strong></div><p id="ci-state" class="muted">Sin consultar todavía</p><p id="ci-time" class="small muted">La consulta en vivo no altera el porcentaje de hitos.</p><button id="ci-refresh" type="button">Consultar estado actual</button><p class="small muted">Consulta de solo lectura a GitHub. Si el repositorio no permite acceso público o hay un error de red, se muestra el último corte documentado.</p></div><h2 class="section">Mapa de avance</h2><div class="grid" id="engines"></div>
 <h2 class="section">Hitos, pruebas y pendientes</h2><div class="card" style="overflow-x:auto"><table><thead><tr><th>Motor</th><th>Hito</th><th>Estado</th><th>Evidencia / siguiente paso</th></tr></thead><tbody id="milestones"></tbody></table></div>
 <h2 class="section">Avance visible</h2><div class="card"><ol class="timeline"><li>Motor de reservas con concurrencia, reintentos y recuperación probados en emulador.</li><li>Property Core V0.1 con entidades, estados, eventos y persistencia.</li><li>Inventario sintético ADN (13 unidades) y segundo inmueble de prueba (2 unidades).</li><li>Publicación atómica y catálogo experimental con filtros, privacidad y controles de identidad.</li><li>Publicación atómica conectada en prueba al almacenamiento de evidencias de Firebase Emulator.</li></ol></div>
-<h2 class="section">Evidencia y seguimiento</h2><div class="card"><div class="links"><a target="_blank" rel="noopener" href="https://github.com/petronasbeats-hash/Gestor-de-Leads-Zapien/pull/7">PR de laboratorio #7 ↗</a><a target="_blank" rel="noopener" href="https://github.com/petronasbeats-hash/Gestor-de-Leads-Zapien/actions">Pruebas automáticas ↗</a><a target="_blank" rel="noopener" href="https://github.com/petronasbeats-hash/Gestor-de-Leads-Zapien/tree/lab/property-engine-v2">Código de laboratorio ↗</a></div><p class="muted small">Panel de corte: los resultados no se actualizan automáticamente. GitHub Actions es la fuente para consultar las pruebas más recientes. Actualizar hitos y fecha en este archivo después de validar nuevos avances.</p><button onclick="window.location.reload()">Actualizar vista</button></div>
+<h2 class="section">Evidencia y seguimiento</h2><div class="card"><div class="links"><a target="_blank" rel="noopener" href="https://github.com/petronasbeats-hash/Gestor-de-Leads-Zapien/pull/7">PR de laboratorio #7 ↗</a><a target="_blank" rel="noopener" href="https://github.com/petronasbeats-hash/Gestor-de-Leads-Zapien/actions">Pruebas automáticas ↗</a><a target="_blank" rel="noopener" href="https://github.com/petronasbeats-hash/Gestor-de-Leads-Zapien/tree/lab/property-engine-v2">Código de laboratorio ↗</a></div><p class="muted small">Los hitos se actualizan manualmente tras validación. El monitor consulta GitHub Actions cuando el repositorio es accesible; nunca modifica el porcentaje por sí solo.</p><button onclick="window.location.reload()">Actualizar vista</button></div>
 <footer>Synapse Core y Property Core se mantienen como motores independientes. Los hitos de producción requieren auditoría y autorización explícita.</footer>
 </main><script>
 const milestones=[
@@ -44,4 +44,27 @@ for(const s of ["done","doing","todo"])document.getElementById(s).textContent=co
 const engines=[...new Set(milestones.map(m=>m.engine))];
 document.getElementById("engines").innerHTML=engines.map(e=>{const group=milestones.filter(m=>m.engine===e),n=group.filter(m=>m.status==="done").length,p=Math.round(100*n/group.length);return '<div class="card"><div class="label">'+e+'</div><div class="value">'+p+'%</div><div class="bar smallbar"><span style="width:'+p+'%"></span></div><p class="muted small">'+n+' de '+group.length+' hitos completados</p></div>'}).join("");
 document.getElementById("milestones").innerHTML=milestones.map(m=>'<tr><td>'+m.engine+'</td><td><strong>'+m.name+'</strong></td><td class="'+classes[m.status]+'">'+labels[m.status]+'</td><td class="muted">'+m.proof+(m.status==="done"&&evidence[m.name]?' <a target="_blank" rel="noopener" href="'+sourceBase+evidence[m.name]+'">Ver prueba ↗</a>':'')+'</td></tr>').join("");
+</script><script>
+(function(){
+ const state=document.getElementById("ci-state"),time=document.getElementById("ci-time"),button=document.getElementById("ci-refresh");
+ const api="https://api.github.com/repos/petronasbeats-hash/Gestor-de-Leads-Zapien/actions/runs?branch=lab%2Fproperty-engine-v2&per_page=30";
+ async function refresh(){
+  button.disabled=true;state.textContent="Consultando GitHub…";
+  try{
+   const response=await fetch(api,{headers:{"Accept":"application/vnd.github+json"},cache:"no-store"});
+   if(!response.ok)throw Error("HTTP "+response.status);
+   const payload=await response.json();
+   const wanted=["Syntax gate","Habitat security lab"];
+   const runs=wanted.map(name=>(payload.workflow_runs||[]).find(run=>run.name===name));
+   if(runs.some(run=>!run))throw Error("No hay ejecuciones suficientes en la respuesta");
+   state.textContent=runs.map(run=>run.name+": "+(run.status==="completed"?(run.conclusion==="success"?"APROBADO":run.conclusion==="failure"?"FALLÓ":String(run.conclusion||"SIN RESULTADO")):"EN CURSO")).join(" · ");
+   time.textContent="Consulta GitHub: "+new Date().toLocaleString("es-MX")+" · Últimas ejecuciones por flujo, que pueden corresponder a commits distintos. Abre Actions para comprobar el commit.";
+  }catch(err){
+   state.textContent="No se pudo consultar GitHub; último corte validado: ambas pruebas aprobadas.";
+   time.textContent="Motivo: "+err.message+". No se interpreta como prueba aprobada ni como fallo del código.";
+  }finally{button.disabled=false;}
+ }
+ button.addEventListener("click",refresh);
+ refresh();
+})();
 </script></body></html>
