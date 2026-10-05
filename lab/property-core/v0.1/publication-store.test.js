@@ -31,6 +31,8 @@ const u=unit({unitId:entityId,propertyId:p.propertyId,buildingId:b.buildingId,nu
  assert.equal(before?.record?.unitId,entityId,"fixture record must persist");
  console.log("DIAGNOSTIC publication fixture durable",JSON.stringify({marker:before.marker,revision:before.revision,unitId:before.record.unitId}));
  const trustedLoader=trustedEvidenceStore(db);
+ await assert.rejects(publish(db,{...args,property:property({propertyId:"WRONG-P",name:"Wrong"}),building:building({buildingId:"WRONG-B",propertyId:"WRONG-P",name:"Wrong"})},trustedEvidenceStore(db)),/ENTITY_SCOPE_MISMATCH/);
+ await assert.rejects(publish(db,{...args,building:building({buildingId:"WRONG-B",propertyId:p.propertyId,name:"Wrong"})},trustedEvidenceStore(db)),/ENTITY_SCOPE_MISMATCH/);
  await assert.rejects(publish(db,args),/TRUSTED_EVIDENCE_LOADER_REQUIRED/);
  await assert.rejects(publish(db,args,async()=>[]),/EVIDENCE_NOT_FOUND/);
  await assert.rejects(publish(db,args,async()=>[{evidenceId:"LAB-EVIDENCE",unitId:entityId,propertyId:p.propertyId,status:"pending"}]),/EVIDENCE_NOT_VERIFIED/);
