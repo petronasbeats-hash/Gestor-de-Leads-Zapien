@@ -16,5 +16,5 @@ const expired=transition(c,{to:"expired",actorId:"agent01",eventId:"evt08",at:"2
 assert.equal(expired.contract.state,"expired");assert.equal(occupancyEffect().automatic,false);assert.equal(availabilityEffect().automatic,false);
 const terminated=transition(c,{to:"terminated",actorId:"agent01",eventId:"evt09",at:"2027-02-01T00:00:00-06:00",authorizationRef:"auth09"});
 assert.equal(terminated.contract.state,"terminated");assert.equal(availabilityEffect().reason,"TURNOVER_VERIFICATION_REQUIRED");
-assert.throws(()=>createContract({...base(),contractId:"lease02",startDate:"2027-04-01",endDate:"2027-03-01"}),/INVALID_TERM/);
+assert.throws(()=>createContract({contractId:"lease02",organizationId:"org01",tenantRef:"tenant_synthetic",unitRef:"yang01",rentAmountMinor:350000,currency:"MXN",billingSchedule:"monthly",startDate:"2027-04-01",endDate:"2027-03-01"}),/INVALID_TERM/);
 console.log("PASS: Contract/Lease V0.1 lifecycle, authorization and no implicit occupancy/availability");
