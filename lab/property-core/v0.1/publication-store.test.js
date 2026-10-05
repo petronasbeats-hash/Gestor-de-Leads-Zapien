@@ -5,12 +5,16 @@ const {getDatabase}=require("firebase-admin/database");
 const {property,building,unit}=require("./property-model");
 const {create,advance,ROOT,MARKER}=require("./property-store");
 const {publish}=require("./publication-store");
+const {trustedEvidenceStore}=require("./trusted-evidence-store");
 if(process.env.FIREBASE_DATABASE_EMULATOR_HOST!=="127.0.0.1:9100")throw Error("EMULATOR_REQUIRED");
 const app=initializeApp({projectId:"demo-habitat-security-lab",databaseURL:"https://demo-habitat-security-lab-default-rtdb.firebaseio.com"},"publication-test");
-const db=getDatabase(app),entityId="LAB-PUBLICATION-U1",ref=db.ref(ROOT+"/entities/"+entityId);
+const db=getDatabase(app),entityId="LAB-PUBLICATION-U1",ref=db.ref(ROOT+"/entities/"+entityId),evidenceRef=db.ref(ROOT+"/evidence/LAB-EVIDENCE");
 const p=property({propertyId:"LAB-PUBLICATION-P1",name:"Pilot"}),b=building({buildingId:"LAB-PUBLICATION-B1",propertyId:p.propertyId,name:"Building"});
 const u=unit({unitId:entityId,propertyId:p.propertyId,buildingId:b.buildingId,number:"1",type:"suite"});
 (async()=>{
+ const previousEvidence=(await evidenceRef.once("value")).val();
+ if(previousEvidence&&previousEvidence.marker!==MARKER)throw Error("UNOWNED_EVIDENCE");
+ if(previousEvidence)await evidenceRef.remove();
  const old=(await ref.once("value")).val();
  if(old&&old.marker!==MARKER)throw Error("UNOWNED_FIXTURE");
  if(old)await ref.remove();
@@ -26,10 +30,13 @@ const u=unit({unitId:entityId,propertyId:p.propertyId,buildingId:b.buildingId,nu
  assert.equal(before?.revision,revision,"fixture revision must persist");
  assert.equal(before?.record?.unitId,entityId,"fixture record must persist");
  console.log("DIAGNOSTIC publication fixture durable",JSON.stringify({marker:before.marker,revision:before.revision,unitId:before.record.unitId}));
- const trustedLoader=async()=>[{evidenceId:"LAB-EVIDENCE",unitId:entityId,propertyId:p.propertyId,status:"verified"}];
+ const trustedLoader=trustedEvidenceStore(db);
  await assert.rejects(publish(db,args),/TRUSTED_EVIDENCE_LOADER_REQUIRED/);
  await assert.rejects(publish(db,args,async()=>[]),/EVIDENCE_NOT_FOUND/);
  await assert.rejects(publish(db,args,async()=>[{evidenceId:"LAB-EVIDENCE",unitId:entityId,propertyId:p.propertyId,status:"pending"}]),/EVIDENCE_NOT_VERIFIED/);
+ await evidenceRef.set({marker:MARKER,unitId:entityId,propertyId:p.propertyId,status:"pending"});
+ await assert.rejects(publish(db,args,trustedLoader),/EVIDENCE_NOT_VERIFIED/);
+ await evidenceRef.update({status:"verified"});
  const first=await publish(db,args,trustedLoader);
  const results=await Promise.all(Array.from({length:20},()=>publish(db,args,trustedLoader)));
  assert.equal(first.requestId,args.requestId);
@@ -55,4 +62,4 @@ const u=unit({unitId:entityId,propertyId:p.propertyId,buildingId:b.buildingId,nu
  assert.equal(raced.publication.requestId,competing.find(x=>x.status==="fulfilled").value.requestId);
 
  console.log("PASS: atomic publication 20 identical contenders, single revision, distinct race single winner, stale and conflicting requests rejected");
-})().catch(e=>{console.error(e);process.exitCode=1}).finally(async()=>{const v=(await ref.once("value")).val();if(v?.marker===MARKER)await ref.remove();await deleteApp(app)});
+})().catch(e=>{console.error(e);process.exitCode=1}).finally(async()=>{const v=(await ref.once("value")).val();if(v?.marker===MARKER)await ref.remove();const e=(await evidenceRef.once("value")).val();if(e?.marker===MARKER)await evidenceRef.remove();await deleteApp(app)});
