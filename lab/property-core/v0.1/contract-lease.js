@@ -4,7 +4,7 @@ const STATES=new Set(["draft","review","approved","active","expired","terminated
 const CURRENCIES=/^[A-Z]{3}$/;
 const DATE=/^\d{4}-\d{2}-\d{2}$/;
 const ID=/^[A-Za-z0-9_-]{2,80}$/;
-const INSTANT=/^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{1,3})?(?:Z|[+-]\\d{2}:\\d{2})$/;
+const INSTANT=/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?(?:Z|[+-]\d{2}:\d{2})$/;
 function req(v,n){if(typeof v!=="string"||!v.trim())throw Error("INVALID_"+n);return v.trim();}
 function id(v,n="ID"){const s=req(v,n);if(!ID.test(s))throw Error("INVALID_"+n);return s;}
 function date(v,n){const s=req(v,n),m=DATE.exec(s);if(!m)throw Error("INVALID_"+n);const d=new Date(s+"T00:00:00Z");if(d.getUTCFullYear()!==Number(s.slice(0,4))||d.getUTCMonth()+1!==Number(s.slice(5,7))||d.getUTCDate()!==Number(s.slice(8,10)))throw Error("INVALID_"+n);return s;}
