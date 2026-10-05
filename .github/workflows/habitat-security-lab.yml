@@ -6,6 +6,7 @@ on:
       - "lab/habitat/security-lab/**"
       - "lab/property-core/**"
       - "lab/centro-control/**"
+      - "lab/synapse-core/**"
       - ".github/workflows/habitat-security-lab.yml"
   pull_request:
     branches: [main]
@@ -49,6 +50,8 @@ jobs:
           node --check reservar-multiunit-guard.test.js
           node reservar-multiunit-guard.test.js
           node ../../centro-control/dashboard.test.js
+          node --check ../../synapse-core/v0.1/case-contract.js
+          node ../../synapse-core/v0.1/case-contract.test.js
           node --check ../../property-core/v0.1/property-model.js
           node ../../property-core/v0.1/property-model.test.js
           node --check ../../property-core/v0.1/property-events.js
