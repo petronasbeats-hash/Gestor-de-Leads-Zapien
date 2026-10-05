@@ -18,6 +18,7 @@ assert.equal(done,6);
 assert.equal(doing,2);
 assert.equal(todo,4);
 assert.equal((node("milestones").innerHTML.match(/<tr>/g)||[]).length,12);
+assert.equal((node("milestones").innerHTML.match(/Ver prueba ↗/g)||[]).length,done,"every verified milestone must link to a test");
 assert.ok(html.includes("SIN CAMBIOS"));
 assert.ok(html.includes("no se actualizan automáticamente"));
 console.log("PASS: dashboard baseline counts, percentages, visible rows and manual-update disclosure");
