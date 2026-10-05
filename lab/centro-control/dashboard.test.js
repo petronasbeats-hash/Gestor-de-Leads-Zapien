@@ -23,5 +23,5 @@ assert.ok(html.includes("id=\"ci-state\""));
 assert.ok(html.includes("api.github.com/repos/petronasbeats-hash/Gestor-de-Leads-Zapien/actions/runs"));
 assert.ok(html.includes("No se pudo consultar GitHub"));
 assert.ok(html.includes("SIN CAMBIOS"));
-assert.ok(html.includes("no se actualizan automáticamente"));
+assert.ok(html.includes("Los hitos se actualizan manualmente"));
 console.log("PASS: dashboard baseline counts, percentages, visible rows and manual-update disclosure");
