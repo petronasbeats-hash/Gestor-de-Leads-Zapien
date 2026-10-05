@@ -27,6 +27,15 @@ const milestones=[
 {engine:"Liberación",name:"Pruebas integrales y migración retrocompatible",status:"todo",proof:"Pendiente entorno de preproducción y plan de reversión"},
 {engine:"Liberación",name:"Despliegue controlado y observabilidad",status:"todo",proof:"Requiere autorización explícita"}
 ];
+const evidence={
+"Reservas atómicas y reintentos":"lab/habitat/security-lab/availability-atomic-v2-cas.test.js",
+"Recuperación y pruebas de seguridad":"lab/habitat/security-lab/process-crash-recovery.test.js",
+"Modelo, estados y trazabilidad V0.1":"lab/property-core/v0.1/property-store.test.js",
+"Catálogo sintético multiinmueble":"lab/property-core/v0.1/multi-property.test.js",
+"Publicación atómica y catálogo protegido":"lab/property-core/v0.1/public-catalog.test.js",
+"Evidencias almacenadas y publicación en emulador":"lab/property-core/v0.1/publication-store.test.js"
+};
+const sourceBase="https://github.com/petronasbeats-hash/Gestor-de-Leads-Zapien/blob/lab/property-engine-v2/";
 const labels={done:"Verificado",doing:"En desarrollo",todo:"Pendiente"},classes={done:"done",doing:"doing",todo:"todo"};
 const count=s=>milestones.filter(m=>m.status===s).length;const total=milestones.length,done=count("done");const percent=Math.round(100*done/total);
 document.getElementById("global").textContent=percent+"%";document.getElementById("globalbar").style.width=percent+"%";
@@ -34,5 +43,5 @@ document.getElementById("globalnote").textContent=done+" de "+total+" hitos veri
 for(const s of ["done","doing","todo"])document.getElementById(s).textContent=count(s);
 const engines=[...new Set(milestones.map(m=>m.engine))];
 document.getElementById("engines").innerHTML=engines.map(e=>{const group=milestones.filter(m=>m.engine===e),n=group.filter(m=>m.status==="done").length,p=Math.round(100*n/group.length);return '<div class="card"><div class="label">'+e+'</div><div class="value">'+p+'%</div><div class="bar smallbar"><span style="width:'+p+'%"></span></div><p class="muted small">'+n+' de '+group.length+' hitos completados</p></div>'}).join("");
-document.getElementById("milestones").innerHTML=milestones.map(m=>'<tr><td>'+m.engine+'</td><td><strong>'+m.name+'</strong></td><td class="'+classes[m.status]+'">'+labels[m.status]+'</td><td class="muted">'+m.proof+'</td></tr>').join("");
+document.getElementById("milestones").innerHTML=milestones.map(m=>'<tr><td>'+m.engine+'</td><td><strong>'+m.name+'</strong></td><td class="'+classes[m.status]+'">'+labels[m.status]+'</td><td class="muted">'+m.proof+(m.status==="done"&&evidence[m.name]?' <a target="_blank" rel="noopener" href="'+sourceBase+evidence[m.name]+'">Ver prueba ↗</a>':'')+'</td></tr>').join("");
 </script></body></html>
