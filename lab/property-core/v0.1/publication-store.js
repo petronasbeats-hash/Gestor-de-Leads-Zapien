@@ -24,6 +24,7 @@ async function publish(_db,{entityId,expectedRevision,property,building,priceMXN
    throw Error("REQUEST_ID_CONFLICT");
   }
   if(current.revision!==expectedRevision)throw Error("STALE_REVISION");
+  if(!property||!building||property.propertyId!==current.record.propertyId||building.buildingId!==current.record.buildingId||building.propertyId!==current.record.propertyId)throw Error("ENTITY_SCOPE_MISMATCH");
   const decision=publicationDecision(property,building,current.record,{priceMXN,evidenceIds});
   if(!decision.allowed)throw Error(decision.reason);
   if(typeof trustedEvidenceLoader!=="function")throw Error("TRUSTED_EVIDENCE_LOADER_REQUIRED");
