@@ -9,9 +9,9 @@ x=transition(c,{to:"active",actorId:"agent01",eventId:"evt03",at:"2026-10-01T00:
 assert.equal(x.event.type,"property.contract.activated.v1");assert.equal(x.event.rentAmountMinor,350000);assert.equal(x.event.organizationId,"org01");
 const r=renew(c,{newEndDate:"2027-09-30",actorId:"agent01",eventId:"evt04",at:"2027-03-01T10:00:00-06:00",authorizationRef:"auth03"});
 assert.equal(r.event.type,"property.contract.renewed.v1");assert.equal(r.contract.endDate,"2027-09-30");
-assert.throws(()=>renew(c,{newEndDate:"2027-03-31",actorId:"agent01",eventId:"evt05",at:"x",authorizationRef:"auth04"}),/INVALID_RENEWAL_TERM/);
-assert.throws(()=>transition(base(),{to:"active",actorId:"agent01",eventId:"evt06",at:"x",authorizationRef:"auth05"}),/INVALID_CONTRACT_TRANSITION/);
-assert.throws(()=>transition(c,{to:"terminated",actorId:"agent01",eventId:"evt07",at:"x"}),/INVALID_AUTHORIZATION_REF/);
+assert.throws(()=>renew(c,{newEndDate:"2027-03-31",actorId:"agent01",eventId:"evt05",at:"2027-03-01T10:00:00-06:00",authorizationRef:"auth04"}),/INVALID_RENEWAL_TERM/);
+assert.throws(()=>transition(base(),{to:"active",actorId:"agent01",eventId:"evt06",at:"2026-09-20T12:00:00-06:00",authorizationRef:"auth05"}),/INVALID_CONTRACT_TRANSITION/);
+assert.throws(()=>transition(c,{to:"terminated",actorId:"agent01",eventId:"evt07",at:"2027-02-01T00:00:00-06:00"}),/INVALID_AUTHORIZATION_REF/);
 const expired=transition(c,{to:"expired",actorId:"agent01",eventId:"evt08",at:"2027-04-01T00:00:00-06:00"});
 assert.equal(expired.contract.state,"expired");assert.equal(occupancyEffect().automatic,false);assert.equal(availabilityEffect().automatic,false);
 const terminated=transition(c,{to:"terminated",actorId:"agent01",eventId:"evt09",at:"2027-02-01T00:00:00-06:00",authorizationRef:"auth09"});
