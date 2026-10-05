@@ -54,6 +54,8 @@ jobs:
           node ../../synapse-core/v0.1/case-contract.test.js
           node --check ../../property-core/v0.1/property-model.js
           node ../../property-core/v0.1/property-model.test.js
+          node --check ../../property-core/v0.1/contract-cobranza-boundary.js
+          node ../../property-core/v0.1/contract-cobranza-boundary.test.js
           node --check ../../property-core/v0.1/contract-lease.js
           node ../../property-core/v0.1/contract-lease.test.js
           node --check ../../property-core/v0.1/property-events.js
