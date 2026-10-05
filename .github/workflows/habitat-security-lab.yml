@@ -5,6 +5,7 @@ on:
     paths:
       - "lab/habitat/security-lab/**"
       - "lab/property-core/**"
+      - "lab/centro-control/**"
       - ".github/workflows/habitat-security-lab.yml"
   pull_request:
     branches: [main]
@@ -47,6 +48,7 @@ jobs:
           node --check process-crash-recovery.test.js
           node --check reservar-multiunit-guard.test.js
           node reservar-multiunit-guard.test.js
+          node ../../centro-control/dashboard.test.js
           node --check ../../property-core/v0.1/property-model.js
           node ../../property-core/v0.1/property-model.test.js
           node --check ../../property-core/v0.1/property-events.js
