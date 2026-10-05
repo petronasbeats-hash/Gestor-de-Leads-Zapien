@@ -1,0 +1,87 @@
+name: Habitat security lab
+on:
+  push:
+    branches: [lab/property-engine-v2]
+    paths:
+      - "lab/habitat/security-lab/**"
+      - "lab/property-core/**"
+      - "lab/centro-control/**"
+      - "lab/synapse-core/**"
+      - ".github/workflows/habitat-security-lab.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "lab/habitat/security-lab/**"
+      - "reservar.html"
+      - "lab/property-core/**"
+      - ".github/workflows/habitat-security-lab.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  emulator:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: lab/habitat/security-lab
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+      - name: Install lab dependencies
+        run: |
+          npm init -y
+          npm install --no-audit --no-fund firebase-admin@13 firebase-tools@14
+      - name: Syntax checks
+        run: |
+          node --check availability-atomic-v2-cas.js
+          node --check availability-atomic-v2-cas.test.js
+          node --check availability-gate-lab.js
+          node --check availability-gate-lab.test.js
+          node --check admin-booking-lab.js
+          node --check admin-booking-lab.test.js
+          node --check process-crash-recovery.test.js
+          node --check reservar-multiunit-guard.test.js
+          node reservar-multiunit-guard.test.js
+          node ../../centro-control/dashboard.test.js
+          node --check ../../synapse-core/v0.1/case-contract.js
+          node ../../synapse-core/v0.1/case-contract.test.js
+          node --check ../../property-core/v0.1/property-model.js
+          node ../../property-core/v0.1/property-model.test.js
+          node --check ../../property-core/v0.1/contract-cobranza-boundary.js
+          node ../../property-core/v0.1/contract-cobranza-boundary.test.js
+          node ../../property-core/v0.1/property-cobranza-contract.test.js
+          node --check ../../property-core/v0.1/contract-lease.js
+          node ../../property-core/v0.1/contract-lease.test.js
+          node --check ../../property-core/v0.1/property-events.js
+          node ../../property-core/v0.1/property-events.test.js
+          node --check ../../property-core/v0.1/adn-inventory.js
+          node ../../property-core/v0.1/adn-inventory.test.js
+          node ../../property-core/v0.1/multi-property.test.js
+          node --check ../../property-core/v0.1/publication-gate.js
+          node ../../property-core/v0.1/publication-gate.test.js
+          node --check ../../property-core/v0.1/publication-store.js
+          node --check ../../property-core/v0.1/publication-store.test.js
+          node --check ../../property-core/v0.1/publication-snapshot.js
+          node ../../property-core/v0.1/publication-snapshot.test.js
+          node --check ../../property-core/v0.1/publication-status.js
+          node ../../property-core/v0.1/publication-status.test.js
+          node --check ../../property-core/v0.1/public-catalog.js
+          node ../../property-core/v0.1/public-catalog.test.js
+          node --check ../../property-core/v0.1/evidence-verification.js
+          node ../../property-core/v0.1/evidence-verification.test.js
+          node --check ../../property-core/v0.1/trusted-evidence-store.js
+          node --check ../../property-core/v0.1/trusted-evidence-store.test.js
+          node --check ../../property-core/v0.1/property-store.js
+          node --check ../../property-core/v0.1/property-store.test.js
+      - name: Run isolated RTDB emulator tests
+        env:
+          FIREBASE_DATABASE_EMULATOR_HOST: 127.0.0.1:9100
+        run: |
+          npx firebase emulators:exec --config firebase.json --project demo-habitat-security-lab --only database             "node admin-booking-lab.test.js && node process-crash-recovery.test.js inject-claim && node process-crash-recovery.test.js verify-claim && node process-crash-recovery.test.js inject-cita && node process-crash-recovery.test.js verify-cita && node availability-gate-lab.test.js && node availability-atomic-v2-cas.test.js && NODE_PATH=$PWD/node_modules node ../../property-core/v0.1/property-store.test.js && NODE_PATH=$PWD/node_modules node ../../property-core/v0.1/publication-store.test.js && NODE_PATH=$PWD/node_modules node ../../property-core/v0.1/trusted-evidence-store.test.js"

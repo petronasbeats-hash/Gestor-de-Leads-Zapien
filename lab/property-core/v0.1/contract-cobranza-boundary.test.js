@@ -1,0 +1,17 @@
+"use strict";
+const assert=require("node:assert/strict");
+const {createContract,transition}=require("./contract-lease");
+const {assertActivatedEvent,cobranzaCommandFromActivation}=require("./contract-cobranza-boundary");
+let c=createContract({contractId:"lease_bridge01",organizationId:"org01",tenantRef:"tenant_synthetic",unitRef:"unit01",rentAmountMinor:300000,currency:"mxn",billingSchedule:"monthly",startDate:"2026-10-01",endDate:"2027-03-31"});
+c=transition(c,{to:"review",actorId:"agent01",eventId:"evt_review",at:"2026-09-20T12:00:00-06:00"}).contract;
+c=transition(c,{to:"approved",actorId:"agent01",eventId:"evt_approve",at:"2026-09-21T12:00:00-06:00",authorizationRef:"auth01"}).contract;
+const activation=transition(c,{to:"active",actorId:"agent01",eventId:"evt_activate",at:"2026-10-01T00:00:00-06:00",authorizationRef:"auth02"}).event;
+const validated=assertActivatedEvent(activation);assert.equal(validated.type,"property.contract.activated.v1");
+const command=cobranzaCommandFromActivation(activation);
+assert.equal(command.command,"billing.charge.create.v1");assert.equal(command.amountMinor,300000);assert.equal(command.currency,"MXN");
+assert.equal(command.externalId,"contract:lease_bridge01:activation");assert.equal(command.sourceEventId,"evt_activate");
+assert.equal(command.organizationId,"org01");assert.equal(Object.isFrozen(command),true);
+assert.throws(()=>cobranzaCommandFromActivation({...activation,authorizationRef:null}),/INVALID_AUTHORIZATION_REF/);
+assert.throws(()=>cobranzaCommandFromActivation({...activation,type:"property.contract.terminated.v1"}),/UNSUPPORTED_CONTRACT_EVENT/);
+assert.throws(()=>cobranzaCommandFromActivation({...activation,organizationId:"../other"}),/INVALID_ORGANIZATION_ID/);
+console.log("PASS: Property -> Cobranza activation boundary is explicit, authorized and idempotency-ready");

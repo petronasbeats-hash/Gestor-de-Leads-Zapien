@@ -1,0 +1,14 @@
+"use strict";
+const assert=require("node:assert/strict");
+const {catalog,parent,structure}=require("./adn-inventory");
+assert.equal(parent.verification,"draft");
+assert.equal(structure.propertyId,parent.propertyId);
+assert.equal(catalog.length,13);
+assert.equal(new Set(catalog.map(x=>x.identity.unitId)).size,13);
+assert.equal(catalog.filter(x=>x.commercial.category==="YANG").length,7);
+assert.equal(catalog.filter(x=>x.commercial.category==="YIN").length,6);
+assert.equal(catalog.filter(x=>x.commercial.category==="YIN").every(x=>x.commercial.monthlyRentMXN===2800),true);
+assert.equal(catalog.filter(x=>["08","09"].includes(x.identity.number)&&x.commercial.category==="YANG").every(x=>x.commercial.monthlyRentMXN===3000),true);
+assert.equal(catalog.every(x=>x.projection.activo===false&&x.identity.occupancy==="unknown"&&x.identity.verification==="draft"),true);
+assert.equal(catalog.every(x=>x.commercial.termMonths===6&&x.commercial.depositMonths===1),true);
+console.log("PASS: ADN synthetic 13-unit catalog, distinct identities, rates and fail-closed eligibility");

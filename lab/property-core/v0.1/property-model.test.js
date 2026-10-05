@@ -1,0 +1,17 @@
+"use strict";
+const assert=require("node:assert/strict");
+const {property,building,unit,commercialEligibility,synapseProjection}=require("./property-model");
+const p=property({propertyId:"adn001",name:"ADN Suites & Studios"});
+const b=building({buildingId:"adn10",propertyId:p.propertyId,name:"ADN 10"});
+const u=unit({unitId:"yang01",buildingId:b.buildingId,propertyId:p.propertyId,number:"01",type:"suite",occupancy:"vacant",operation:"available",verification:"active"});
+const projection=synapseProjection(p,b,u);
+assert.equal(projection.propertyGroupId,"adn001");
+assert.equal(projection.unitId,"yang01");
+assert.equal(projection.activo,true);
+assert.equal(commercialEligibility({...u,occupancy:"occupied"}).reason,"NOT_VACANT");
+assert.equal(commercialEligibility({...u,operation:"maintenance"}).reason,"NOT_OPERATIONAL");
+assert.equal(commercialEligibility({...u,verification:"verification"}).reason,"NOT_ACTIVE");
+assert.throws(()=>synapseProjection(p,{...b,propertyId:"other"},u),/BROKEN_RELATION/);
+assert.throws(()=>unit({...u,unitId:"../bad"}),/INVALID_ID/);
+assert.equal(Object.isFrozen(projection),true);
+console.log("PASS: Property Core V0.1 identity, relations, independent states and legacy projection");

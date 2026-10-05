@@ -1,0 +1,24 @@
+"use strict";
+const assert=require("node:assert/strict");
+const {initializeApp,deleteApp}=require("firebase-admin/app");
+const {getDatabase}=require("firebase-admin/database");
+const {ROOT,MARKER}=require("./property-store");
+const {trustedEvidenceStore}=require("./trusted-evidence-store");
+const {verifyPublicationEvidence}=require("./evidence-verification");
+if(process.env.FIREBASE_DATABASE_EMULATOR_HOST!=="127.0.0.1:9100")throw Error("EMULATOR_REQUIRED");
+const app=initializeApp({projectId:"demo-habitat-security-lab",databaseURL:"https://demo-habitat-security-lab-default-rtdb.firebaseio.com"},"trusted-evidence-test");
+const db=getDatabase(app),ref=db.ref(ROOT+"/evidence/LAB-TRUSTED-EVIDENCE");
+(async()=>{
+ const old=(await ref.once("value")).val();
+ if(old&&old.marker!==MARKER)throw Error("UNOWNED_EVIDENCE");
+ if(old)await ref.remove();
+ const load=trustedEvidenceStore(db),query={entityId:"LAB-TRUSTED-UNIT",propertyId:"LAB-TRUSTED-PROPERTY",evidenceIds:["LAB-TRUSTED-EVIDENCE"]};
+ assert.equal(verifyPublicationEvidence({...query,unitId:query.entityId,records:await load(query)}).reason,"EVIDENCE_NOT_FOUND");
+ await ref.set({marker:MARKER,unitId:query.entityId,propertyId:query.propertyId,status:"pending"});
+ assert.equal(verifyPublicationEvidence({...query,unitId:query.entityId,records:await load(query)}).reason,"EVIDENCE_NOT_VERIFIED");
+ await ref.update({status:"verified"});
+ assert.equal(verifyPublicationEvidence({...query,unitId:query.entityId,records:await load(query)}).verified,true);
+ await ref.update({unitId:"LAB-OTHER-UNIT"});
+ assert.equal(verifyPublicationEvidence({...query,unitId:query.entityId,records:await load(query)}).reason,"EVIDENCE_SCOPE_MISMATCH");
+ console.log("PASS: trusted emulator evidence storage missing, pending, verified and wrong-unit states");
+})().catch(e=>{console.error(e);process.exitCode=1}).finally(async()=>{const old=(await ref.once("value")).val();if(old?.marker===MARKER)await ref.remove();await deleteApp(app)});

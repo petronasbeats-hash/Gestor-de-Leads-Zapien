@@ -1,0 +1,28 @@
+"use strict";
+const assert=require("node:assert/strict");
+const fs=require("node:fs");
+const vm=require("node:vm");
+const html=fs.readFileSync(__dirname+"/index.html","utf8");
+const script=html.match(/<script>([\s\S]*?)<\/script>/);
+assert.ok(script,"dashboard script required");
+const nodes=new Map();
+function node(id){if(!nodes.has(id))nodes.set(id,{textContent:"",style:{},innerHTML:""});return nodes.get(id)}
+vm.runInNewContext(script[1],{document:{getElementById:node}});
+const percentage=Number(node("global").textContent.replace("%",""));
+const done=Number(node("done").textContent),doing=Number(node("doing").textContent),todo=Number(node("todo").textContent);
+assert.ok(Number.isInteger(percentage)&&percentage>=0&&percentage<=100);
+assert.ok(done+doing+todo>=12,"milestone count must include the established baseline");
+assert.equal(percentage,Math.round(100*done/(done+doing+todo)));
+assert.equal(node("globalbar").style.width,percentage+"%");
+assert.ok(done>=6);
+assert.ok(doing>=2);
+assert.ok(todo>=4);
+assert.equal((node("milestones").innerHTML.match(/<tr>/g)||[]).length,done+doing+todo);
+const proofLinks=(node("milestones").innerHTML.match(/Ver prueba ↗/g)||[]).length;
+assert.ok(proofLinks>0&&proofLinks<=done,"verified proof links must exist and cannot exceed completed milestones");
+assert.ok(html.includes("id=\"ci-state\""));
+assert.ok(html.includes("api.github.com/repos/petronasbeats-hash/Gestor-de-Leads-Zapien/actions/runs"));
+assert.ok(html.includes("No se pudo consultar GitHub"));
+assert.ok(html.includes("SIN CAMBIOS"));
+assert.ok(html.includes("Los hitos se actualizan manualmente"));
+console.log("PASS: dashboard baseline counts, percentages, visible rows and manual-update disclosure");

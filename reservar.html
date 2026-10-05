@@ -153,8 +153,6 @@
 </div>
 
 <div class="field"><label>Notas (opcional)</label><input type="text" id="f-notas" placeholder="Ej. propiedad de interés"></div>
- <div class="field"><label>Notas (opcional)</label><input type="text" 
-id="f-notas" placeholder="Ej. propiedad de interés"></div>
     <input type="hidden" id="f-propiedad-id"><input type="hidden" id="f-propiedad-nombre">
     <div class="confirm-box mono" id="confirm-summary"></div>
     <div style="display:flex;gap:8px;justify-content:flex-end;">
@@ -168,6 +166,8 @@ id="f-notas" placeholder="Ej. propiedad de interés"></div>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
+<script src="lab/habitat/habitat-availability.js"></script>
+<script src="lab/habitat/habitat-slot-claim.js"></script>
 
 <script>
 /* =========================================================
@@ -185,9 +185,20 @@ const firebaseConfig = {
 const GOOGLE_CLIENT_ID = "856006955419-firc8kbakkt7tde4582jq3u00q1jpsru.apps.googleusercontent.com";
 const GOOGLE_SCOPE = "https://www.googleapis.com/auth/calendar";
 
+// LAB ONLY: fail closed instead of ever connecting this branch's booking form
+// to production. Run on localhost/127.0.0.1 with Firebase emulators.
+if(!['localhost','127.0.0.1'].includes(location.hostname)){
+  document.body.innerHTML = '<main style="padding:2rem;font-family:sans-serif">Habitat Lab solo está disponible en localhost con emuladores.</main>';
+  throw new Error('HABITAT_LAB_LOCAL_ONLY');
+}
+firebaseConfig.projectId = 'demo-synapse-lab';
+firebaseConfig.databaseURL = 'https://demo-synapse-lab.firebaseio.com';
+firebaseConfig.authDomain = 'demo-synapse-lab.firebaseapp.com';
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 const auth = firebase.auth();
+db.useEmulator('127.0.0.1',9000);
+auth.useEmulator('http://127.0.0.1:9099');
 
 const DAY_KEYS = ["dom","lun","mar","mie","jue","vie","sab"];
 const DAY_LABELS = {dom:"Domingo",lun:"Lunes",mar:"Martes",mie:"Miércoles",jue:"Jueves",vie:"Viernes",sab:"Sábado"};
@@ -213,7 +224,33 @@ let bloqueos = {};  // { "2026-07-20": ["09:00","09:30"] }
 let ocupados = {};  // desde citas_publicas: { "2026-07-20_09:00": {propiedadId} }
 let selectedSlot = null; // {dateKey, timeKey, label}
 let propiedades = {}; // { id: {nombre, direccion, lat, lng, activo} }
+let units = {}; // Property Core V2: { unitId: {...estadoUnidad} }
 let selectedPropiedadId = null;
+
+function habitatAssessmentForProperty(p){
+  if(!p) return {canRequestVisit:false,canRequestHold:false,reason:'PUBLICATION_MISSING',requiresRevalidation:true};
+  if(!window.HabitatAvailability || typeof window.HabitatAvailability.assess !== 'function'){
+    return p.unitId
+      ? {canRequestVisit:false,canRequestHold:false,reason:'HABITAT_ADAPTER_UNAVAILABLE',requiresRevalidation:true}
+      : {canRequestVisit:p.activo!==false,canRequestHold:false,reason:'LEGACY_VISIT_ONLY',requiresRevalidation:true};
+  }
+  const unit = p.unitId ? units[p.unitId] : null;
+  return window.HabitatAvailability.assess(p, unit);
+}
+
+function habitatReasonLabel(reason){
+  const labels = {
+    UNIT_OCCUPIED:'Esta unidad está ocupada.',
+    UNIT_NOT_OPERATIONAL:'Esta unidad no está disponible temporalmente.',
+    UNIT_NOT_AVAILABLE:'Esta unidad no está disponible para nuevas solicitudes.',
+    UNIT_UNVERIFIED:'Estamos verificando la disponibilidad de esta unidad.',
+    STATUS_UNVERIFIED:'Estamos verificando el estado comercial de esta unidad.',
+    HABITAT_ADAPTER_UNAVAILABLE:'La disponibilidad de esta unidad no pudo verificarse.',
+    PUBLICATION_INACTIVE:'Esta publicación no está disponible.',
+    PUBLICATION_MISSING:'Selecciona una propiedad.'
+  };
+  return labels[reason] || '';
+}
 let ultimasCitas = {};
 
 /* =========================================================
@@ -235,7 +272,11 @@ function loadPublicAvailability(){
   db.ref('propiedades').on('value', snap=>{
     propiedades = snap.val() || {};
     renderPropiedadPicker();
-    renderManualPropiedadSelect();
+    renderSlots();
+  });
+  db.ref('units').on('value', snap=>{
+    units = snap.val() || {};
+    renderPropiedadPicker();
     renderSlots();
   });
 }
@@ -258,7 +299,10 @@ function renderPropiedadPicker(){
   }
   sel.innerHTML = activas.map(([id,p])=>`<option value="${id}" ${id===selectedPropiedadId?'selected':''}>${escapeHtml(p.nombre)}</option>`).join('');
   const p = propiedades[selectedPropiedadId];
-  document.getElementById('propiedad-direccion-hint').textContent = p && p.direccion ? '📍 ' + p.direccion : '';
+  const assessment = habitatAssessmentForProperty(p);
+  const baseHint = p && p.direccion ? '📍 ' + p.direccion : '';
+  const availabilityHint = assessment.canRequestVisit ? '' : habitatReasonLabel(assessment.reason);
+  document.getElementById('propiedad-direccion-hint').textContent = [baseHint, availabilityHint].filter(Boolean).join(' · ');
   renderPropiedadDetalle(p);
 }
 
@@ -314,7 +358,10 @@ function renderPropiedadDetalle(p){
 document.getElementById('f-propiedad-publico').addEventListener('change', (e)=>{
   selectedPropiedadId = e.target.value;
   const p = propiedades[selectedPropiedadId];
-  document.getElementById('propiedad-direccion-hint').textContent = p && p.direccion ? '📍 ' + p.direccion : '';
+  const assessment = habitatAssessmentForProperty(p);
+  const baseHint = p && p.direccion ? '📍 ' + p.direccion : '';
+  const availabilityHint = assessment.canRequestVisit ? '' : habitatReasonLabel(assessment.reason);
+  document.getElementById('propiedad-direccion-hint').textContent = [baseHint, availabilityHint].filter(Boolean).join(' · ');
   renderPropiedadDetalle(p);
   renderSlots();
 });
@@ -423,6 +470,20 @@ function renderSlots(){
   if(!horario){
     container.innerHTML = `<div class="empty">Cargando disponibilidad…</div>`;
     return;
+  }
+  const selectedProperty = selectedPropiedadId ? propiedades[selectedPropiedadId] : null;
+  // SECURITY GATE (LAB): multiunit requests require trusted server-side booking.
+  // Client-side assessment remains informational, never authoritative.
+  if(selectedProperty && selectedProperty.unitId){
+    container.innerHTML = '<div class="empty">Estamos verificando los horarios de esta unidad. Solicita asistencia por WhatsApp mientras habilitamos la reserva segura.</div>';
+    return;
+  }
+  if(selectedProperty){
+    const assessment = habitatAssessmentForProperty(selectedProperty);
+    if(!assessment.canRequestVisit){
+      container.innerHTML = `<div class="empty">${escapeHtml(habitatReasonLabel(assessment.reason) || 'Esta unidad no está disponible para solicitar una visita.')}</div>`;
+      return;
+    }
   }
   const days = [];
   const today = new Date();
@@ -561,6 +622,22 @@ document.getElementById('btn-confirm-booking').addEventListener('click', async (
   const notas = document.getElementById('f-notas').value.trim();
   const propiedadId = document.getElementById('f-propiedad-id').value || null;
   const propiedadNombre = document.getElementById('f-propiedad-nombre').value || null;
+  const propObjSeleccionada = propiedadId ? propiedades[propiedadId] : null;
+  const habitatAssessment = habitatAssessmentForProperty(propObjSeleccionada);
+  // Defense in depth: never use public RTDB client writes for multiunit bookings.
+  if(propObjSeleccionada && propObjSeleccionada.unitId){
+    alert('La reserva automática de esta unidad está en verificación. Contáctanos por WhatsApp para solicitar tu visita.');
+    return;
+  }
+  if(!habitatAssessment.canRequestVisit){
+    alert(habitatReasonLabel(habitatAssessment.reason) || 'La disponibilidad cambió. Elige otra unidad o inténtalo más tarde.');
+    renderSlots();
+    return;
+  }
+  const unitId = propObjSeleccionada && propObjSeleccionada.unitId ? String(propObjSeleccionada.unitId) : null;
+  const availabilityVersion = unitId && units[unitId] && units[unitId].availabilityVersion != null
+    ? String(units[unitId].availabilityVersion)
+    : null;
   if(!nombre || !telefono){ alert('Pon tu nombre y teléfono para poder confirmarte la cita.'); return; }
   if(!selectedSlot) return;
 
@@ -569,26 +646,46 @@ document.getElementById('btn-confirm-booking').addEventListener('click', async (
   btn.disabled = true; btn.textContent = 'Agendando…';
 
   try{
-    // 1. crear/actualizar el lead PRIMERO — si esto falla, no se toca el horario todavía
+    if(!window.HabitatSlotClaim || typeof window.HabitatSlotClaim.claimSlot !== 'function'){
+      throw new Error('HABITAT_SLOT_CLAIM_UNAVAILABLE');
+    }
+
+    // 1. Reservar el horario PRIMERO mediante una transacción atómica.
+    // Solo un cliente puede ganar este slot.
+    const citaId = db.ref('citas').push().key;
+    const claimResult = await window.HabitatSlotClaim.claimSlot({
+      db,
+      slotKey: slotFlagKey,
+      citaId,
+      propiedadId,
+      unitId,
+      availabilityVersion
+    });
+
+    if(!claimResult.claimed){
+      alert('Ese horario acaba de ser tomado. Elige otro disponible.');
+      overlay.classList.remove('open');
+      renderSlots();
+      return;
+    }
+
+    // 2. Con el horario ya ganado, crear/actualizar lead y guardar la cita.
+    // El slot queda confirmado desde la misma transacción de claim.
     const nombreCompleto = apellido ? `${nombre} ${apellido}` : nombre;
     const leadIdFinal = await upsertLeadParaCita({nombre, apellido, telefono, notas, propiedadId, propiedadNombre});
 
-    // 2. marcar el horario ocupado Y guardar la cita como UNA sola operación atómica:
-    // o se guardan las dos juntas, o no se guarda ninguna — así no puede quedar
-    // un horario "fantasma" ocupado sin que exista su cita.
-    const citaId = db.ref('citas').push().key;
-    const updates = {};
-    updates['citas_publicas/'+slotFlagKey] = { propiedadId: propiedadId || null };
-    updates['citas/'+citaId] = {
+    await db.ref('citas/'+citaId).set({
       nombre: nombreCompleto, telefono, notas,
       propiedadId, propiedadNombre,
+      unitId,
+      intentType: 'request_visit',
+      availabilityVersion,
       fecha: selectedSlot.dateKey,
       hora: selectedSlot.timeKey,
       leadId: leadIdFinal || null,
       estado: 'pendiente',
       creado: new Date().toISOString()
-    };
-    await db.ref().update(updates);
+    });
 
     const propObj = propiedadId ? propiedades[propiedadId] : null;
     const mapsLink = mapsLinkFor(propObj);
@@ -606,9 +703,10 @@ document.getElementById('btn-confirm-booking').addEventListener('click', async (
     `;
   }catch(err){
     console.error(err);
-    alert('Ese horario ya no está disponible, elige otro.');
+    alert('No pudimos completar la reserva. El horario quedó protegido para evitar una doble reserva. Contáctanos por WhatsApp para validar el estado.');
     btn.disabled = false; btn.textContent = 'Confirmar cita';
     overlay.classList.remove('open');
+    renderSlots();
   }
 });
 
