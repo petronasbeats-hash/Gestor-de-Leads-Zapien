@@ -313,7 +313,7 @@
     <div class="tab-panel" data-tab-panel="propiedades">
       <div class="card">
         <h2 class="mono" style="font-size:14px;color:var(--green);margin:0 0 12px;">Propiedades</h2>
-        <div class="sub" style="margin-bottom:12px;">Agrega las propiedades disponibles para mostrar en el enlace de agenda. Para las coordenadas: abre Google Maps, click derecho sobre la propiedad → copia el primer número (latitud) y el segundo (longitud).</div>
+        <div class="sub" style="margin-bottom:12px;">Administra las propiedades disponibles que aparecen en Agenda/Reservar. Las unidades ADN ya heredan su ubicación validada; no necesitas volver a capturar coordenadas al editar fotos.</div>
         <div id="propiedades-list"></div>
         <div id="adn-intake-card" style="margin:12px 0;padding:12px;border:1px solid var(--green);border-radius:8px;background:var(--green-dim);">
           <div class="mono" style="font-size:12px;color:var(--green);font-weight:700;">ADN SUITES & STUDIOS · ALTA ASISTIDA</div>
@@ -372,7 +372,8 @@
           <input type="file" id="p-fotos-file" accept="image/*" multiple style="display:none;">
           <span id="p-fotos-upload-status" class="cita-meta" style="margin-left:8px;"></span>
         </div>
-        <div id="p-fotos-thumbs" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;"></div>
+        <div class="cita-meta" style="margin-top:8px;">PHOTO DIRECTOR · La primera foto será la portada. Orden sugerido: portada/vista general → segunda perspectiva → atributo diferenciador → baño/equipamiento → detalles → amenidades/contexto. Usa “Portada” y las flechas para ajustar el orden antes de guardar.</div>
+        <div id="p-fotos-thumbs" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;"></div>
         <input type="hidden" id="p-edit-id" value="">
         <div id="p-edit-banner" class="cita-meta" style="display:none;color:var(--amber);margin-top:8px;">✏️ Editando propiedad existente — se actualizará el mismo registro, no se creará una nueva.</div>
         <button class="btn btn-primary btn-sm" id="btn-add-propiedad" style="margin-top:8px;">+ Agregar propiedad</button>
@@ -1905,24 +1906,37 @@ document.getElementById('btn-add-manual').addEventListener('click', ()=>{
     });
 });
 
+function setFotosUrls(urls){
+  document.getElementById('p-fotos').value = urls.join('\n');
+  renderFotosThumbs();
+}
 function renderFotosThumbs(){
   const box = document.getElementById('p-fotos-thumbs');
   const urls = document.getElementById('p-fotos').value.split('\n').map(s=>s.trim()).filter(Boolean);
   box.innerHTML = urls.map((u,i)=>`
-    <div style="position:relative;">
-      <img src="${escapeHtml(u)}" style="height:60px;width:80px;object-fit:cover;border-radius:6px;border:1px solid var(--line);">
-      <button type="button" data-idx="${i}" class="thumb-remove" title="Quitar" style="position:absolute;top:-6px;right:-6px;background:var(--red);color:#fff;border:none;border-radius:50%;width:18px;height:18px;font-size:11px;line-height:1;cursor:pointer;">×</button>
+    <div style="position:relative;width:128px;padding:5px;border:1px solid ${i===0?'var(--green)':'var(--line)'};border-radius:7px;">
+      <img src="${escapeHtml(u)}" style="height:82px;width:116px;object-fit:cover;border-radius:5px;background:var(--bg);">
+      <div class="cita-meta" style="margin-top:4px;color:${i===0?'var(--green)':'var(--muted)'};">${i===0?'★ PORTADA':'Foto '+(i+1)}</div>
+      <div style="display:flex;gap:3px;flex-wrap:wrap;margin-top:4px;">
+        ${i!==0?`<button type="button" class="btn btn-sm photo-cover" data-idx="${i}">Portada</button>`:''}
+        ${i>0?`<button type="button" class="btn btn-sm photo-up" data-idx="${i}" title="Mover antes">←</button>`:''}
+        ${i<urls.length-1?`<button type="button" class="btn btn-sm photo-down" data-idx="${i}" title="Mover después">→</button>`:''}
+        <button type="button" class="btn btn-sm thumb-remove" data-idx="${i}" title="Quitar" style="color:var(--red);">×</button>
+      </div>
     </div>
   `).join('');
-  box.querySelectorAll('.thumb-remove').forEach(btn=>{
-    btn.addEventListener('click', ()=>{
-      const idx = Number(btn.dataset.idx);
-      const urls2 = document.getElementById('p-fotos').value.split('\n').map(s=>s.trim()).filter(Boolean);
-      urls2.splice(idx,1);
-      document.getElementById('p-fotos').value = urls2.join('\n');
-      renderFotosThumbs();
-    });
-  });
+  box.querySelectorAll('.photo-cover').forEach(btn=>btn.addEventListener('click',()=>{
+    const a=[...urls]; const [x]=a.splice(Number(btn.dataset.idx),1); a.unshift(x); setFotosUrls(a);
+  }));
+  box.querySelectorAll('.photo-up').forEach(btn=>btn.addEventListener('click',()=>{
+    const a=[...urls], i=Number(btn.dataset.idx); [a[i-1],a[i]]=[a[i],a[i-1]]; setFotosUrls(a);
+  }));
+  box.querySelectorAll('.photo-down').forEach(btn=>btn.addEventListener('click',()=>{
+    const a=[...urls], i=Number(btn.dataset.idx); [a[i],a[i+1]]=[a[i+1],a[i]]; setFotosUrls(a);
+  }));
+  box.querySelectorAll('.thumb-remove').forEach(btn=>btn.addEventListener('click',()=>{
+    const a=[...urls]; a.splice(Number(btn.dataset.idx),1); setFotosUrls(a);
+  }));
 }
 document.getElementById('p-fotos').addEventListener('input', renderFotosThumbs);
 
