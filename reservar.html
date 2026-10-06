@@ -354,6 +354,10 @@ function renderPropiedadDetalle(p){
 document.getElementById('f-propiedad-publico').addEventListener('change', (e)=>{
   selectedPropiedadId = e.target.value;
   const p = propiedades[selectedPropiedadId];
+  if(p){
+    document.getElementById('page-title').textContent = p.nombre || 'ADN Suites & Studios';
+    document.getElementById('page-sub').textContent = 'Conoce este espacio y reserva el horario que mejor te acomode para visitarlo.';
+  }
   document.getElementById('propiedad-direccion-hint').textContent = p && p.direccion ? '📍 ' + p.direccion : '';
   renderPropiedadDetalle(p);
   renderSlots();
