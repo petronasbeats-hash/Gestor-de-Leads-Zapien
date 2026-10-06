@@ -376,7 +376,7 @@
         <div id="p-fotos-thumbs" style="display:flex;gap:10px;flex-wrap:wrap;margin-top:8px;"></div>
         <input type="hidden" id="p-edit-id" value="">
         <div id="p-edit-banner" class="cita-meta" style="display:none;color:var(--amber);margin-top:8px;">✏️ Editando propiedad existente — se actualizará el mismo registro, no se creará una nueva.</div>
-        <button class="btn btn-primary btn-sm" id="btn-add-propiedad" style="margin-top:8px;">+ Agregar propiedad</button>
+        <button class="btn btn-sm" id="btn-apply-adn-photo-meta" style="margin-top:8px;display:none;">✨ Aplicar descripciones ADN</button>\n        <button class="btn btn-primary btn-sm" id="btn-add-propiedad" style="margin-top:8px;">+ Agregar propiedad</button>
         <button class="btn btn-sm" id="btn-cancel-edit-prop" style="margin-top:8px;margin-left:8px;display:none;">Cancelar edición</button>
       </div>
     </div>
@@ -1732,6 +1732,28 @@ document.getElementById('btn-adn-intake-live')?.addEventListener('click', async 
 let propEditingSnapshot = null; // guarda el registro completo que se está editando (para conservar campos que el form no maneja)
 let photoMetaDraft = [];
 const PHOTO_ROLES = ['PORTADA','ESPACIO','PERSPECTIVA','DIFERENCIADOR','ACCESO','BAÑO','EQUIPAMIENTO','ENTORNO','AMENIDAD','SERVICIO','CIRCULACIÓN','ESTACIONAMIENTO'];
+const ADN_PHOTO_META_PRESETS = {
+  'yang-10': [
+    ['PORTADA','Suite Sierra · espacio amplio con luz natural y baño privado.'],
+    ['ESPACIO','Vista interior de la suite y sus acabados en tonos neutros.'],
+    ['BAÑO','Baño privado equipado con lavabo y sanitario.'],
+    ['BAÑO','Área de regadera independiente dentro del baño privado.'],
+    ['ACCESO','Acceso independiente a YANG 10 · Suite Sierra.'],
+    ['ENTORNO','Vista del conjunto YANG y sus espacios exteriores.'],
+    ['AMENIDAD','Sky Terrace · espacio común para disfrutar al aire libre.'],
+    ['AMENIDAD','Acceso a las áreas exteriores y espacios compartidos YANG.'],
+    ['AMENIDAD','Jardín Botánico · un rincón verde dentro de ADN.'],
+    ['AMENIDAD','Área verde común que conecta naturaleza y convivencia.'],
+    ['SERVICIO','Área de lavado y tendido disponible para residentes YANG.']
+  ]
+};
+function syncAdnPhotoMetaButton(){
+  const btn=document.getElementById('btn-apply-adn-photo-meta');
+  if(!btn) return;
+  const unitId=document.getElementById('p-unit-id').value.trim().toLowerCase();
+  btn.style.display=ADN_PHOTO_META_PRESETS[unitId] ? 'inline-block' : 'none';
+}
+
 
 function cargarPropiedadEnFormulario(p){
   propEditingSnapshot = p;
@@ -1761,6 +1783,7 @@ function cargarPropiedadEnFormulario(p){
     return {role:m.role || (i===0?'PORTADA':''), caption:m.caption || ''};
   });
   renderFotosThumbs();
+  syncAdnPhotoMetaButton();
 
   document.getElementById('btn-add-propiedad').textContent = 'Guardar cambios';
   document.getElementById('btn-cancel-edit-prop').style.display = 'inline-block';
@@ -1802,6 +1825,22 @@ function resetPropiedadForm(){
 
 document.getElementById('btn-cancel-edit-prop').addEventListener('click', ()=>{
   resetPropiedadForm();
+});
+document.getElementById('p-unit-id')?.addEventListener('input',syncAdnPhotoMetaButton);
+document.getElementById('btn-apply-adn-photo-meta')?.addEventListener('click', ()=>{
+  const unitId=document.getElementById('p-unit-id').value.trim().toLowerCase();
+  const preset=ADN_PHOTO_META_PRESETS[unitId];
+  const urls=getFotosUrls();
+  if(!preset) return;
+  if(urls.length!==preset.length){
+    alert('El preset de '+unitId.toUpperCase()+' espera '+preset.length+' fotos y esta ficha tiene '+urls.length+'. No se aplicó ningún cambio.');
+    return;
+  }
+  const hasExisting=photoMetaDraft.some(m=>(m.caption||'').trim());
+  if(hasExisting && !confirm('Esta ficha ya tiene descripciones. ¿Quieres reemplazarlas con el preset ADN?')) return;
+  photoMetaDraft=preset.map(([role,caption])=>({role,caption}));
+  renderFotosThumbs();
+  alert('Descripciones ADN aplicadas al borrador. Revisa las fotos y pulsa “Guardar cambios” para confirmarlas.');
 });
 
 function actualizarAvisoPropiedadesIncompletas(n){
