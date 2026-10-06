@@ -302,7 +302,22 @@ function renderPropiedadDetalle(p){
   if(p.operacion) fichaItems.push(p.operacion);
   if(p.recamaras) fichaItems.push(p.recamaras + ' rec');
   if(p.banos) fichaItems.push(p.banos + ' baños');
-  if(p.m2c) fichaItems.push(p.m2c + ' m² const.');
+  // ADN: mostrar los m² explícitamente sin presentar área privada/aprox. como construcción.
+  if(p.propertyGroupId==='adn-suites-studios'){
+    const areaAdn = {
+      'yang-10':'18.14 m² habitación aprox. + baño privado',
+      'yang-09':'13.11 m² espacio privado aprox. + baño compartido 1:1',
+      'yang-08':'10.40 m² espacio privado aprox. + baño compartido 1:1',
+      'yang-07':'14.34 m² totales aprox.',
+      'yang-06':'20.00 m² totales aprox.',
+      'yang-04':'12.60 m² totales aprox.',
+      'yin-01':'12 m² aprox.',
+      'yin-06':'12 m² aprox.',
+      'yin-05':'12 m² aprox.'
+    }[p.unitId];
+    if(areaAdn) fichaItems.push(areaAdn);
+    else if(p.m2c) fichaItems.push(p.m2c + ' m² const.');
+  } else if(p.m2c) fichaItems.push(p.m2c + ' m² const.');
   if(p.m2t) fichaItems.push(p.m2t + ' m² terreno');
   fichaEl.style.display = fichaItems.length ? 'flex' : 'none';
   fichaEl.innerHTML = fichaItems.map(t=>`<span>${escapeHtml(String(t))}</span>`).join('');
