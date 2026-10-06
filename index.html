@@ -1599,7 +1599,24 @@ function propertyPublicUrl(p){
 function propertyShareMessage(p){
   const url=propertyPublicUrl(p);
   if(!url) return '';
-  const price=p.precio ? '
+  const price=p.precio ? '$'+Number(p.precio).toLocaleString('es-MX')+' MXN al mes' : 'consulta la renta';
+  let feature='';
+  if(p.unitId==='yang-10') feature='Cuenta con baño privado y una habitación de aproximadamente 18.14 m² + baño.';
+  else if(p.unitId==='yang-09') feature='Cuenta con aproximadamente 13.11 m² de espacio privado y baño compartido 1:1.';
+  else if(p.unitId==='yang-08') feature='Cuenta con aproximadamente 10.40 m² de espacio privado y baño compartido 1:1.';
+  else if(p.unitId==='yang-07') feature='Cuenta con aproximadamente 14.34 m² totales, baño privado y su característico ventanal.';
+  else if(p.unitId==='yang-06') feature='Cuenta con aproximadamente 20 m² totales y baño privado.';
+  else if(p.unitId==='yang-04') feature='Cuenta con aproximadamente 12.60 m² totales y baño privado.';
+  else if(String(p.unitId||'').startsWith('yin-')) feature='Studio privado de aproximadamente 12 m².';
+  return '¡Hola! 👋 Sí, '+p.nombre+' está disponible actualmente.\n\nLa renta es de '+price+'. '+feature+'\n\nTe comparto su espacio en ADN Suites & Studios para que puedas ver sus fotos, características y reservar una visita:\n\n'+url+'\n\nSi después de verla tienes alguna duda, escríbeme por aquí y te ayudo.';
+}
+async function copyPropertyShare(p){
+  const msg=propertyShareMessage(p);
+  if(!msg){ alert('Esta propiedad todavía no tiene un ID de unidad para generar su enlace directo.'); return; }
+  try{ await navigator.clipboard.writeText(msg); alert('Respuesta personalizada copiada ✓'); }
+  catch(e){ window.prompt('Copia esta respuesta:',msg); }
+}
+function renderPropiedadesAdmin(obj){
   const list = document.getElementById('propiedades-list');
   const arr = Object.entries(obj).map(([id,p])=>({id,...p}));
   if(arr.length === 0){
@@ -1621,8 +1638,7 @@ function propertyShareMessage(p){
         ${faltantes.length ? `<div class="cita-meta" style="color:var(--amber);">⚠ Falta: ${faltantes.join(', ')}</div>` : `<div class="cita-meta" style="color:var(--green);">✓ Ficha completa</div>`}
       </div>
       <div style="display:flex;gap:6px;">
-        ${p.unitId?`<button class="btn btn-sm" data-action="share-prop" data-id="${p.id}">↗ Compartir</button>`:""}
-        <button class="btn btn-sm" data-action="edit-prop" data-id="${p.id}">✏️ Editar</button>
+        ${p.unitId?`<button class="btn btn-sm" data-action="share-prop" data-id="${p.id}">↗ Compartir</button>`:""}\n        <button class="btn btn-sm" data-action="edit-prop" data-id="${p.id}">✏️ Editar</button>
         <button class="btn btn-sm" data-action="toggle-prop" data-id="${p.id}">${p.activo===false?'Activar':'Desactivar'}</button>
         <button class="btn btn-sm" data-action="del-prop" data-id="${p.id}" style="color:var(--red);">Eliminar</button>
       </div>
@@ -1630,13 +1646,7 @@ function propertyShareMessage(p){
   `;
   }).join('');
 
-  list.querySelectorAll('[data-action="share-prop"]').forEach(btn=>{
-    btn.addEventListener('click', ()=>{
-      const p=arr.find(x=>x.id===btn.dataset.id);
-      if(p) copyPropertyShare(p);
-    });
-  });
-  list.querySelectorAll('[data-action="edit-prop"]').forEach(btn=>{
+  list.querySelectorAll('[data-action="share-prop"]').forEach(btn=>{\n    btn.addEventListener('click', ()=>{\n      const p=arr.find(x=>x.id===btn.dataset.id);\n      if(p) copyPropertyShare(p);\n    });\n  });\n  list.querySelectorAll('[data-action="edit-prop"]').forEach(btn=>{
     btn.addEventListener('click', ()=>{
       const p = arr.find(x=>x.id===btn.dataset.id);
       if(p) cargarPropiedadEnFormulario(p);
