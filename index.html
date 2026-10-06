@@ -1612,10 +1612,13 @@ function propertyShareMessage(p){
   return '¡Hola! 👋 Sí, '+p.nombre+' está disponible actualmente.\n\nLa renta es de '+price+'. '+feature+'\n\nTe comparto su espacio en ADN Suites & Studios para que puedas ver sus fotos, características y reservar una visita:\n\n'+url+'\n\nSi después de verla tienes alguna duda, escríbeme por aquí y te ayudo.';
 }
 async function copyPropertyShare(p){
+  if(!p || !p.unitId){ alert('Esta propiedad todavía no tiene un ID de unidad para generar su enlace directo.'); return; }
+  const confirmed = window.confirm('¿Confirmas que '+p.nombre+' está disponible actualmente?\n\nAceptar = copiar respuesta confirmando disponibilidad.\nCancelar = no copiar ni afirmar disponibilidad.');
+  if(!confirmed) return;
   const msg=propertyShareMessage(p);
-  if(!msg){ alert('Esta propiedad todavía no tiene un ID de unidad para generar su enlace directo.'); return; }
-  try{ await navigator.clipboard.writeText(msg); alert('Respuesta personalizada copiada ✓'); }
-  catch(e){ window.prompt('Copia esta respuesta:',msg); }
+  if(!msg) return;
+  try{ await navigator.clipboard.writeText(msg); alert('Disponibilidad confirmada · respuesta personalizada copiada ✓'); }
+  catch(e){ window.prompt('Disponibilidad confirmada. Copia esta respuesta:',msg); }
 }
 function renderPropiedadesAdmin(obj){
   const list = document.getElementById('propiedades-list');
