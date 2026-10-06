@@ -596,6 +596,22 @@ etapa: 'visita_programada',
   return newLeadId;
 }
 
+async function detectarReservaPendienteMismaPersona(telefono, propiedadId){
+  const telNorm = normalizarTelefono(telefono);
+  if(!telNorm || !propiedadId) return null;
+  const snap = await db.ref('citas').once('value');
+  const citas = snap.val() || {};
+  return Object.entries(citas)
+    .map(([id,c])=>({id,...c}))
+    .filter(c=>{
+      const estado = c.estado || 'pendiente';
+      return normalizarTelefono(c.telefono) === telNorm &&
+        c.propiedadId === propiedadId &&
+        (estado === 'pendiente' || estado === 'confirmada');
+    })
+    .sort((a,b)=>String(a.fecha+a.hora).localeCompare(String(b.fecha+b.hora)))[0] || null;
+}
+
 document.getElementById('btn-confirm-booking').addEventListener('click', async ()=>{
   const nombre = document.getElementById('f-nombre').value.trim();
   const apellido = document.getElementById('f-apellido').value.trim();
@@ -605,6 +621,25 @@ document.getElementById('btn-confirm-booking').addEventListener('click', async (
   const propiedadNombre = document.getElementById('f-propiedad-nombre').value || null;
   if(!nombre || !telefono){ alert('Pon tu nombre y teléfono para poder confirmarte la cita.'); return; }
   if(!selectedSlot) return;
+
+  try{
+    const existente = await detectarReservaPendienteMismaPersona(telefono, propiedadId);
+    if(existente){
+      const misma = existente.fecha === selectedSlot.dateKey && existente.hora === selectedSlot.timeKey;
+      if(misma){
+        alert('Ya tienes esta misma visita registrada para '+existente.fecha+' a las '+existente.hora+'. No se creó un duplicado.');
+        return;
+      }
+      const mantener = confirm(
+        'Ya existe una visita pendiente para esta misma propiedad el '+existente.fecha+' a las '+existente.hora+'.\n\n'+
+        'La nueva visita sería el '+selectedSlot.dateKey+' a las '+selectedSlot.timeKey+'.\n\n'+
+        'Aceptar = mantener ambas visitas.\nCancelar = volver sin crear la nueva.'
+      );
+      if(!mantener) return;
+    }
+  }catch(e){
+    console.warn('No se pudo verificar reservas previas; se continúa con el flujo normal.', e);
+  }
 
   const slotFlagKey = `${selectedSlot.dateKey}_${selectedSlot.timeKey}`;
   const btn = document.getElementById('btn-confirm-booking');
