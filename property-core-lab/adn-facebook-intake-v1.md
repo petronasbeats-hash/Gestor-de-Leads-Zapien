@@ -11,7 +11,10 @@ Fotos: carga manual por unidad en Synapse Storage
 - propertyName: `ADN Suites & Studios`
 - operacion: `Renta`
 - Cada unidad conserva identidad propia.
-- No inventar dirección, coordenadas ni datos no verificados.
+- Dirección validada: `Calle 9 Nte 130, Moctezuma, 75780 Tehuacán, Pue.`
+- Coordenadas validadas de la propiedad madre: `lat: 18.4641206`, `lng: -97.3847854`.
+- Maps de referencia: `https://maps.app.goo.gl/Z3H9xx7aERWAvcwT6`.
+- Todas las unidades ADN de este lote heredan la misma ubicación física de la propiedad madre.
 - YIN NO incluye Sky Terrace, Jardín Botánico ni área de lavado/tendido.
 - Estacionamiento: cajón con costo adicional, sujeto a disponibilidad.
 - Contrato: 6 meses.
@@ -72,9 +75,9 @@ Studio privado de aproximadamente 12 m². Internet y agua incluidos, calentador 
 
 ## Gate antes de escribir en producción
 
-1. Confirmar dirección/lat/lng de la propiedad madre desde un registro ADN ya validado, si existe; no inventarlos.
+1. Dirección y coordenadas de la propiedad madre: VALIDADO.
 2. Verificar que cada `unitId` no exista ya en `propiedades` para evitar duplicados.
-3. Crear/editar las nueve unidades manteniendo `engineVersion: 1.0`.
+3. Crear/editar las nueve unidades con `direccion: Calle 9 Nte 130, Moctezuma, 75780 Tehuacán, Pue.`, `lat: 18.4641206`, `lng: -97.3847854` y `engineVersion: 1.0`.
 4. Subir fotos manualmente por unidad.
 5. Validar Reservar: unidad visible → ficha → horario → reserva.
 6. Validar Admin: reserva → cita → lead → propiedadId/unidad correcta.
