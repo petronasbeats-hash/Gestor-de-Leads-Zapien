@@ -199,6 +199,7 @@ const params = new URLSearchParams(location.search);
 const prefillNombre = params.get('nombre') || '';
 const prefillTelefono = params.get('telefono') || '';
 const leadId = params.get('leadId') || null;
+const unidadParam = (params.get('unidad') || '').trim().toLowerCase();
 
 if(prefillNombre){
   document.getElementById('page-title').textContent = `Hola, ${prefillNombre} 👋`;
@@ -234,6 +235,10 @@ function loadPublicAvailability(){
   });
   db.ref('propiedades').on('value', snap=>{
     propiedades = snap.val() || {};
+    if(unidadParam){
+      const match = Object.entries(propiedades).find(([id,p])=>p && String(p.unitId||'').toLowerCase()===unidadParam && p.activo!==false);
+      if(match) selectedPropiedadId = match[0];
+    }
     renderPropiedadPicker();
     renderManualPropiedadSelect();
     renderSlots();
@@ -255,6 +260,11 @@ function renderPropiedadPicker(){
   card.style.display = 'block';
   if(!selectedPropiedadId || !propiedades[selectedPropiedadId]){
     selectedPropiedadId = activas[0][0];
+  }
+  if(unidadParam && propiedades[selectedPropiedadId]){
+    const up = propiedades[selectedPropiedadId];
+    document.getElementById('page-title').textContent = up.nombre || 'ADN Suites & Studios';
+    document.getElementById('page-sub').textContent = 'Conoce este espacio y reserva el horario que mejor te acomode para visitarlo.';
   }
   sel.innerHTML = activas.map(([id,p])=>`<option value="${id}" ${id===selectedPropiedadId?'selected':''}>${escapeHtml(p.nombre)}</option>`).join('');
   const p = propiedades[selectedPropiedadId];
@@ -283,7 +293,14 @@ function renderPropiedadDetalle(p){
   const fotosEl = document.getElementById('propiedad-fotos');
   if(p.fotos && p.fotos.length){
     fotosEl.style.display = 'flex';
-    fotosEl.innerHTML = p.fotos.map(url=>`<img src="${escapeHtml(url)}" loading="lazy" onerror="this.style.display='none'">`).join('');
+    const meta = Array.isArray(p.photoMeta) ? p.photoMeta : [];
+    fotosEl.innerHTML = p.fotos.map((url,i)=>{
+      const m = meta[i] || {};
+      return `<figure style="margin:0;min-width:220px;max-width:280px;">
+        <img src="${escapeHtml(url)}" loading="lazy" onerror="this.style.display='none'" style="width:100%;">
+        ${m.caption?`<figcaption style="font-size:12px;line-height:1.45;color:var(--muted);margin-top:6px;">${escapeHtml(m.caption)}</figcaption>`:''}
+      </figure>`;
+    }).join('');
   } else {
     fotosEl.style.display = 'none';
     fotosEl.innerHTML = '';
