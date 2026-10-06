@@ -315,6 +315,13 @@
         <h2 class="mono" style="font-size:14px;color:var(--green);margin:0 0 12px;">Propiedades</h2>
         <div class="sub" style="margin-bottom:12px;">Agrega las propiedades disponibles para mostrar en el enlace de agenda. Para las coordenadas: abre Google Maps, click derecho sobre la propiedad → copia el primer número (latitud) y el segundo (longitud).</div>
         <div id="propiedades-list"></div>
+        <div id="adn-intake-card" style="margin:12px 0;padding:12px;border:1px solid var(--green);border-radius:8px;background:var(--green-dim);">
+          <div class="mono" style="font-size:12px;color:var(--green);font-weight:700;">ADN SUITES & STUDIOS · ALTA ASISTIDA</div>
+          <div class="sub" style="margin:6px 0 10px;">Lote inicial de 9 unidades publicadas en Facebook. La importación no sobrescribe ni duplica unidades ADN existentes.</div>
+          <button class="btn btn-primary btn-sm" id="btn-adn-intake-preview">Revisar lote ADN</button>
+          <button class="btn btn-sm" id="btn-adn-intake-live" style="display:none;margin-left:6px;">Importar unidades faltantes</button>
+          <div id="adn-intake-status" class="cita-meta" style="margin-top:8px;"></div>
+        </div>
         <div class="row2" style="grid-template-columns:1.4fr 1fr 1fr;margin-top:10px;">
           <input type="text" id="p-nombre" placeholder="Nombre / dirección corta">
           <input type="text" id="p-lat" placeholder="Latitud (ej. 18.4625)">
@@ -1631,6 +1638,61 @@ function renderPropiedadesAdmin(obj){
     });
   });
 }
+
+/* ---------- ADN Suites & Studios · alta asistida V1 ---------- */
+const ADN_INTAKE_V1 = [
+  {unitId:'yang-10',unitNumber:'10',nombre:'ADN · YANG 10 · Suite Sierra',unitType:'SUITE',category:'YANG · Suite privada · Baño completo',precio:3500,m2c:null,banos:1,descripcion:'Suite Sierra. Habitación de 18.14 m² aprox. + baño privado completo; preparación para tarja. Internet y agua incluidos, calentador solar. Amenidades YANG: Sky Terrace, Jardín Botánico y área de lavado/tendido. Cajón de estacionamiento con costo adicional y sujeto a disponibilidad. Contrato 6 meses; depósito de un mes.'},
+  {unitId:'yang-09',unitNumber:'09',nombre:'ADN · YANG 09 · Suite 1-1',unitType:'SUITE',category:'YANG · Suite 1-1 · Baño compartido',precio:3000,m2c:null,banos:0.5,descripcion:'Suite 1-1 con 13.11 m² aprox. de espacio privado y baño compartido 1:1. Internet y agua incluidos, calentador solar. Amenidades YANG: Sky Terrace, Jardín Botánico y área de lavado/tendido. Cajón de estacionamiento con costo adicional y sujeto a disponibilidad. Contrato 6 meses; depósito de un mes.'},
+  {unitId:'yang-08',unitNumber:'08',nombre:'ADN · YANG 08 · Suite 1-1',unitType:'SUITE',category:'YANG · Suite 1-1 · Baño compartido',precio:3000,m2c:null,banos:0.5,descripcion:'Suite 1-1 con 10.40 m² aprox. de espacio privado y baño compartido 1:1. Internet y agua incluidos, calentador solar. Amenidades YANG: Sky Terrace, Jardín Botánico y área de lavado/tendido. Cajón de estacionamiento con costo adicional y sujeto a disponibilidad. Contrato 6 meses; depósito de un mes.'},
+  {unitId:'yang-07',unitNumber:'07',nombre:'ADN · YANG 07 · Suite Espiral',unitType:'SUITE',category:'YANG · Suite privada · Baño completo',precio:3500,m2c:14.34,banos:1,descripcion:'Suite Espiral, 14.34 m² totales aprox., baño privado completo, ventanal tipo balcón, ventanal amplio en baño y preparación para tarja. Internet y agua incluidos, calentador solar. Amenidades YANG: Sky Terrace, Jardín Botánico y área de lavado/tendido. Cajón de estacionamiento con costo adicional y sujeto a disponibilidad. Contrato 6 meses; depósito de un mes.'},
+  {unitId:'yang-06',unitNumber:'06',nombre:'ADN · YANG 06',unitType:'SUITE',category:'YANG · Suite privada · Baño completo',precio:3500,m2c:20,banos:1,descripcion:'Suite de 20 m² totales aprox. con baño privado completo. Internet y agua incluidos, calentador solar. Amenidades YANG: Sky Terrace, Jardín Botánico y área de lavado/tendido. Cajón de estacionamiento con costo adicional y sujeto a disponibilidad. Contrato 6 meses; depósito de un mes.'},
+  {unitId:'yang-04',unitNumber:'04',nombre:'ADN · YANG 04 · Suite Sótano',unitType:'SUITE',category:'YANG · Suite privada · Baño completo',precio:3500,m2c:12.60,banos:1,descripcion:'Suite Sótano, 12.60 m² totales aprox., baño privado completo. Internet y agua incluidos, calentador solar. Amenidades YANG: Sky Terrace, Jardín Botánico y área de lavado/tendido. Cajón de estacionamiento con costo adicional y sujeto a disponibilidad. Contrato 6 meses; depósito de un mes.'},
+  {unitId:'yin-01',unitNumber:'01',nombre:'ADN · YIN 01 · Studio',unitType:'STUDIO',category:'YIN · Studio privado',precio:2800,m2c:12,banos:null,descripcion:'Studio privado de aproximadamente 12 m². Internet y agua incluidos, calentador solar y espacio para motos/bicicletas. No incluye amenidades exclusivas YANG. Cajón de estacionamiento con costo adicional y sujeto a disponibilidad. Contrato 6 meses; depósito de un mes.'},
+  {unitId:'yin-06',unitNumber:'06',nombre:'ADN · YIN 06 · Studio',unitType:'STUDIO',category:'YIN · Studio privado',precio:2800,m2c:12,banos:null,descripcion:'Studio privado de aproximadamente 12 m². Internet y agua incluidos, calentador solar y espacio para motos/bicicletas. No incluye amenidades exclusivas YANG. Cajón de estacionamiento con costo adicional y sujeto a disponibilidad. Contrato 6 meses; depósito de un mes.'},
+  {unitId:'yin-05',unitNumber:'05',nombre:'ADN · YIN 05 · Studio',unitType:'STUDIO',category:'YIN · Studio privado',precio:2800,m2c:12,banos:null,descripcion:'Studio privado de aproximadamente 12 m². Internet y agua incluidos, calentador solar y espacio para motos/bicicletas. No incluye amenidades exclusivas YANG. Cajón de estacionamiento con costo adicional y sujeto a disponibilidad. Contrato 6 meses; depósito de un mes.'}
+];
+const ADN_GROUP='adn-suites-studios';
+function adnExistingUnitIds(){
+  return new Set(Object.values(propiedades||{}).filter(p=>p&&p.propertyGroupId===ADN_GROUP&&p.unitId).map(p=>p.unitId));
+}
+function adnRenderPlan(){
+  const existing=adnExistingUnitIds();
+  const missing=ADN_INTAKE_V1.filter(u=>!existing.has(u.unitId));
+  const status=document.getElementById('adn-intake-status');
+  status.textContent='Detectadas '+existing.size+' ADN existentes · '+missing.length+' por crear · '+(Object.keys(propiedades||{}).length)+' propiedades totales actuales.';
+  const live=document.getElementById('btn-adn-intake-live');
+  live.style.display=missing.length?'inline-block':'none';
+  live.textContent=missing.length?'Importar '+missing.length+' unidad(es) faltante(s)':'Lote ADN completo';
+  return missing;
+}
+document.getElementById('btn-adn-intake-preview')?.addEventListener('click', adnRenderPlan);
+document.getElementById('btn-adn-intake-live')?.addEventListener('click', async ()=>{
+  if(!auth.currentUser){ alert('Tu sesión se cerró, vuelve a iniciar sesión.'); return; }
+  const missing=adnRenderPlan();
+  if(!missing.length) return;
+  if(!confirm('Se crearán '+missing.length+' unidades ADN faltantes. No se tocarán las propiedades actuales ni las unidades ADN ya existentes. ¿Continuar?')) return;
+  const btn=document.getElementById('btn-adn-intake-live');
+  const status=document.getElementById('adn-intake-status');
+  btn.disabled=true; status.textContent='Importando lote ADN…';
+  try{
+    const updates={};
+    missing.forEach(u=>{
+      const id=db.ref('propiedades').push().key;
+      updates[id]={
+        nombre:u.nombre,direccion:'Calle 9 Nte 130, Moctezuma, 75780 Tehuacán, Pue.',enlaceExterno:'',
+        propertyName:'ADN Suites & Studios',propertyGroupId:ADN_GROUP,unitId:u.unitId,unitNumber:u.unitNumber,unitType:u.unitType,category:u.category,
+        lat:18.4641206,lng:-97.3847854,operacion:'Renta',precio:u.precio,recamaras:null,banos:u.banos,m2c:u.m2c,m2t:null,
+        descripcion:u.descripcion,fotos:[],engineVersion:'1.0',activo:true
+      };
+    });
+    await db.ref('propiedades').update(updates);
+    status.textContent='✓ Importación completada: '+missing.length+' unidad(es). Esperando sincronización…';
+    setTimeout(adnRenderPlan,800);
+  }catch(err){
+    status.textContent='ERROR: '+err.message;
+    alert('No se completó la importación ADN. No reintentes a ciegas; revisa el mensaje de estado.');
+  }finally{btn.disabled=false;}
+});
 
 /* ---------- Edición real de propiedad (Property Engine V1 — mismo ID, sin duplicar) ---------- */
 let propEditingSnapshot = null; // guarda el registro completo que se está editando (para conservar campos que el form no maneja)
