@@ -1638,7 +1638,8 @@ function renderPropiedadesAdmin(obj){
         ${faltantes.length ? `<div class="cita-meta" style="color:var(--amber);">⚠ Falta: ${faltantes.join(', ')}</div>` : `<div class="cita-meta" style="color:var(--green);">✓ Ficha completa</div>`}
       </div>
       <div style="display:flex;gap:6px;">
-        ${p.unitId?`<button class="btn btn-sm" data-action="share-prop" data-id="${p.id}">↗ Compartir</button>`:""}\n        <button class="btn btn-sm" data-action="edit-prop" data-id="${p.id}">✏️ Editar</button>
+        ${p.unitId?`<button class="btn btn-sm" data-action="share-prop" data-id="${p.id}">↗ Compartir</button>`:""}
+        <button class="btn btn-sm" data-action="edit-prop" data-id="${p.id}">✏️ Editar</button>
         <button class="btn btn-sm" data-action="toggle-prop" data-id="${p.id}">${p.activo===false?'Activar':'Desactivar'}</button>
         <button class="btn btn-sm" data-action="del-prop" data-id="${p.id}" style="color:var(--red);">Eliminar</button>
       </div>
@@ -1646,7 +1647,13 @@ function renderPropiedadesAdmin(obj){
   `;
   }).join('');
 
-  list.querySelectorAll('[data-action="share-prop"]').forEach(btn=>{\n    btn.addEventListener('click', ()=>{\n      const p=arr.find(x=>x.id===btn.dataset.id);\n      if(p) copyPropertyShare(p);\n    });\n  });\n  list.querySelectorAll('[data-action="edit-prop"]').forEach(btn=>{
+  list.querySelectorAll('[data-action="share-prop"]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const p=arr.find(x=>x.id===btn.dataset.id);
+      if(p) copyPropertyShare(p);
+    });
+  });
+  list.querySelectorAll('[data-action="edit-prop"]').forEach(btn=>{
     btn.addEventListener('click', ()=>{
       const p = arr.find(x=>x.id===btn.dataset.id);
       if(p) cargarPropiedadEnFormulario(p);
