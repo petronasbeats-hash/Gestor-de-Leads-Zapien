@@ -2370,6 +2370,9 @@ function citaSeguimientoItemHtml(c){
         <div>
           <b>${escapeHtml(ctx.persona.nombre)}</b> — ${c.fecha} ${c.hora} ${ctx.propiedad.nombre?'· 🏠 '+escapeHtml(ctx.propiedad.nombre):''}
           <div class="cita-meta">${escapeHtml(ctx.persona.telefono)}</div>
+          ${c.intencion ? `<div class="cita-meta"><b>Intención:</b> ${escapeHtml(c.intencion)}</div>` : ''}
+          ${c.origen ? `<div class="cita-meta"><b>Origen:</b> ${escapeHtml(c.origen)}</div>` : ''}
+          ${c.notas ? `<div class="cita-meta"><b>Solicitud:</b> ${escapeHtml(c.notas)}</div>` : ''}
           <div class="cita-meta" style="color:var(--amber);">→ Siguiente: ${escapeHtml(ctx.nextAction)}</div>
         </div>
         <select class="seg-estado est-${estadoActual}" data-action="seg-estado" data-id="${c.id}">
