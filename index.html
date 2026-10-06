@@ -373,7 +373,7 @@
           <span id="p-fotos-upload-status" class="cita-meta" style="margin-left:8px;"></span>
         </div>
         <div class="cita-meta" style="margin-top:8px;">PHOTO DIRECTOR · La primera foto será la portada. Orden sugerido: portada/vista general → segunda perspectiva → atributo diferenciador → baño/equipamiento → detalles → amenidades/contexto. Usa “Portada” y las flechas para ajustar el orden antes de guardar.</div>
-        <div id="p-fotos-thumbs" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;"></div>
+        <div id="p-fotos-thumbs" style="display:flex;gap:10px;flex-wrap:wrap;margin-top:8px;"></div>
         <input type="hidden" id="p-edit-id" value="">
         <div id="p-edit-banner" class="cita-meta" style="display:none;color:var(--amber);margin-top:8px;">✏️ Editando propiedad existente — se actualizará el mismo registro, no se creará una nueva.</div>
         <button class="btn btn-primary btn-sm" id="btn-add-propiedad" style="margin-top:8px;">+ Agregar propiedad</button>
@@ -1699,6 +1699,8 @@ document.getElementById('btn-adn-intake-live')?.addEventListener('click', async 
 
 /* ---------- Edición real de propiedad (Property Engine V1 — mismo ID, sin duplicar) ---------- */
 let propEditingSnapshot = null; // guarda el registro completo que se está editando (para conservar campos que el form no maneja)
+let photoMetaDraft = [];
+const PHOTO_ROLES = ['PORTADA','ESPACIO','PERSPECTIVA','DIFERENCIADOR','ACCESO','BAÑO','EQUIPAMIENTO','ENTORNO','AMENIDAD','SERVICIO','CIRCULACIÓN','ESTACIONAMIENTO'];
 
 function cargarPropiedadEnFormulario(p){
   propEditingSnapshot = p;
@@ -1723,6 +1725,10 @@ function cargarPropiedadEnFormulario(p){
   document.getElementById('p-descripcion').value = p.descripcion || '';
   const fotos = Array.isArray(p.fotos) ? p.fotos : (typeof p.fotos === 'string' ? p.fotos.split('\n').map(f=>f.trim()).filter(Boolean) : []);
   document.getElementById('p-fotos').value = fotos.join('\n');
+  photoMetaDraft = fotos.map((url,i)=>{
+    const m = Array.isArray(p.photoMeta) ? (p.photoMeta[i]||{}) : {};
+    return {role:m.role || (i===0?'PORTADA':''), caption:m.caption || ''};
+  });
   renderFotosThumbs();
 
   document.getElementById('btn-add-propiedad').textContent = 'Guardar cambios';
@@ -1755,6 +1761,7 @@ function resetPropiedadForm(){
   document.getElementById('p-m2t').value = '';
   document.getElementById('p-descripcion').value = '';
   document.getElementById('p-fotos').value = '';
+  photoMetaDraft = [];
   document.getElementById('p-fotos-upload-status').textContent = '';
   renderFotosThumbs();
   document.getElementById('btn-add-propiedad').textContent = '+ Agregar propiedad';
@@ -1906,39 +1913,51 @@ document.getElementById('btn-add-manual').addEventListener('click', ()=>{
     });
 });
 
-function setFotosUrls(urls){
+function getFotosUrls(){
+  return document.getElementById('p-fotos').value.split('\n').map(s=>s.trim()).filter(Boolean);
+}
+function normalizePhotoMeta(urls){
+  photoMetaDraft = urls.map((u,i)=>{
+    const m=photoMetaDraft[i]||{};
+    return {role:m.role || (i===0?'PORTADA':''), caption:m.caption||''};
+  });
+  if(photoMetaDraft[0] && !photoMetaDraft[0].role) photoMetaDraft[0].role='PORTADA';
+}
+function setFotosState(urls, meta){
   document.getElementById('p-fotos').value = urls.join('\n');
+  if(meta) photoMetaDraft=meta;
+  normalizePhotoMeta(urls);
   renderFotosThumbs();
 }
 function renderFotosThumbs(){
-  const box = document.getElementById('p-fotos-thumbs');
-  const urls = document.getElementById('p-fotos').value.split('\n').map(s=>s.trim()).filter(Boolean);
-  box.innerHTML = urls.map((u,i)=>`
-    <div style="position:relative;width:128px;padding:5px;border:1px solid ${i===0?'var(--green)':'var(--line)'};border-radius:7px;">
-      <img src="${escapeHtml(u)}" style="height:82px;width:116px;object-fit:cover;border-radius:5px;background:var(--bg);">
-      <div class="cita-meta" style="margin-top:4px;color:${i===0?'var(--green)':'var(--muted)'};">${i===0?'★ PORTADA':'Foto '+(i+1)}</div>
+  const box=document.getElementById('p-fotos-thumbs');
+  const urls=getFotosUrls(); normalizePhotoMeta(urls);
+  box.innerHTML=urls.map((u,i)=>{
+    const m=photoMetaDraft[i]||{};
+    return `<div style="width:220px;padding:7px;border:1px solid ${i===0?'var(--green)':'var(--line)'};border-radius:8px;">
+      <img src="${escapeHtml(u)}" style="height:125px;width:100%;object-fit:cover;border-radius:5px;background:var(--bg);">
+      <div class="cita-meta" style="margin:5px 0;color:${i===0?'var(--green)':'var(--muted)'};">${i===0?'★ PORTADA':'Foto '+(i+1)}</div>
+      <select class="photo-role" data-idx="${i}" style="width:100%;background:var(--bg);border:1px solid var(--line);color:var(--text);padding:6px;border-radius:5px;font-size:11px;">
+        <option value="">Rol…</option>${PHOTO_ROLES.map(r=>`<option value="${r}" ${m.role===r?'selected':''}>${r}</option>`).join('')}
+      </select>
+      <textarea class="photo-caption" data-idx="${i}" placeholder="Descripción breve de esta foto…" style="width:100%;min-height:58px;margin-top:5px;background:var(--bg);border:1px solid var(--line);color:var(--text);padding:6px;border-radius:5px;font-size:11px;resize:vertical;">${escapeHtml(m.caption||'')}</textarea>
       <div style="display:flex;gap:3px;flex-wrap:wrap;margin-top:4px;">
         ${i!==0?`<button type="button" class="btn btn-sm photo-cover" data-idx="${i}">Portada</button>`:''}
-        ${i>0?`<button type="button" class="btn btn-sm photo-up" data-idx="${i}" title="Mover antes">←</button>`:''}
-        ${i<urls.length-1?`<button type="button" class="btn btn-sm photo-down" data-idx="${i}" title="Mover después">→</button>`:''}
-        <button type="button" class="btn btn-sm thumb-remove" data-idx="${i}" title="Quitar" style="color:var(--red);">×</button>
+        ${i>0?`<button type="button" class="btn btn-sm photo-up" data-idx="${i}">←</button>`:''}
+        ${i<urls.length-1?`<button type="button" class="btn btn-sm photo-down" data-idx="${i}">→</button>`:''}
+        <button type="button" class="btn btn-sm thumb-remove" data-idx="${i}" style="color:var(--red);">×</button>
       </div>
-    </div>
-  `).join('');
-  box.querySelectorAll('.photo-cover').forEach(btn=>btn.addEventListener('click',()=>{
-    const a=[...urls]; const [x]=a.splice(Number(btn.dataset.idx),1); a.unshift(x); setFotosUrls(a);
-  }));
-  box.querySelectorAll('.photo-up').forEach(btn=>btn.addEventListener('click',()=>{
-    const a=[...urls], i=Number(btn.dataset.idx); [a[i-1],a[i]]=[a[i],a[i-1]]; setFotosUrls(a);
-  }));
-  box.querySelectorAll('.photo-down').forEach(btn=>btn.addEventListener('click',()=>{
-    const a=[...urls], i=Number(btn.dataset.idx); [a[i],a[i+1]]=[a[i+1],a[i]]; setFotosUrls(a);
-  }));
-  box.querySelectorAll('.thumb-remove').forEach(btn=>btn.addEventListener('click',()=>{
-    const a=[...urls]; a.splice(Number(btn.dataset.idx),1); setFotosUrls(a);
-  }));
+    </div>`;
+  }).join('');
+  box.querySelectorAll('.photo-role').forEach(el=>el.addEventListener('change',()=>{ photoMetaDraft[Number(el.dataset.idx)].role=el.value; }));
+  box.querySelectorAll('.photo-caption').forEach(el=>el.addEventListener('input',()=>{ photoMetaDraft[Number(el.dataset.idx)].caption=el.value; }));
+  const move=(from,to)=>{ const u=[...urls],m=[...photoMetaDraft]; [u[from],u[to]]=[u[to],u[from]]; [m[from],m[to]]=[m[to],m[from]]; if(m[0])m[0].role='PORTADA'; setFotosState(u,m); };
+  box.querySelectorAll('.photo-cover').forEach(b=>b.addEventListener('click',()=>{const i=Number(b.dataset.idx),u=[...urls],m=[...photoMetaDraft];u.unshift(u.splice(i,1)[0]);m.unshift(m.splice(i,1)[0]);m[0].role='PORTADA';setFotosState(u,m);}));
+  box.querySelectorAll('.photo-up').forEach(b=>b.addEventListener('click',()=>move(Number(b.dataset.idx),Number(b.dataset.idx)-1)));
+  box.querySelectorAll('.photo-down').forEach(b=>b.addEventListener('click',()=>move(Number(b.dataset.idx),Number(b.dataset.idx)+1)));
+  box.querySelectorAll('.thumb-remove').forEach(b=>b.addEventListener('click',()=>{const i=Number(b.dataset.idx),u=[...urls],m=[...photoMetaDraft];u.splice(i,1);m.splice(i,1);setFotosState(u,m);}));
 }
-document.getElementById('p-fotos').addEventListener('input', renderFotosThumbs);
+document.getElementById('p-fotos').addEventListener('input', ()=>{ normalizePhotoMeta(getFotosUrls()); renderFotosThumbs(); });
 
 document.getElementById('p-fotos-file').addEventListener('change', async (e)=>{
   const files = Array.from(e.target.files || []);
@@ -1957,6 +1976,7 @@ document.getElementById('p-fotos-file').addEventListener('change', async (e)=>{
       await ref.put(file);
       const url = await ref.getDownloadURL();
       existing.push(url);
+      photoMetaDraft.push({role:existing.length===1?'PORTADA':'',caption:''});
       done++;
       statusEl.textContent = `Subiendo ${done}/${files.length}…`;
       document.getElementById('p-fotos').value = existing.join('\n');
@@ -1990,6 +2010,8 @@ document.getElementById('btn-add-propiedad').addEventListener('click', ()=>{
   const m2t = Number(document.getElementById('p-m2t').value) || null;
   const descripcion = document.getElementById('p-descripcion').value.trim();
   const fotos = document.getElementById('p-fotos').value.split('\n').map(s=>s.trim()).filter(Boolean);
+  normalizePhotoMeta(fotos);
+  const photoMeta = photoMetaDraft.map((m,i)=>({role:m.role || (i===0?'PORTADA':''), caption:(m.caption||'').trim()}));
   if(!nombre){ alert('Ponle un nombre a la propiedad.'); return; }
   const multiunidadIniciada = propertyName || propertyGroupId || unitId || unitNumber || unitType || category;
   if(multiunidadIniciada && (!propertyName || !propertyGroupId || !unitId || !unitNumber || !unitType || !category)){
@@ -2010,7 +2032,7 @@ document.getElementById('btn-add-propiedad').addEventListener('click', ()=>{
   // sin inventar valores comerciales: solo se marca la versión, no se rellenan espacios/atributos/servicios/etc.
   const payload = {
     nombre, direccion, enlaceExterno, lat, lng,
-    operacion, precio, recamaras, banos, m2c, m2t, descripcion, fotos,
+    operacion, precio, recamaras, banos, m2c, m2t, descripcion, fotos, photoMeta,
     propertyName: propertyName || null,
     propertyGroupId: propertyGroupId || null,
     unitId: unitId || null,
