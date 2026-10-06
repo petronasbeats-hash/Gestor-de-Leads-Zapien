@@ -274,8 +274,16 @@ function renderPropiedadPicker(){
   }
   sel.innerHTML = activas.map(([id,p])=>`<option value="${id}" ${id===selectedPropiedadId?'selected':''}>${escapeHtml(p.nombre)}</option>`).join('');
   const p = propiedades[selectedPropiedadId];
-  document.getElementById('propiedad-direccion-hint').textContent = p && p.direccion ? '📍 ' + p.direccion : '';
+  document.getElementById('propiedad-direccion-hint').textContent = publicLocationLabel(p);
   renderPropiedadDetalle(p);
+}
+
+function publicLocationLabel(p){
+  if(!p) return '';
+  const isAdn = String(p.propertyGroupId||'').toLowerCase().includes('adn') ||
+    String(p.nombre||'').toLowerCase().includes('adn');
+  if(isAdn) return '📍 Zona Moctezuma · Tehuacán, Puebla · ubicación exacta al confirmar tu visita';
+  return p.zonaPublica ? '📍 '+p.zonaPublica : '';
 }
 
 function renderPropiedadDetalle(p){
