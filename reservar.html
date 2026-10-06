@@ -215,6 +215,7 @@ let ocupados = {};  // desde citas_publicas: { "2026-07-20_09:00": {propiedadId}
 let selectedSlot = null; // {dateKey, timeKey, label}
 let propiedades = {}; // { id: {nombre, direccion, lat, lng, activo} }
 let selectedPropiedadId = null;
+let unidadParamEncontrada = null;
 let ultimasCitas = {};
 
 /* =========================================================
@@ -235,9 +236,11 @@ function loadPublicAvailability(){
   });
   db.ref('propiedades').on('value', snap=>{
     propiedades = snap.val() || {};
+    unidadParamEncontrada = null;
     if(unidadParam){
       const match = Object.entries(propiedades).find(([id,p])=>p && String(p.unitId||'').toLowerCase()===unidadParam && p.activo!==false);
-      if(match) selectedPropiedadId = match[0];
+      if(match){ selectedPropiedadId = match[0]; unidadParamEncontrada = match[0]; }
+      else selectedPropiedadId = null;
     }
     renderPropiedadPicker();
     renderManualPropiedadSelect();
@@ -258,10 +261,15 @@ function renderPropiedadPicker(){
     return;
   }
   card.style.display = 'block';
+  if(unidadParam && !unidadParamEncontrada){
+    selectedPropiedadId = null;
+    document.getElementById('page-title').textContent = 'Unidad no disponible';
+    document.getElementById('page-sub').textContent = 'El enlace de esta unidad no está disponible. Puedes elegir otro espacio activo para reservar una visita.';
+  }
   if(!selectedPropiedadId || !propiedades[selectedPropiedadId]){
     selectedPropiedadId = activas[0][0];
   }
-  if(unidadParam && propiedades[selectedPropiedadId]){
+  if(unidadParam && unidadParamEncontrada && propiedades[selectedPropiedadId]){
     const up = propiedades[selectedPropiedadId];
     document.getElementById('page-title').textContent = up.nombre || 'ADN Suites & Studios';
     document.getElementById('page-sub').textContent = 'Conoce este espacio y reserva el horario que mejor te acomode para visitarlo.';
