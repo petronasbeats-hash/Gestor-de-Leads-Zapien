@@ -2213,8 +2213,7 @@ document.getElementById('btn-add-hold')?.addEventListener('click', ()=>{
   const trace=registrarTraceCita(citaId,{tipo:'creacion',fecha:creado,origen:'synapse-hold'});
   const updates={};
   updates['citas_publicas/'+slotFlagKey]={propiedadId:propiedadId||null,citaId,holdFolio,estado:'hold'};
-  updates['citas/'+citaId]={holdFolio,nombre,telefono:'',notas,origen,propiedadId,propiedadNombre,fecha,hora,leadId:null,estado:'hold',nextAction:'Esperar / solicitar confirmación',manual:true,creado};
-  updates['citas/'+citaId+'/historial/'+trace.traceId]=trace.entry;
+  updates['citas/'+citaId]={holdFolio,nombre,telefono:'',notas,origen,propiedadId,propiedadNombre,fecha,hora,leadId:null,estado:'hold',nextAction:'Esperar / solicitar confirmación',manual:true,creado,historial:{[trace.traceId]:trace.entry}};
   const btn=document.getElementById('btn-add-hold'); btn.disabled=true; btn.textContent='Apartando…';
   db.ref().update(updates).then(()=>{
     ['h-nombre','h-fecha','h-hora','h-notas'].forEach(id=>document.getElementById(id).value='');
@@ -2264,9 +2263,9 @@ document.getElementById('btn-add-manual').addEventListener('click', ()=>{
         leadId,
         estado: 'pendiente',
         manual: true,
-        creado
+        creado,
+        historial: { [trace.traceId]: trace.entry }
       };
-      updates['citas/'+citaId+'/historial/'+trace.traceId] = trace.entry;
       return db.ref().update(updates);
     })
     .then(()=> leadId ? sincronizarLeadPorNuevaCita(leadId, fecha, hora, propiedadNombre) : null)
