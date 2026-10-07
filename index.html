@@ -1639,6 +1639,7 @@ function renderReservationRadar(citasObj){
           <div class="radar-title">${escapeHtml(c.label)} · ${escapeHtml(ctx.persona.nombre)}</div>
           <div class="radar-meta">${escapeHtml(c.fecha)} · ${escapeHtml(c.hora)}${ctx.propiedad.nombre?' · 🏠 '+escapeHtml(ctx.propiedad.nombre):''}</div>
           ${c.folio?'<div class="radar-meta">🎟️ FOLIO · '+escapeHtml(c.folio)+'</div>':''}
+          ${ctx.persona.identidadEnConflicto?'<div class="radar-next">⚠️ IDENTIDAD POR VERIFICAR · Lead vinculado: '+escapeHtml(ctx.persona.nombreLead)+'</div>':''}
           <div class="radar-next">→ NEXT ACTION · ${escapeHtml(c.next)}</div>
         </div>
         <span class="badge ${(c.estado||'pendiente')==='pendiente'?'st-requisitos':'st-visita_programada'}">${escapeHtml(c.estado||'pendiente')}</span>
@@ -2343,10 +2344,17 @@ function renderHorariosFantasma(){
 function buildContext(cita){
   const lead = cita.leadId ? (leads[cita.leadId] || null) : null;
   const propiedadViva = cita.propiedadId ? (propiedades[cita.propiedadId] || null) : null;
+  const nombreCita = String(cita.nombre || '').trim();
+  const nombreLead = String((lead && lead.nombre) || '').trim();
+  const identidadEnConflicto = !!(nombreCita && nombreLead && nombreCita.toLocaleLowerCase('es-MX') !== nombreLead.toLocaleLowerCase('es-MX'));
   return {
     persona: {
-      nombre: (lead && lead.nombre) || cita.nombre || '',
-      telefono: (lead && lead.telefono) || cita.telefono || ''
+      // La identidad capturada en la reserva es evidencia primaria de esa interacción.
+      // Un lead relacionado aporta contexto, pero nunca debe sobrescribirla silenciosamente.
+      nombre: nombreCita || nombreLead,
+      telefono: cita.telefono || (lead && lead.telefono) || '',
+      identidadEnConflicto,
+      nombreLead: identidadEnConflicto ? nombreLead : null
     },
     propiedad: {
       id: cita.propiedadId || null,
@@ -2450,6 +2458,7 @@ function citaSeguimientoItemHtml(c){
         <div>
           <b>${escapeHtml(ctx.persona.nombre)}</b> — ${c.fecha} ${c.hora} ${ctx.propiedad.nombre?'· 🏠 '+escapeHtml(ctx.propiedad.nombre):''}
           <div class="cita-meta">${escapeHtml(ctx.persona.telefono)}</div>
+          ${ctx.persona.identidadEnConflicto ? `<div class="cita-meta" style="color:var(--amber);"><b>⚠️ Identidad por verificar:</b> lead vinculado · ${escapeHtml(ctx.persona.nombreLead)}</div>` : ''}
           ${c.intencion ? `<div class="cita-meta"><b>Intención:</b> ${escapeHtml(c.intencion)}</div>` : ''}
           ${c.origen ? `<div class="cita-meta"><b>Origen:</b> ${escapeHtml(c.origen)}</div>` : ''}
           ${c.notas ? `<div class="cita-meta"><b>Solicitud:</b> ${escapeHtml(c.notas)}</div>` : ''}
