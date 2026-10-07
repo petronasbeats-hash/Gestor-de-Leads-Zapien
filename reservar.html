@@ -620,6 +620,11 @@ async function detectarReservaPendienteMismaPersona(telefono, propiedadId){
     .sort((a,b)=>String(a.fecha+a.hora).localeCompare(String(b.fecha+b.hora)))[0] || null;
 }
 
+function folioReserva(citaId){
+  const clean = String(citaId||'').replace(/[^a-z0-9]/gi,'').toUpperCase();
+  return 'SYN-' + clean.slice(-8);
+}
+
 document.getElementById('btn-confirm-booking').addEventListener('click', async ()=>{
   const nombre = document.getElementById('f-nombre').value.trim();
   const apellido = document.getElementById('f-apellido').value.trim();
@@ -662,9 +667,11 @@ document.getElementById('btn-confirm-booking').addEventListener('click', async (
     // o se guardan las dos juntas, o no se guarda ninguna — así no puede quedar
     // un horario "fantasma" ocupado sin que exista su cita.
     const citaId = db.ref('citas').push().key;
+    const folio = folioReserva(citaId);
     const updates = {};
-    updates['citas_publicas/'+slotFlagKey] = { propiedadId: propiedadId || null };
+    updates['citas_publicas/'+slotFlagKey] = { propiedadId: propiedadId || null, citaId, folio };
     updates['citas/'+citaId] = {
+      folio,
       nombre: nombreCompleto, telefono, notas,
       intencion: document.getElementById('f-intencion')?.value || '',
       origen: 'Agenda pública',
@@ -686,9 +693,9 @@ document.getElementById('btn-confirm-booking').addEventListener('click', async (
       </div>` : '';
     document.getElementById('modal-content').innerHTML = `
       <h2>🔗 Conexión creada</h2>
-      <div class="confirm-box mono">📅 ${selectedSlot.label}${propiedadNombre?'<br>🏠 '+escapeHtml(propiedadNombre):''}<br>👤 ${escapeHtml(nombreCompleto)}</div>
+      <div class="confirm-box mono">📅 ${selectedSlot.label}${propiedadNombre?'<br>🏠 '+escapeHtml(propiedadNombre):''}<br>👤 ${escapeHtml(nombreCompleto)}<br>🎟️ FOLIO · ${escapeHtml(folio)}</div>
       ${direccionBlock}
-      <div class="sub" style="margin-bottom:14px;">Tu intención ya está conectada con Habitat. Te acompañaremos en el siguiente paso por WhatsApp.</div>
+      <div class="sub" style="margin-bottom:14px;">Tu reserva quedó registrada con el folio <strong>${escapeHtml(folio)}</strong>. Conserva este folio como referencia. Ahora validaremos la agenda y te acompañaremos en el siguiente paso por WhatsApp.</div>
       <button class="btn btn-primary" onclick="location.reload()">Listo</button>
     `;
   }catch(err){
