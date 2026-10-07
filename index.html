@@ -1628,25 +1628,40 @@ function renderReservationRadar(citasObj){
   const count = document.getElementById('reservation-radar-count');
   const searchEl = document.getElementById('reservation-radar-search');
   if(!list || !count) return;
-  const all = reservationRadarItems(citasObj);
+  const radar = reservationRadarItems(citasObj);
   const q = String(searchEl?.value || '').trim().toLocaleLowerCase('es-MX');
-  const arr = q ? all.filter(c=>{
+
+  // El Radar prioriza próximas reservas, pero una búsqueda explícita debe consultar
+  // TODAS las citas conocidas. Así un folio sigue siendo localizable aunque la cita
+  // haya cambiado de estado, quedado fuera del rango operativo o ya no esté en el Radar.
+  const searchPool = Object.entries(citasObj||{}).map(([id,c])=>({id,...c}));
+  const arr = q ? searchPool.filter(c=>{
     const ctx = buildContext(c);
     const haystack = [
       c.folio,
+      c.nombre,
+      c.telefono,
       ctx.persona.nombre,
       ctx.persona.telefono,
       ctx.persona.nombreLead,
       ctx.propiedad.nombre,
+      c.propiedadNombre,
       c.fecha,
-      c.hora
+      c.hora,
+      c.estado
     ].filter(Boolean).join(' ').toLocaleLowerCase('es-MX');
     return haystack.includes(q);
-  }) : all;
+  }).map(c=>{
+    const estado = c.estado || 'pendiente';
+    const base = radar.find(r=>r.id===c.id);
+    return base || {...c, priority:9, tone:'', label:'Resultado de búsqueda', next:NEXT_ACTION_POR_ESTADO[estado] || 'Revisar visita'};
+  }).sort((a,b)=>String(a.fecha+a.hora).localeCompare(String(b.fecha+b.hora))) : radar;
   const pendientes = arr.filter(c=>(c.estado||'pendiente')==='pendiente').length;
   count.textContent = pendientes ? pendientes+' por confirmar' : (arr.length ? arr.length+' próximas' : 'al día');
   if(!arr.length){
-    list.innerHTML = '<div class="empty" style="padding:18px 0;">Radar limpio · no hay reservas próximas que requieran atención.</div>';
+    list.innerHTML = q
+      ? '<div class="empty" style="padding:18px 0;">Sin coincidencias para esa búsqueda.</div>'
+      : '<div class="empty" style="padding:18px 0;">Radar limpio · no hay reservas próximas que requieran atención.</div>';
     return;
   }
   list.innerHTML = arr.slice(0,8).map(c=>{
