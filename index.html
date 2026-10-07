@@ -166,6 +166,8 @@
   .radar-top{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;}
   .radar-title{font-size:13px;font-weight:600;}
   .radar-meta{font-size:11.5px;color:var(--muted);margin-top:4px;line-height:1.45;}\n  .folio-chip{display:inline-flex;align-items:center;gap:5px;font-family:'JetBrains Mono',monospace;font-size:10.5px;font-weight:700;color:var(--green);border:1px solid var(--green);border-radius:999px;padding:3px 7px;margin-top:5px;letter-spacing:.02em;cursor:pointer;}
+  .hold-chip{display:inline-flex;align-items:center;gap:5px;font-family:'JetBrains Mono',monospace;font-size:10.5px;font-weight:700;color:var(--amber);border:1px solid var(--amber);border-radius:999px;padding:3px 7px;margin-top:5px;letter-spacing:.02em;cursor:pointer;}
+  .radar-item.hold{border-left-color:var(--amber);}
   .radar-next{font-family:'JetBrains Mono',monospace;font-size:10.5px;color:var(--amber);margin-top:7px;}
   .radar-actions{display:flex;gap:6px;flex-wrap:wrap;margin-top:9px;}
   @media(max-width:480px){.admin-tab-btn{padding:8px 11px;font-size:11.5px;}}
@@ -405,6 +407,24 @@
     </div>
 
     <div class="tab-panel" data-tab-panel="citas">
+      <div class="card">
+        <h2 class="mono" style="font-size:14px;color:var(--amber);margin:0 0 12px;">🟠 Apartar horario · HOLD</h2>
+        <div class="sub" style="margin-bottom:12px;">Protege temporalmente un horario cuando existe intención real pero aún falta confirmación. No exige teléfono y no crea un lead.</div>
+        <div class="row2" style="grid-template-columns:1.2fr 1fr;">
+          <input type="text" id="h-nombre" placeholder="Nombre o identidad del contacto">
+          <select id="h-origen" style="background:var(--bg);border:1px solid var(--line);color:var(--text);padding:9px 11px;border-radius:6px;font-size:13.5px;">
+            <option value="Facebook Marketplace">Facebook Marketplace</option><option value="Messenger">Messenger</option><option value="WhatsApp">WhatsApp</option><option value="Otro">Otro</option>
+          </select>
+        </div>
+        <div class="row2" style="grid-template-columns:1fr 1fr 1fr;margin-top:8px;">
+          <select id="h-propiedad" style="background:var(--bg);border:1px solid var(--line);color:var(--text);padding:9px 11px;border-radius:6px;font-size:13.5px;"><option value="">Sin propiedad</option></select>
+          <input type="date" id="h-fecha">
+          <input type="time" id="h-hora">
+        </div>
+        <input type="text" id="h-notas" placeholder="Evidencia / motivo del apartado" style="width:100%;background:var(--bg);border:1px solid var(--line);color:var(--text);padding:9px 11px;border-radius:6px;font-size:13.5px;margin-top:8px;">
+        <button class="btn btn-sm" id="btn-add-hold" style="margin-top:8px;border-color:var(--amber);color:var(--amber);">🟠 Apartar temporalmente</button>
+      </div>
+
       <div class="card">
         <h2 class="mono" style="font-size:14px;color:var(--green);margin:0 0 12px;">Cita manual (fuera de horario)</h2>
         <div class="sub" style="margin-bottom:12px;">Para agendar una cita en un horario que no está publicado o habilitado — el cliente no la ve ni la puede tomar, la agendas tú directo aquí.</div>
@@ -1277,7 +1297,7 @@ document.getElementById('import-file').addEventListener('change', (e)=>{
    ========================================================= */
 const DAY_KEYS = ["dom","lun","mar","mie","jue","vie","sab"];
 const DAY_LABELS = {dom:"Domingo",lun:"Lunes",mar:"Martes",mie:"Miércoles",jue:"Jueves",vie:"Viernes",sab:"Sábado"};
-const ESTADOS_CITA = { pendiente:'Pendiente', confirmada:'Confirmada', realizada:'Realizada', no_asistio:'No asistió', cancelada:'Cancelada' };
+const ESTADOS_CITA = { hold:'HOLD temporal', pendiente:'Pendiente', confirmada:'Confirmada', realizada:'Realizada', no_asistio:'No asistió', cancelada:'Cancelada' };
 // NEXT ACTION: cada estado de una cita implica una siguiente acción lógica que Synapse ya entiende,
 // aunque hoy todavía la ejecute una persona (ver /areas/ire-lead-tracker.md — filosofía Synapse Core).
 function registrarTraceCita(citaId, trace){
@@ -1298,7 +1318,7 @@ function registrarTraceCita(citaId, trace){
   if(trace.seguimientoId !== undefined) entry.seguimientoId = trace.seguimientoId;
   return { traceId, entry };
 }
-const NEXT_ACTION_POR_ESTADO = { pendiente:'Confirmar visita', confirmada:'Preparar visita', realizada:'Dar seguimiento', no_asistio:'Reprogramar', cancelada:'Reprogramar' };
+const NEXT_ACTION_POR_ESTADO = { hold:'Esperar / solicitar confirmación', pendiente:'Confirmar visita', confirmada:'Preparar visita', realizada:'Dar seguimiento', no_asistio:'Reprogramar', cancelada:'Reprogramar' };
 const MESES_ES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 const ETAPAS_PRE_VISITA = ['nuevo','contactado','calificado','requisitos','visita_programada'];
 
@@ -1616,7 +1636,7 @@ function reservationRadarItems(citasObj){
       const estado = c.estado || 'pendiente';
       const esManana = c.fecha === tomorrow;
       let priority = 3, tone = '', label = 'Próxima visita', next = NEXT_ACTION_POR_ESTADO[estado] || 'Revisar visita';
-      if(estado === 'pendiente'){ priority = 1; tone = 'urgent'; label = 'Reserva por validar'; next = 'Confirmar reserva con el cliente'; }
+      if(estado === 'hold'){ priority = 1; tone = 'hold'; label = 'HOLD temporal'; next = 'Esperar / solicitar confirmación'; }\n      else if(estado === 'pendiente'){ priority = 1; tone = 'urgent'; label = 'Reserva por validar'; next = 'Confirmar reserva con el cliente'; }
       else if(esManana){ priority = 2; tone = 'tomorrow'; label = 'Agenda de mañana'; next = 'Preparar visita y validar agenda'; }
       return {...c, priority, tone, label, next};
     })
@@ -1671,20 +1691,43 @@ function renderReservationRadar(citasObj){
         <div>
           <div class="radar-title">${escapeHtml(c.label)} · ${escapeHtml(ctx.persona.nombre)}</div>
           <div class="radar-meta">${escapeHtml(c.fecha)} · ${escapeHtml(c.hora)}${ctx.propiedad.nombre?' · 🏠 '+escapeHtml(ctx.propiedad.nombre):''}</div>
-          ${c.folio?'<div><span class="folio-chip" data-folio="'+escapeHtml(c.folio)+'" title="Click para copiar">🎟️ '+escapeHtml(c.folio)+'</span></div>':''}
+          ${c.holdFolio?'<div><span class="hold-chip" data-folio="'+escapeHtml(c.holdFolio)+'" title="Click para copiar">🟠 '+escapeHtml(c.holdFolio)+'</span></div>':''}\n          ${c.folio?'<div><span class="folio-chip" data-folio="'+escapeHtml(c.folio)+'" title="Click para copiar">🎟️ '+escapeHtml(c.folio)+'</span></div>':''}
           ${ctx.persona.identidadEnConflicto?'<div class="radar-next">⚠️ IDENTIDAD POR VERIFICAR · Lead vinculado: '+escapeHtml(ctx.persona.nombreLead)+'</div>':''}
           <div class="radar-next">→ NEXT ACTION · ${escapeHtml(c.next)}</div>
         </div>
         <span class="badge ${(c.estado||'pendiente')==='pendiente'?'st-requisitos':'st-visita_programada'}">${escapeHtml(c.estado||'pendiente')}</span>
       </div>
       <div class="radar-actions">
-        <button class="btn btn-sm" data-radar-action="wa" data-id="${c.id}">WhatsApp · confirmar</button>
+        ${c.estado==="hold"?`<button class="btn btn-sm" data-radar-action="convert-hold" data-id="${c.id}">✓ Convertir a reserva</button><button class="btn btn-sm" data-radar-action="release-hold" data-id="${c.id}" style="color:var(--red);">Liberar HOLD</button>`:`<button class="btn btn-sm" data-radar-action="wa" data-id="${c.id}">WhatsApp · confirmar</button>`}
         <button class="btn btn-sm" data-radar-action="citas" data-id="${c.id}">Abrir seguimiento</button>
       </div>
     </div>`;
   }).join('');
   list.querySelectorAll('[data-radar-action="wa"]').forEach(btn=>btn.addEventListener('click',()=>{
     const c = arr.find(x=>x.id===btn.dataset.id); if(c) abrirWhatsAppParaCita(c);
+  }));
+  list.querySelectorAll('[data-radar-action="convert-hold"]').forEach(btn=>btn.addEventListener('click',()=>{
+    const c = arr.find(x=>x.id===btn.dataset.id); if(!c || !confirm('¿El cliente confirmó? Este HOLD se convertirá en reserva registrada.')) return;
+    const clean = String(c.id||'').replace(/[^a-z0-9]/gi,'').toUpperCase();
+    const folio = 'RSV-' + clean.slice(-8);
+    const trace = registrarTraceCita(c.id,{tipo:'estado',anterior:'hold',nuevo:'pendiente',origen:'synapse'});
+    const updates={};
+    updates['citas/'+c.id+'/estado']='pendiente';
+    updates['citas/'+c.id+'/folio']=folio;
+    updates['citas/'+c.id+'/nextAction']='Confirmar reserva con el cliente';
+    updates['citas/'+c.id+'/historial/'+trace.traceId]=trace.entry;
+    updates['citas_publicas/'+c.fecha+'_'+c.hora+'/folio']=folio;
+    db.ref().update(updates).catch(err=>alert('No se pudo convertir el HOLD.\n\nError: '+err.message));
+  }));
+  list.querySelectorAll('[data-radar-action="release-hold"]').forEach(btn=>btn.addEventListener('click',()=>{
+    const c = arr.find(x=>x.id===btn.dataset.id); if(!c || !confirm('¿Liberar este HOLD? El horario volverá a estar disponible.')) return;
+    const trace = registrarTraceCita(c.id,{tipo:'estado',anterior:'hold',nuevo:'cancelada',origen:'synapse'});
+    const updates={};
+    updates['citas/'+c.id+'/estado']='cancelada';
+    updates['citas/'+c.id+'/nextAction']='HOLD liberado';
+    updates['citas/'+c.id+'/historial/'+trace.traceId]=trace.entry;
+    updates['citas_publicas/'+c.fecha+'_'+c.hora]=null;
+    db.ref().update(updates).catch(err=>alert('No se pudo liberar el HOLD.\n\nError: '+err.message));
   }));
   list.querySelectorAll('[data-radar-action="citas"]').forEach(btn=>btn.addEventListener('click',()=>{
     const tab = document.querySelector('.admin-tab-btn[data-tab="citas"]'); if(tab) tab.click();
@@ -2110,6 +2153,12 @@ function renderManualPropiedadSelect(){
   sel.innerHTML = `<option value="">Sin propiedad</option>` +
     activas.map(([id,p])=>`<option value="${id}">${propiedadFaltantes(p).length?'⚠ ':''}${escapeHtml(p.nombre)}</option>`).join('');
   if(activas.some(([id])=>id===prevVal)) sel.value = prevVal;
+  const holdSel = document.getElementById('h-propiedad');
+  if(holdSel){
+    const holdPrev = holdSel.value;
+    holdSel.innerHTML = '<option value="">Sin propiedad</option>' + activas.map(([id,p])=>'<option value="'+id+'">'+(propiedadFaltantes(p).length?'⚠ ':'')+escapeHtml(p.nombre)+'</option>').join('');
+    if(activas.some(([id])=>id===holdPrev)) holdSel.value=holdPrev;
+  }
 }
 
 // Crea un lead nuevo desde una cita manual del admin cuando no se vinculó uno existente —
@@ -2144,6 +2193,33 @@ async function crearLeadDesdeCitaManual({nombre, telefono, fecha, hora, propieda
   if(tn) db.ref('telefonos_index/'+tn).set(newLeadId).catch(()=>{});
   return newLeadId;
 }
+
+document.getElementById('btn-add-hold')?.addEventListener('click', ()=>{
+  const nombre=document.getElementById('h-nombre').value.trim();
+  const origen=document.getElementById('h-origen').value;
+  const propiedadId=document.getElementById('h-propiedad').value||null;
+  const propiedadNombre=propiedadId&&propiedades[propiedadId]?propiedades[propiedadId].nombre:null;
+  const fecha=document.getElementById('h-fecha').value, hora=document.getElementById('h-hora').value;
+  const notas=document.getElementById('h-notas').value.trim();
+  if(!nombre){alert('Pon el nombre o identidad del contacto.');return;}
+  if(!fecha||!hora){alert('Elige fecha y hora.');return;}
+  if(!auth.currentUser){alert('Tu sesión se cerró, vuelve a iniciar sesión.');return;}
+  const slotFlagKey=fecha+'_'+hora;
+  if(ocupados[slotFlagKey]){alert('Ese horario ya está ocupado o apartado.');return;}
+  const citaId=db.ref('citas').push().key;
+  const clean=String(citaId||'').replace(/[^a-z0-9]/gi,'').toUpperCase();
+  const holdFolio='HLD-'+clean.slice(-8), creado=new Date().toISOString();
+  const trace=registrarTraceCita(citaId,{tipo:'creacion',fecha:creado,origen:'synapse-hold'});
+  const updates={};
+  updates['citas_publicas/'+slotFlagKey]={propiedadId:propiedadId||null,citaId,holdFolio,estado:'hold'};
+  updates['citas/'+citaId]={holdFolio,nombre,telefono:'',notas,origen,propiedadId,propiedadNombre,fecha,hora,leadId:null,estado:'hold',nextAction:'Esperar / solicitar confirmación',manual:true,creado};
+  updates['citas/'+citaId+'/historial/'+trace.traceId]=trace.entry;
+  const btn=document.getElementById('btn-add-hold'); btn.disabled=true; btn.textContent='Apartando…';
+  db.ref().update(updates).then(()=>{
+    ['h-nombre','h-fecha','h-hora','h-notas'].forEach(id=>document.getElementById(id).value='');
+    document.getElementById('h-propiedad').value='';
+  }).catch(err=>alert('No se pudo crear el HOLD.\n\nError: '+err.message)).finally(()=>{btn.disabled=false;btn.textContent='🟠 Apartar temporalmente';});
+});
 
 document.getElementById('btn-add-manual').addEventListener('click', ()=>{
   const nombre = document.getElementById('m-nombre').value.trim();
