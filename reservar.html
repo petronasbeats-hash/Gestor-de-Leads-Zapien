@@ -153,8 +153,6 @@
 </div>
 
 <div class="field"><label>Notas (opcional)</label><input type="text" id="f-notas" placeholder="Ej. propiedad de interés"></div>
- <div class="field"><label>Notas (opcional)</label><input type="text" 
-id="f-notas" placeholder="Ej. propiedad de interés"></div>
     <input type="hidden" id="f-propiedad-id"><input type="hidden" id="f-propiedad-nombre">
     <div class="confirm-box mono" id="confirm-summary"></div>
     <div style="display:flex;gap:8px;justify-content:flex-end;">
@@ -199,6 +197,7 @@ const params = new URLSearchParams(location.search);
 const prefillNombre = params.get('nombre') || '';
 const prefillTelefono = params.get('telefono') || '';
 const leadId = params.get('leadId') || null;
+const unidadParam = (params.get('unidad') || '').trim().toLowerCase();
 
 if(prefillNombre){
   document.getElementById('page-title').textContent = `Hola, ${prefillNombre} 👋`;
@@ -214,6 +213,7 @@ let ocupados = {};  // desde citas_publicas: { "2026-07-20_09:00": {propiedadId}
 let selectedSlot = null; // {dateKey, timeKey, label}
 let propiedades = {}; // { id: {nombre, direccion, lat, lng, activo} }
 let selectedPropiedadId = null;
+let unidadParamEncontrada = null;
 let ultimasCitas = {};
 
 /* =========================================================
@@ -234,6 +234,12 @@ function loadPublicAvailability(){
   });
   db.ref('propiedades').on('value', snap=>{
     propiedades = snap.val() || {};
+    unidadParamEncontrada = null;
+    if(unidadParam){
+      const match = Object.entries(propiedades).find(([id,p])=>p && String(p.unitId||'').toLowerCase()===unidadParam && p.activo!==false);
+      if(match){ selectedPropiedadId = match[0]; unidadParamEncontrada = match[0]; }
+      else selectedPropiedadId = null;
+    }
     renderPropiedadPicker();
     renderManualPropiedadSelect();
     renderSlots();
@@ -253,13 +259,31 @@ function renderPropiedadPicker(){
     return;
   }
   card.style.display = 'block';
+  if(unidadParam && !unidadParamEncontrada){
+    selectedPropiedadId = null;
+    document.getElementById('page-title').textContent = 'Unidad no disponible';
+    document.getElementById('page-sub').textContent = 'El enlace de esta unidad no está disponible. Puedes elegir otro espacio activo para reservar una visita.';
+  }
   if(!selectedPropiedadId || !propiedades[selectedPropiedadId]){
     selectedPropiedadId = activas[0][0];
   }
+  if(unidadParam && unidadParamEncontrada && propiedades[selectedPropiedadId]){
+    const up = propiedades[selectedPropiedadId];
+    document.getElementById('page-title').textContent = up.nombre || 'ADN Suites & Studios';
+    document.getElementById('page-sub').textContent = 'Conoce este espacio y reserva el horario que mejor te acomode para visitarlo.';
+  }
   sel.innerHTML = activas.map(([id,p])=>`<option value="${id}" ${id===selectedPropiedadId?'selected':''}>${escapeHtml(p.nombre)}</option>`).join('');
   const p = propiedades[selectedPropiedadId];
-  document.getElementById('propiedad-direccion-hint').textContent = p && p.direccion ? '📍 ' + p.direccion : '';
+  document.getElementById('propiedad-direccion-hint').textContent = publicLocationLabel(p);
   renderPropiedadDetalle(p);
+}
+
+function publicLocationLabel(p){
+  if(!p) return '';
+  const isAdn = String(p.propertyGroupId||'').toLowerCase().includes('adn') ||
+    String(p.nombre||'').toLowerCase().includes('adn');
+  if(isAdn) return '📍 Zona Moctezuma · Tehuacán, Puebla · ubicación exacta al confirmar tu visita';
+  return p.zonaPublica ? '📍 '+p.zonaPublica : '';
 }
 
 function renderPropiedadDetalle(p){
@@ -283,7 +307,14 @@ function renderPropiedadDetalle(p){
   const fotosEl = document.getElementById('propiedad-fotos');
   if(p.fotos && p.fotos.length){
     fotosEl.style.display = 'flex';
-    fotosEl.innerHTML = p.fotos.map(url=>`<img src="${escapeHtml(url)}" loading="lazy" onerror="this.style.display='none'">`).join('');
+    const meta = Array.isArray(p.photoMeta) ? p.photoMeta : [];
+    fotosEl.innerHTML = p.fotos.map((url,i)=>{
+      const m = meta[i] || {};
+      return `<figure style="margin:0;min-width:220px;max-width:280px;">
+        <img src="${escapeHtml(url)}" loading="lazy" onerror="this.style.display='none'" style="width:100%;">
+        ${m.caption?`<figcaption style="font-size:12px;line-height:1.45;color:var(--muted);margin-top:6px;">${escapeHtml(m.caption)}</figcaption>`:''}
+      </figure>`;
+    }).join('');
   } else {
     fotosEl.style.display = 'none';
     fotosEl.innerHTML = '';
@@ -329,6 +360,10 @@ function renderPropiedadDetalle(p){
 document.getElementById('f-propiedad-publico').addEventListener('change', (e)=>{
   selectedPropiedadId = e.target.value;
   const p = propiedades[selectedPropiedadId];
+  if(p){
+    document.getElementById('page-title').textContent = p.nombre || 'ADN Suites & Studios';
+    document.getElementById('page-sub').textContent = 'Conoce este espacio y reserva el horario que mejor te acomode para visitarlo.';
+  }
   document.getElementById('propiedad-direccion-hint').textContent = p && p.direccion ? '📍 ' + p.direccion : '';
   renderPropiedadDetalle(p);
   renderSlots();
@@ -569,6 +604,27 @@ etapa: 'visita_programada',
   return newLeadId;
 }
 
+async function detectarReservaPendienteMismaPersona(telefono, propiedadId){
+  const telNorm = normalizarTelefono(telefono);
+  if(!telNorm || !propiedadId) return null;
+  const snap = await db.ref('citas').once('value');
+  const citas = snap.val() || {};
+  return Object.entries(citas)
+    .map(([id,c])=>({id,...c}))
+    .filter(c=>{
+      const estado = c.estado || 'pendiente';
+      return normalizarTelefono(c.telefono) === telNorm &&
+        c.propiedadId === propiedadId &&
+        (estado === 'pendiente' || estado === 'confirmada');
+    })
+    .sort((a,b)=>String(a.fecha+a.hora).localeCompare(String(b.fecha+b.hora)))[0] || null;
+}
+
+function folioReserva(citaId){
+  const clean = String(citaId||'').replace(/[^a-z0-9]/gi,'').toUpperCase();
+  return 'RSV-' + clean.slice(-8);
+}
+
 document.getElementById('btn-confirm-booking').addEventListener('click', async ()=>{
   const nombre = document.getElementById('f-nombre').value.trim();
   const apellido = document.getElementById('f-apellido').value.trim();
@@ -578,6 +634,25 @@ document.getElementById('btn-confirm-booking').addEventListener('click', async (
   const propiedadNombre = document.getElementById('f-propiedad-nombre').value || null;
   if(!nombre || !telefono){ alert('Pon tu nombre y teléfono para poder confirmarte la cita.'); return; }
   if(!selectedSlot) return;
+
+  try{
+    const existente = await detectarReservaPendienteMismaPersona(telefono, propiedadId);
+    if(existente){
+      const misma = existente.fecha === selectedSlot.dateKey && existente.hora === selectedSlot.timeKey;
+      if(misma){
+        alert('Ya tienes esta misma visita registrada para '+existente.fecha+' a las '+existente.hora+'. No se creó un duplicado.');
+        return;
+      }
+      const mantener = confirm(
+        'Ya existe una visita pendiente para esta misma propiedad el '+existente.fecha+' a las '+existente.hora+'.\n\n'+
+        'La nueva visita sería el '+selectedSlot.dateKey+' a las '+selectedSlot.timeKey+'.\n\n'+
+        'Aceptar = mantener ambas visitas.\nCancelar = volver sin crear la nueva.'
+      );
+      if(!mantener) return;
+    }
+  }catch(e){
+    console.warn('No se pudo verificar reservas previas; se continúa con el flujo normal.', e);
+  }
 
   const slotFlagKey = `${selectedSlot.dateKey}_${selectedSlot.timeKey}`;
   const btn = document.getElementById('btn-confirm-booking');
@@ -592,10 +667,14 @@ document.getElementById('btn-confirm-booking').addEventListener('click', async (
     // o se guardan las dos juntas, o no se guarda ninguna — así no puede quedar
     // un horario "fantasma" ocupado sin que exista su cita.
     const citaId = db.ref('citas').push().key;
+    const folio = folioReserva(citaId);
     const updates = {};
-    updates['citas_publicas/'+slotFlagKey] = { propiedadId: propiedadId || null };
+    updates['citas_publicas/'+slotFlagKey] = { propiedadId: propiedadId || null, citaId, folio };
     updates['citas/'+citaId] = {
+      folio,
       nombre: nombreCompleto, telefono, notas,
+      intencion: document.getElementById('f-intencion')?.value || '',
+      origen: 'Agenda pública',
       propiedadId, propiedadNombre,
       fecha: selectedSlot.dateKey,
       hora: selectedSlot.timeKey,
@@ -614,9 +693,9 @@ document.getElementById('btn-confirm-booking').addEventListener('click', async (
       </div>` : '';
     document.getElementById('modal-content').innerHTML = `
       <h2>🔗 Conexión creada</h2>
-      <div class="confirm-box mono">📅 ${selectedSlot.label}${propiedadNombre?'<br>🏠 '+escapeHtml(propiedadNombre):''}<br>👤 ${escapeHtml(nombreCompleto)}</div>
+      <div class="confirm-box mono">📅 ${selectedSlot.label}${propiedadNombre?'<br>🏠 '+escapeHtml(propiedadNombre):''}<br>👤 ${escapeHtml(nombreCompleto)}<br>🎟️ FOLIO · ${escapeHtml(folio)}</div>
       ${direccionBlock}
-      <div class="sub" style="margin-bottom:14px;">Tu intención ya está conectada con Habitat. Te acompañaremos en el siguiente paso por WhatsApp.</div>
+      <div class="sub" style="margin-bottom:14px;">Tu reserva quedó registrada con el folio <strong>${escapeHtml(folio)}</strong>. Conserva este folio como referencia. Ahora validaremos la agenda y te acompañaremos en el siguiente paso por WhatsApp.</div>
       <button class="btn btn-primary" onclick="location.reload()">Listo</button>
     `;
   }catch(err){

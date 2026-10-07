@@ -157,6 +157,19 @@
   .resumen-stat{background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:12px;text-align:center;}
   .resumen-stat .num{font-family:'JetBrains Mono',monospace;font-size:22px;font-weight:700;color:var(--green);}
   .resumen-stat .label{font-size:10.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin-top:2px;}
+  .radar-head{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:10px;}
+  .radar-count{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--amber);border:1px solid var(--amber);border-radius:999px;padding:4px 8px;}
+  .radar-list{display:flex;flex-direction:column;gap:8px;}
+  .radar-item{border:1px solid var(--line);border-left:3px solid var(--amber);border-radius:8px;padding:11px 12px;background:var(--bg);}
+  .radar-item.urgent{border-left-color:var(--red);}
+  .radar-item.tomorrow{border-left-color:var(--green);}
+  .radar-top{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;}
+  .radar-title{font-size:13px;font-weight:600;}
+  .radar-meta{font-size:11.5px;color:var(--muted);margin-top:4px;line-height:1.45;}\n  .folio-chip{display:inline-flex;align-items:center;gap:5px;font-family:'JetBrains Mono',monospace;font-size:10.5px;font-weight:700;color:var(--green);border:1px solid var(--green);border-radius:999px;padding:3px 7px;margin-top:5px;letter-spacing:.02em;cursor:pointer;}
+  .hold-chip{display:inline-flex;align-items:center;gap:5px;font-family:'JetBrains Mono',monospace;font-size:10.5px;font-weight:700;color:var(--amber);border:1px solid var(--amber);border-radius:999px;padding:3px 7px;margin-top:5px;letter-spacing:.02em;cursor:pointer;}
+  .radar-item.hold{border-left-color:var(--amber);}
+  .radar-next{font-family:'JetBrains Mono',monospace;font-size:10.5px;color:var(--amber);margin-top:7px;}
+  .radar-actions{display:flex;gap:6px;flex-wrap:wrap;margin-top:9px;}
   @media(max-width:480px){.admin-tab-btn{padding:8px 11px;font-size:11.5px;}}
   .cita-item{border-bottom:1px solid var(--line);padding:10px 0;font-size:13px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;}
   .cita-item:last-child{border-bottom:none;}
@@ -270,6 +283,17 @@
           <div class="resumen-stat"><div class="num" id="stat-pendientes">0</div><div class="label">Seguimientos pendientes</div></div>
         </div>
       </div>
+      <div class="card" id="reservation-radar-card">
+        <div class="radar-head">
+          <h2 class="mono" style="font-size:14px;color:var(--green);margin:0;">⭕ Reservation Radar</h2>
+          <span class="radar-count" id="reservation-radar-count">0 por atender</span>
+        </div>
+        <div class="sub" style="margin-bottom:10px;">Prioriza reservas nuevas, confirmaciones y la agenda de mañana sin salir de Synapse.</div>
+        <div class="field" style="margin-bottom:10px;">
+          <input id="reservation-radar-search" type="text" placeholder="Buscar por folio, nombre, teléfono o propiedad…">
+        </div>
+        <div id="reservation-radar-list" class="radar-list"></div>
+      </div>
       <div class="card">
         <h2 class="mono" style="font-size:14px;color:var(--green);margin:0 0 12px;">Próximas citas agendadas</h2>
         <div id="citas-list"></div>
@@ -373,15 +397,34 @@
           <span id="p-fotos-upload-status" class="cita-meta" style="margin-left:8px;"></span>
         </div>
         <div class="cita-meta" style="margin-top:8px;">PHOTO DIRECTOR · La primera foto será la portada. Orden sugerido: portada/vista general → segunda perspectiva → atributo diferenciador → baño/equipamiento → detalles → amenidades/contexto. Usa “Portada” y las flechas para ajustar el orden antes de guardar.</div>
-        <div id="p-fotos-thumbs" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;"></div>
+        <div id="p-fotos-thumbs" style="display:flex;gap:10px;flex-wrap:wrap;margin-top:8px;"></div>
         <input type="hidden" id="p-edit-id" value="">
         <div id="p-edit-banner" class="cita-meta" style="display:none;color:var(--amber);margin-top:8px;">✏️ Editando propiedad existente — se actualizará el mismo registro, no se creará una nueva.</div>
+        <button class="btn btn-sm" id="btn-apply-adn-photo-meta" style="margin-top:8px;display:none;">✨ Aplicar descripciones ADN</button>
         <button class="btn btn-primary btn-sm" id="btn-add-propiedad" style="margin-top:8px;">+ Agregar propiedad</button>
         <button class="btn btn-sm" id="btn-cancel-edit-prop" style="margin-top:8px;margin-left:8px;display:none;">Cancelar edición</button>
       </div>
     </div>
 
     <div class="tab-panel" data-tab-panel="citas">
+      <div class="card">
+        <h2 class="mono" style="font-size:14px;color:var(--amber);margin:0 0 12px;">🟠 Apartar horario · HOLD</h2>
+        <div class="sub" style="margin-bottom:12px;">Protege temporalmente un horario cuando existe intención real pero aún falta confirmación. No exige teléfono y no crea un lead.</div>
+        <div class="row2" style="grid-template-columns:1.2fr 1fr;">
+          <input type="text" id="h-nombre" placeholder="Nombre o identidad del contacto">
+          <select id="h-origen" style="background:var(--bg);border:1px solid var(--line);color:var(--text);padding:9px 11px;border-radius:6px;font-size:13.5px;">
+            <option value="Facebook Marketplace">Facebook Marketplace</option><option value="Messenger">Messenger</option><option value="WhatsApp">WhatsApp</option><option value="Otro">Otro</option>
+          </select>
+        </div>
+        <div class="row2" style="grid-template-columns:1fr 1fr 1fr;margin-top:8px;">
+          <select id="h-propiedad" style="background:var(--bg);border:1px solid var(--line);color:var(--text);padding:9px 11px;border-radius:6px;font-size:13.5px;"><option value="">Sin propiedad</option></select>
+          <input type="date" id="h-fecha">
+          <input type="time" id="h-hora">
+        </div>
+        <input type="text" id="h-notas" placeholder="Evidencia / motivo del apartado" style="width:100%;background:var(--bg);border:1px solid var(--line);color:var(--text);padding:9px 11px;border-radius:6px;font-size:13.5px;margin-top:8px;">
+        <button class="btn btn-sm" id="btn-add-hold" style="margin-top:8px;border-color:var(--amber);color:var(--amber);">🟠 Apartar temporalmente</button>
+      </div>
+
       <div class="card">
         <h2 class="mono" style="font-size:14px;color:var(--green);margin:0 0 12px;">Cita manual (fuera de horario)</h2>
         <div class="sub" style="margin-bottom:12px;">Para agendar una cita en un horario que no está publicado o habilitado — el cliente no la ve ni la puede tomar, la agendas tú directo aquí.</div>
@@ -818,6 +861,7 @@ function startListening(){
     renderCitasList(ultimasCitas);
     renderSeguimientoList(ultimasCitas);
     renderCalendario(ultimasCitas);
+    renderReservationRadar(ultimasCitas);
     if(!backfillHecho){
       backfillHecho = true;
       backfillIndiceTelefonos();
@@ -1253,7 +1297,7 @@ document.getElementById('import-file').addEventListener('change', (e)=>{
    ========================================================= */
 const DAY_KEYS = ["dom","lun","mar","mie","jue","vie","sab"];
 const DAY_LABELS = {dom:"Domingo",lun:"Lunes",mar:"Martes",mie:"Miércoles",jue:"Jueves",vie:"Viernes",sab:"Sábado"};
-const ESTADOS_CITA = { pendiente:'Pendiente', confirmada:'Confirmada', realizada:'Realizada', no_asistio:'No asistió', cancelada:'Cancelada' };
+const ESTADOS_CITA = { hold:'HOLD temporal', pendiente:'Pendiente', confirmada:'Confirmada', realizada:'Realizada', no_asistio:'No asistió', cancelada:'Cancelada' };
 // NEXT ACTION: cada estado de una cita implica una siguiente acción lógica que Synapse ya entiende,
 // aunque hoy todavía la ejecute una persona (ver /areas/ire-lead-tracker.md — filosofía Synapse Core).
 function registrarTraceCita(citaId, trace){
@@ -1274,7 +1318,7 @@ function registrarTraceCita(citaId, trace){
   if(trace.seguimientoId !== undefined) entry.seguimientoId = trace.seguimientoId;
   return { traceId, entry };
 }
-const NEXT_ACTION_POR_ESTADO = { pendiente:'Confirmar visita', confirmada:'Preparar visita', realizada:'Dar seguimiento', no_asistio:'Reprogramar', cancelada:'Reprogramar' };
+const NEXT_ACTION_POR_ESTADO = { hold:'Esperar / solicitar confirmación', pendiente:'Confirmar visita', confirmada:'Preparar visita', realizada:'Dar seguimiento', no_asistio:'Reprogramar', cancelada:'Reprogramar' };
 const MESES_ES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 const ETAPAS_PRE_VISITA = ['nuevo','contactado','calificado','requisitos','visita_programada'];
 
@@ -1465,6 +1509,7 @@ function loadAdminData(){
     renderSeguimientoList(ultimasCitas);
     renderCalendario(ultimasCitas);
     renderResumenStats();
+    renderReservationRadar(ultimasCitas);
     renderHorariosFantasma();
   });
   db.ref('propiedades').on('value', snap=>{
@@ -1576,6 +1621,136 @@ function renderResumenStats(){
   document.getElementById('stat-pendientes').textContent = pendientes;
 }
 
+/* ---------- Reservation Radar V0.1 ---------- */
+function reservationRadarItems(citasObj){
+  const today = dateKey(new Date());
+  const tomorrowDate = new Date(); tomorrowDate.setDate(tomorrowDate.getDate()+1);
+  const tomorrow = dateKey(tomorrowDate);
+  return Object.entries(citasObj||{})
+    .map(([id,c])=>({id,...c}))
+    .filter(c=>{
+      const estado = c.estado || 'pendiente';
+      return c.fecha >= today && estado !== 'cancelada' && estado !== 'realizada';
+    })
+    .map(c=>{
+      const estado = c.estado || 'pendiente';
+      const esManana = c.fecha === tomorrow;
+      let priority = 3, tone = '', label = 'Próxima visita', next = NEXT_ACTION_POR_ESTADO[estado] || 'Revisar visita';
+      if(estado === 'hold'){ priority = 1; tone = 'hold'; label = 'HOLD temporal'; next = 'Esperar / solicitar confirmación'; }
+      else if(estado === 'pendiente'){ priority = 1; tone = 'urgent'; label = 'Reserva por validar'; next = 'Confirmar reserva con el cliente'; }
+      else if(esManana){ priority = 2; tone = 'tomorrow'; label = 'Agenda de mañana'; next = 'Preparar visita y validar agenda'; }
+      return {...c, priority, tone, label, next};
+    })
+    .sort((a,b)=> a.priority-b.priority || String(a.fecha+a.hora).localeCompare(String(b.fecha+b.hora)));
+}
+
+function renderReservationRadar(citasObj){
+  const list = document.getElementById('reservation-radar-list');
+  const count = document.getElementById('reservation-radar-count');
+  const searchEl = document.getElementById('reservation-radar-search');
+  if(!list || !count) return;
+  const radar = reservationRadarItems(citasObj);
+  const q = String(searchEl?.value || '').trim().toLocaleLowerCase('es-MX');
+
+  // El Radar prioriza próximas reservas, pero una búsqueda explícita debe consultar
+  // TODAS las citas conocidas. Así un folio sigue siendo localizable aunque la cita
+  // haya cambiado de estado, quedado fuera del rango operativo o ya no esté en el Radar.
+  const searchPool = Object.entries(citasObj||{}).map(([id,c])=>({id,...c}));
+  const arr = q ? searchPool.filter(c=>{
+    const ctx = buildContext(c);
+    const haystack = [
+      c.folio,
+      c.nombre,
+      c.telefono,
+      ctx.persona.nombre,
+      ctx.persona.telefono,
+      ctx.persona.nombreLead,
+      ctx.propiedad.nombre,
+      c.propiedadNombre,
+      c.fecha,
+      c.hora,
+      c.estado
+    ].filter(Boolean).join(' ').toLocaleLowerCase('es-MX');
+    return haystack.includes(q);
+  }).map(c=>{
+    const estado = c.estado || 'pendiente';
+    const base = radar.find(r=>r.id===c.id);
+    return base || {...c, priority:9, tone:'', label:'Resultado de búsqueda', next:NEXT_ACTION_POR_ESTADO[estado] || 'Revisar visita'};
+  }).sort((a,b)=>String(a.fecha+a.hora).localeCompare(String(b.fecha+b.hora))) : radar;
+  const pendientes = arr.filter(c=>(c.estado||'pendiente')==='pendiente').length;
+  count.textContent = pendientes ? pendientes+' por confirmar' : (arr.length ? arr.length+' próximas' : 'al día');
+  if(!arr.length){
+    list.innerHTML = q
+      ? '<div class="empty" style="padding:18px 0;">Sin coincidencias para esa búsqueda.</div>'
+      : '<div class="empty" style="padding:18px 0;">Radar limpio · no hay reservas próximas que requieran atención.</div>';
+    return;
+  }
+  list.innerHTML = arr.slice(0,8).map(c=>{
+    const ctx = buildContext(c);
+    return `<div class="radar-item ${c.tone}">
+      <div class="radar-top">
+        <div>
+          <div class="radar-title">${escapeHtml(c.label)} · ${escapeHtml(ctx.persona.nombre)}</div>
+          <div class="radar-meta">${escapeHtml(c.fecha)} · ${escapeHtml(c.hora)}${ctx.propiedad.nombre?' · 🏠 '+escapeHtml(ctx.propiedad.nombre):''}</div>
+          ${c.holdFolio?'<div><span class="hold-chip" data-folio="'+escapeHtml(c.holdFolio)+'" title="Click para copiar">🟠 '+escapeHtml(c.holdFolio)+'</span></div>':''}\n          ${c.folio?'<div><span class="folio-chip" data-folio="'+escapeHtml(c.folio)+'" title="Click para copiar">🎟️ '+escapeHtml(c.folio)+'</span></div>':''}
+          ${ctx.persona.identidadEnConflicto?'<div class="radar-next">⚠️ IDENTIDAD POR VERIFICAR · Lead vinculado: '+escapeHtml(ctx.persona.nombreLead)+'</div>':''}
+          <div class="radar-next">→ NEXT ACTION · ${escapeHtml(c.next)}</div>
+        </div>
+        <span class="badge ${(c.estado||'pendiente')==='pendiente'?'st-requisitos':'st-visita_programada'}">${escapeHtml(c.estado||'pendiente')}</span>
+      </div>
+      <div class="radar-actions">
+        ${c.estado==="hold"?`<button class="btn btn-sm" data-radar-action="convert-hold" data-id="${c.id}">✓ Convertir a reserva</button><button class="btn btn-sm" data-radar-action="release-hold" data-id="${c.id}" style="color:var(--red);">Liberar HOLD</button>`:`<button class="btn btn-sm" data-radar-action="wa" data-id="${c.id}">WhatsApp · confirmar</button>`}
+        <button class="btn btn-sm" data-radar-action="citas" data-id="${c.id}">Abrir seguimiento</button>
+      </div>
+    </div>`;
+  }).join('');
+  list.querySelectorAll('[data-radar-action="wa"]').forEach(btn=>btn.addEventListener('click',()=>{
+    const c = arr.find(x=>x.id===btn.dataset.id); if(c) abrirWhatsAppParaCita(c);
+  }));
+  list.querySelectorAll('[data-radar-action="convert-hold"]').forEach(btn=>btn.addEventListener('click',()=>{
+    const c = arr.find(x=>x.id===btn.dataset.id); if(!c || !confirm('¿El cliente confirmó? Este HOLD se convertirá en reserva registrada.')) return;
+    const clean = String(c.id||'').replace(/[^a-z0-9]/gi,'').toUpperCase();
+    const folio = 'RSV-' + clean.slice(-8);
+    const trace = registrarTraceCita(c.id,{tipo:'estado',anterior:'hold',nuevo:'pendiente',origen:'synapse'});
+    const updates={};
+    updates['citas/'+c.id+'/estado']='pendiente';
+    updates['citas/'+c.id+'/folio']=folio;
+    updates['citas/'+c.id+'/nextAction']='Confirmar reserva con el cliente';
+    updates['citas/'+c.id+'/historial/'+trace.traceId]=trace.entry;
+    updates['citas_publicas/'+c.fecha+'_'+c.hora+'/folio']=folio;
+    db.ref().update(updates).catch(err=>alert('No se pudo convertir el HOLD.\n\nError: '+err.message));
+  }));
+  list.querySelectorAll('[data-radar-action="release-hold"]').forEach(btn=>btn.addEventListener('click',()=>{
+    const c = arr.find(x=>x.id===btn.dataset.id); if(!c || !confirm('¿Liberar este HOLD? El horario volverá a estar disponible.')) return;
+    const trace = registrarTraceCita(c.id,{tipo:'estado',anterior:'hold',nuevo:'cancelada',origen:'synapse'});
+    const updates={};
+    updates['citas/'+c.id+'/estado']='cancelada';
+    updates['citas/'+c.id+'/nextAction']='HOLD liberado';
+    updates['citas/'+c.id+'/historial/'+trace.traceId]=trace.entry;
+    updates['citas_publicas/'+c.fecha+'_'+c.hora]=null;
+    db.ref().update(updates).catch(err=>alert('No se pudo liberar el HOLD.\n\nError: '+err.message));
+  }));
+  list.querySelectorAll('[data-radar-action="citas"]').forEach(btn=>btn.addEventListener('click',()=>{
+    const tab = document.querySelector('.admin-tab-btn[data-tab="citas"]'); if(tab) tab.click();
+  }));
+}
+document.addEventListener('click', async (e)=>{
+  const chip = e.target.closest && e.target.closest('[data-folio]');
+  if(!chip) return;
+  const folio = chip.dataset.folio;
+  try{
+    await navigator.clipboard.writeText(folio);
+    const original = chip.textContent;
+    chip.textContent = '✓ '+folio;
+    setTimeout(()=>{ chip.textContent = original; }, 900);
+  }catch(_){}
+});
+
+const reservationRadarSearchEl = document.getElementById('reservation-radar-search');
+if(reservationRadarSearchEl){
+  reservationRadarSearchEl.addEventListener('input', ()=> renderReservationRadar(ultimasCitas));
+}
+
 /* ---------- Catálogo de propiedades ---------- */
 function propiedadFaltantes(p){
   const falta = [];
@@ -1592,6 +1767,33 @@ function propiedadFaltantes(p){
   return falta;
 }
 
+function propertyPublicUrl(p){
+  if(!p || !p.unitId) return null;
+  return 'https://gestor-leads-zapien.web.app/reservar.html?unidad='+encodeURIComponent(p.unitId);
+}
+function propertyShareMessage(p){
+  const url=propertyPublicUrl(p);
+  if(!url) return '';
+  const price=p.precio ? '$'+Number(p.precio).toLocaleString('es-MX')+' MXN al mes' : 'consulta la renta';
+  let feature='';
+  if(p.unitId==='yang-10') feature='Cuenta con baño privado, una habitación de aproximadamente 18.14 m² y preparación para tarja.';
+  else if(p.unitId==='yang-09') feature='Cuenta con aproximadamente 13.11 m² de espacio privado y baño compartido 1:1.';
+  else if(p.unitId==='yang-08') feature='Cuenta con aproximadamente 10.40 m² de espacio privado y baño compartido 1:1.';
+  else if(p.unitId==='yang-07') feature='Cuenta con aproximadamente 14.34 m² totales, baño privado y su característico ventanal.';
+  else if(p.unitId==='yang-06') feature='Cuenta con aproximadamente 20 m² totales y baño privado.';
+  else if(p.unitId==='yang-04') feature='Cuenta con aproximadamente 12.60 m² totales y baño privado.';
+  else if(String(p.unitId||'').startsWith('yin-')) feature='Studio privado de aproximadamente 12 m².';
+  return '¡Hola! 👋 Sí, '+p.nombre+' está disponible actualmente.\n\nLa renta es de '+price+'. '+feature+'\n\nTe comparto su espacio en ADN Suites & Studios para que puedas ver sus fotos, características y reservar una visita:\n\n'+url+'\n\nSi después de verla tienes alguna duda, escríbeme por aquí y te ayudo.';
+}
+async function copyPropertyShare(p){
+  if(!p || !p.unitId){ alert('Esta propiedad todavía no tiene un ID de unidad para generar su enlace directo.'); return; }
+  const confirmed = window.confirm('¿Confirmas que '+p.nombre+' está disponible actualmente?\n\nAceptar = copiar respuesta confirmando disponibilidad.\nCancelar = no copiar ni afirmar disponibilidad.');
+  if(!confirmed) return;
+  const msg=propertyShareMessage(p);
+  if(!msg) return;
+  try{ await navigator.clipboard.writeText(msg); alert('Disponibilidad confirmada · respuesta personalizada copiada ✓'); }
+  catch(e){ window.prompt('Disponibilidad confirmada. Copia esta respuesta:',msg); }
+}
 function renderPropiedadesAdmin(obj){
   const list = document.getElementById('propiedades-list');
   const arr = Object.entries(obj).map(([id,p])=>({id,...p}));
@@ -1614,6 +1816,7 @@ function renderPropiedadesAdmin(obj){
         ${faltantes.length ? `<div class="cita-meta" style="color:var(--amber);">⚠ Falta: ${faltantes.join(', ')}</div>` : `<div class="cita-meta" style="color:var(--green);">✓ Ficha completa</div>`}
       </div>
       <div style="display:flex;gap:6px;">
+        ${p.unitId?`<button class="btn btn-sm" data-action="share-prop" data-id="${p.id}">↗ Compartir</button>`:""}
         <button class="btn btn-sm" data-action="edit-prop" data-id="${p.id}">✏️ Editar</button>
         <button class="btn btn-sm" data-action="toggle-prop" data-id="${p.id}">${p.activo===false?'Activar':'Desactivar'}</button>
         <button class="btn btn-sm" data-action="del-prop" data-id="${p.id}" style="color:var(--red);">Eliminar</button>
@@ -1622,6 +1825,12 @@ function renderPropiedadesAdmin(obj){
   `;
   }).join('');
 
+  list.querySelectorAll('[data-action="share-prop"]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const p=arr.find(x=>x.id===btn.dataset.id);
+      if(p) copyPropertyShare(p);
+    });
+  });
   list.querySelectorAll('[data-action="edit-prop"]').forEach(btn=>{
     btn.addEventListener('click', ()=>{
       const p = arr.find(x=>x.id===btn.dataset.id);
@@ -1699,6 +1908,123 @@ document.getElementById('btn-adn-intake-live')?.addEventListener('click', async 
 
 /* ---------- Edición real de propiedad (Property Engine V1 — mismo ID, sin duplicar) ---------- */
 let propEditingSnapshot = null; // guarda el registro completo que se está editando (para conservar campos que el form no maneja)
+let photoMetaDraft = [];
+const PHOTO_ROLES = ['PORTADA','ESPACIO','PERSPECTIVA','DIFERENCIADOR','ACCESO','BAÑO','EQUIPAMIENTO','ENTORNO','AMENIDAD','SERVICIO','CIRCULACIÓN','ESTACIONAMIENTO'];
+const ADN_PHOTO_META_PRESETS = {
+  'yang-10': [
+    ['PORTADA','Suite Sierra · espacio amplio con luz natural y baño privado.'],
+    ['ESPACIO','Vista interior de la suite y sus acabados en tonos neutros.'],
+    ['BAÑO','Baño privado equipado con lavabo y sanitario.'],
+    ['BAÑO','Área de regadera independiente dentro del baño privado.'],
+    ['ACCESO','Acceso independiente a YANG 10 · Suite Sierra.'],
+    ['ENTORNO','Vista del conjunto YANG y sus espacios exteriores.'],
+    ['AMENIDAD','Sky Terrace · espacio común para disfrutar al aire libre.'],
+    ['AMENIDAD','Acceso a las áreas exteriores y espacios compartidos YANG.'],
+    ['AMENIDAD','Jardín Botánico · un rincón verde dentro de ADN.'],
+    ['AMENIDAD','Área verde común que conecta naturaleza y convivencia.'],
+    ['SERVICIO','Área de lavado y tendido disponible para residentes YANG.']
+  ],
+  'yang-09': [
+    ['PORTADA','Suite 1-1 · espacio privado funcional y listo para hacerlo tuyo.'],
+    ['ESPACIO','Otra perspectiva del espacio interior y su distribución.'],
+    ['ACCESO','Acceso a YANG 09 y conexión con el área de baño.'],
+    ['BAÑO','Área de regadera del baño compartido 1:1.'],
+    ['BAÑO','Sanitario dentro del baño compartido entre dos suites.'],
+    ['BAÑO','Área de lavabo y equipamiento del baño compartido 1:1.'],
+    ['ENTORNO','Vista exterior del conjunto YANG dentro de ADN Suites & Studios.'],
+    ['AMENIDAD','Sky Terrace · espacio común para disfrutar al aire libre.'],
+    ['AMENIDAD','Acceso a las áreas exteriores y espacios compartidos YANG.'],
+    ['AMENIDAD','Jardín Botánico · un pequeño respiro verde dentro de ADN.'],
+    ['AMENIDAD','Área verde común para disfrutar del entorno de ADN.'],
+    ['SERVICIO','Área de lavado y tendido disponible para residentes YANG.'],
+    ['ESTACIONAMIENTO','Estacionamiento techado disponible con costo adicional y sujeto a disponibilidad.']
+  ],
+  'yang-08': [
+    ['PORTADA','Suite 1-1 · espacio privado con una perspectiva amplia y luminosa.'],
+    ['ESPACIO','Vista interior para apreciar la distribución del espacio privado.'],
+    ['DIFERENCIADOR','Perspectiva del área interior y sus elementos de cristal y espejo.'],
+    ['ACCESO','Acceso de la suite hacia el área de baño compartido 1:1.'],
+    ['BAÑO','Área de regadera del baño compartido entre dos suites.'],
+    ['BAÑO','Sanitario dentro del baño compartido 1:1.'],
+    ['BAÑO','Área de lavabo y equipamiento del baño compartido.'],
+    ['ENTORNO','Vista exterior del conjunto YANG dentro de ADN Suites & Studios.'],
+    ['AMENIDAD','Sky Terrace · espacio común para disfrutar al aire libre.'],
+    ['AMENIDAD','Acceso a las áreas exteriores y espacios compartidos YANG.'],
+    ['AMENIDAD','Jardín Botánico · un rincón verde dentro de ADN.'],
+    ['AMENIDAD','Área verde común para conectar con el exterior.'],
+    ['SERVICIO','Área de lavado y tendido disponible para residentes YANG.'],
+    ['ESTACIONAMIENTO','Estacionamiento techado disponible con costo adicional y sujeto a disponibilidad.']
+  ],
+  'yang-07': [
+    ['PORTADA','Suite Espiral · ventanal protagonista, vista exterior y preparación para tarja.'],
+    ['ESPACIO','Vista general del espacio privado y su distribución interior.'],
+    ['BAÑO','Baño privado equipado con lavabo y sanitario.'],
+    ['BAÑO','Área de regadera del baño privado con amplio ventanal y entrada de luz natural.'],
+    ['ACCESO','Acceso independiente a YANG 07 · Suite Espiral.'],
+    ['ENTORNO','Vista exterior del conjunto YANG dentro de ADN Suites & Studios.'],
+    ['AMENIDAD','Sky Terrace · espacio común al aire libre para residentes YANG.'],
+    ['AMENIDAD','Acceso a las áreas exteriores y espacios compartidos YANG.'],
+    ['AMENIDAD','Jardín Botánico · un rincón verde dentro de ADN.'],
+    ['AMENIDAD','Área verde común que suma naturaleza al entorno de YANG.'],
+    ['SERVICIO','Área de lavado y tendido disponible para residentes YANG.'],
+    ['ESTACIONAMIENTO','Estacionamiento techado disponible con costo adicional y sujeto a disponibilidad.']
+  ],
+  'yang-06': [
+    ['PORTADA','YANG 06 · una suite amplia, luminosa y con baño privado.'],
+    ['ESPACIO','Segunda perspectiva para apreciar la amplitud y distribución de la habitación.'],
+    ['BAÑO','Área de regadera integrada al baño privado de la suite.'],
+    ['BAÑO','Baño privado equipado con sanitario y lavabo.'],
+    ['ENTORNO','Vista exterior del conjunto YANG dentro de ADN Suites & Studios.'],
+    ['AMENIDAD','Sky Terrace · espacio común al aire libre para residentes YANG.'],
+    ['AMENIDAD','Acceso a las áreas exteriores y espacios compartidos YANG.'],
+    ['AMENIDAD','Jardín Botánico · un rincón verde dentro de ADN.'],
+    ['AMENIDAD','Área verde común que aporta naturaleza al entorno de YANG.'],
+    ['SERVICIO','Área de lavado y tendido disponible para residentes YANG.'],
+    ['ESTACIONAMIENTO','Estacionamiento techado disponible con costo adicional y sujeto a disponibilidad.']
+  ],
+  'yang-04': [
+    ['PORTADA','Suite Sótano · un espacio privado, funcional y con identidad propia.'],
+    ['BAÑO','Área de regadera del baño privado de Suite Sótano.'],
+    ['BAÑO','Otra perspectiva del área de regadera y equipamiento del baño privado.'],
+    ['BAÑO','Baño privado equipado con lavabo y sanitario.'],
+    ['ENTORNO','Vista exterior del conjunto YANG dentro de ADN Suites & Studios.'],
+    ['AMENIDAD','Sky Terrace · espacio común al aire libre para residentes YANG.'],
+    ['AMENIDAD','Acceso a las áreas exteriores y espacios compartidos YANG.'],
+    ['AMENIDAD','Jardín Botánico · un rincón verde dentro de ADN.'],
+    ['AMENIDAD','Área verde común que aporta naturaleza al entorno de YANG.'],
+    ['SERVICIO','Área de lavado y tendido disponible para residentes YANG.'],
+    ['ESTACIONAMIENTO','Estacionamiento techado disponible con costo adicional y sujeto a disponibilidad.']
+  ],
+  'yin-01': [
+    ['PORTADA','YIN 01 · un espacio independiente, funcional y con luz natural.'],
+    ['ESPACIO','Segunda perspectiva del Studio para apreciar su distribución interior.'],
+    ['BAÑO','Área de regadera con acabado decorativo que da personalidad al espacio.'],
+    ['BAÑO','Baño equipado con lavabo y sanitario.']
+  ],
+  'yin-06': [
+    ['PORTADA','YIN 06 · espacio funcional con ventana y entrada de luz natural.'],
+    ['ENTORNO','Vista exterior de ADN 10 y su característica escalera.'],
+    ['BAÑO','Baño equipado con lavabo y sanitario.'],
+    ['BAÑO','Área de regadera con acabado decorativo que distingue el espacio.'],
+    ['ESTACIONAMIENTO','Estacionamiento techado disponible con costo adicional y sujeto a disponibilidad.']
+  ],
+  'yin-05': [
+    ['PORTADA','YIN 05 · espacio independiente y funcional para hacerlo tuyo.'],
+    ['ESPACIO','Segunda perspectiva del Studio para apreciar su distribución interior.'],
+    ['ENTORNO','Vista exterior de ADN 10 y su característica escalera.'],
+    ['BAÑO','Baño equipado con lavabo y sanitario.'],
+    ['BAÑO','Área de regadera con acabado decorativo que da identidad al espacio.'],
+    ['CIRCULACIÓN','Acceso y circulación exterior hacia los Studios YIN.'],
+    ['ESTACIONAMIENTO','Estacionamiento techado disponible con costo adicional y sujeto a disponibilidad.']
+  ]
+};
+function syncAdnPhotoMetaButton(){
+  const btn=document.getElementById('btn-apply-adn-photo-meta');
+  if(!btn) return;
+  const unitId=document.getElementById('p-unit-id').value.trim().toLowerCase();
+  btn.style.display=ADN_PHOTO_META_PRESETS[unitId] ? 'inline-block' : 'none';
+}
+
 
 function cargarPropiedadEnFormulario(p){
   propEditingSnapshot = p;
@@ -1723,7 +2049,12 @@ function cargarPropiedadEnFormulario(p){
   document.getElementById('p-descripcion').value = p.descripcion || '';
   const fotos = Array.isArray(p.fotos) ? p.fotos : (typeof p.fotos === 'string' ? p.fotos.split('\n').map(f=>f.trim()).filter(Boolean) : []);
   document.getElementById('p-fotos').value = fotos.join('\n');
+  photoMetaDraft = fotos.map((url,i)=>{
+    const m = Array.isArray(p.photoMeta) ? (p.photoMeta[i]||{}) : {};
+    return {role:m.role || (i===0?'PORTADA':''), caption:m.caption || ''};
+  });
   renderFotosThumbs();
+  syncAdnPhotoMetaButton();
 
   document.getElementById('btn-add-propiedad').textContent = 'Guardar cambios';
   document.getElementById('btn-cancel-edit-prop').style.display = 'inline-block';
@@ -1755,6 +2086,7 @@ function resetPropiedadForm(){
   document.getElementById('p-m2t').value = '';
   document.getElementById('p-descripcion').value = '';
   document.getElementById('p-fotos').value = '';
+  photoMetaDraft = [];
   document.getElementById('p-fotos-upload-status').textContent = '';
   renderFotosThumbs();
   document.getElementById('btn-add-propiedad').textContent = '+ Agregar propiedad';
@@ -1764,6 +2096,22 @@ function resetPropiedadForm(){
 
 document.getElementById('btn-cancel-edit-prop').addEventListener('click', ()=>{
   resetPropiedadForm();
+});
+document.getElementById('p-unit-id')?.addEventListener('input',syncAdnPhotoMetaButton);
+document.getElementById('btn-apply-adn-photo-meta')?.addEventListener('click', ()=>{
+  const unitId=document.getElementById('p-unit-id').value.trim().toLowerCase();
+  const preset=ADN_PHOTO_META_PRESETS[unitId];
+  const urls=getFotosUrls();
+  if(!preset) return;
+  if(urls.length!==preset.length){
+    alert('El preset de '+unitId.toUpperCase()+' espera '+preset.length+' fotos y esta ficha tiene '+urls.length+'. No se aplicó ningún cambio.');
+    return;
+  }
+  const hasExisting=photoMetaDraft.some(m=>(m.caption||'').trim());
+  if(hasExisting && !confirm('Esta ficha ya tiene descripciones. ¿Quieres reemplazarlas con el preset ADN?')) return;
+  photoMetaDraft=preset.map(([role,caption])=>({role,caption}));
+  renderFotosThumbs();
+  alert('Descripciones ADN aplicadas al borrador. Revisa las fotos y pulsa “Guardar cambios” para confirmarlas.');
 });
 
 function actualizarAvisoPropiedadesIncompletas(n){
@@ -1806,6 +2154,12 @@ function renderManualPropiedadSelect(){
   sel.innerHTML = `<option value="">Sin propiedad</option>` +
     activas.map(([id,p])=>`<option value="${id}">${propiedadFaltantes(p).length?'⚠ ':''}${escapeHtml(p.nombre)}</option>`).join('');
   if(activas.some(([id])=>id===prevVal)) sel.value = prevVal;
+  const holdSel = document.getElementById('h-propiedad');
+  if(holdSel){
+    const holdPrev = holdSel.value;
+    holdSel.innerHTML = '<option value="">Sin propiedad</option>' + activas.map(([id,p])=>'<option value="'+id+'">'+(propiedadFaltantes(p).length?'⚠ ':'')+escapeHtml(p.nombre)+'</option>').join('');
+    if(activas.some(([id])=>id===holdPrev)) holdSel.value=holdPrev;
+  }
 }
 
 // Crea un lead nuevo desde una cita manual del admin cuando no se vinculó uno existente —
@@ -1840,6 +2194,32 @@ async function crearLeadDesdeCitaManual({nombre, telefono, fecha, hora, propieda
   if(tn) db.ref('telefonos_index/'+tn).set(newLeadId).catch(()=>{});
   return newLeadId;
 }
+
+document.getElementById('btn-add-hold')?.addEventListener('click', ()=>{
+  const nombre=document.getElementById('h-nombre').value.trim();
+  const origen=document.getElementById('h-origen').value;
+  const propiedadId=document.getElementById('h-propiedad').value||null;
+  const propiedadNombre=propiedadId&&propiedades[propiedadId]?propiedades[propiedadId].nombre:null;
+  const fecha=document.getElementById('h-fecha').value, hora=document.getElementById('h-hora').value;
+  const notas=document.getElementById('h-notas').value.trim();
+  if(!nombre){alert('Pon el nombre o identidad del contacto.');return;}
+  if(!fecha||!hora){alert('Elige fecha y hora.');return;}
+  if(!auth.currentUser){alert('Tu sesión se cerró, vuelve a iniciar sesión.');return;}
+  const slotFlagKey=fecha+'_'+hora;
+  if(ocupados[slotFlagKey]){alert('Ese horario ya está ocupado o apartado.');return;}
+  const citaId=db.ref('citas').push().key;
+  const clean=String(citaId||'').replace(/[^a-z0-9]/gi,'').toUpperCase();
+  const holdFolio='HLD-'+clean.slice(-8), creado=new Date().toISOString();
+  const trace=registrarTraceCita(citaId,{tipo:'creacion',fecha:creado,origen:'synapse-hold'});
+  const updates={};
+  updates['citas_publicas/'+slotFlagKey]={propiedadId:propiedadId||null,citaId,holdFolio,estado:'hold'};
+  updates['citas/'+citaId]={holdFolio,nombre,telefono:'',notas,origen,propiedadId,propiedadNombre,fecha,hora,leadId:null,estado:'hold',nextAction:'Esperar / solicitar confirmación',manual:true,creado,historial:{[trace.traceId]:trace.entry}};
+  const btn=document.getElementById('btn-add-hold'); btn.disabled=true; btn.textContent='Apartando…';
+  db.ref().update(updates).then(()=>{
+    ['h-nombre','h-fecha','h-hora','h-notas'].forEach(id=>document.getElementById(id).value='');
+    document.getElementById('h-propiedad').value='';
+  }).catch(err=>alert('No se pudo crear el HOLD.\n\nError: '+err.message)).finally(()=>{btn.disabled=false;btn.textContent='🟠 Apartar temporalmente';});
+});
 
 document.getElementById('btn-add-manual').addEventListener('click', ()=>{
   const nombre = document.getElementById('m-nombre').value.trim();
@@ -1883,9 +2263,9 @@ document.getElementById('btn-add-manual').addEventListener('click', ()=>{
         leadId,
         estado: 'pendiente',
         manual: true,
-        creado
+        creado,
+        historial: { [trace.traceId]: trace.entry }
       };
-      updates['citas/'+citaId+'/historial/'+trace.traceId] = trace.entry;
       return db.ref().update(updates);
     })
     .then(()=> leadId ? sincronizarLeadPorNuevaCita(leadId, fecha, hora, propiedadNombre) : null)
@@ -1906,39 +2286,51 @@ document.getElementById('btn-add-manual').addEventListener('click', ()=>{
     });
 });
 
-function setFotosUrls(urls){
+function getFotosUrls(){
+  return document.getElementById('p-fotos').value.split('\n').map(s=>s.trim()).filter(Boolean);
+}
+function normalizePhotoMeta(urls){
+  photoMetaDraft = urls.map((u,i)=>{
+    const m=photoMetaDraft[i]||{};
+    return {role:m.role || (i===0?'PORTADA':''), caption:m.caption||''};
+  });
+  if(photoMetaDraft[0] && !photoMetaDraft[0].role) photoMetaDraft[0].role='PORTADA';
+}
+function setFotosState(urls, meta){
   document.getElementById('p-fotos').value = urls.join('\n');
+  if(meta) photoMetaDraft=meta;
+  normalizePhotoMeta(urls);
   renderFotosThumbs();
 }
 function renderFotosThumbs(){
-  const box = document.getElementById('p-fotos-thumbs');
-  const urls = document.getElementById('p-fotos').value.split('\n').map(s=>s.trim()).filter(Boolean);
-  box.innerHTML = urls.map((u,i)=>`
-    <div style="position:relative;width:128px;padding:5px;border:1px solid ${i===0?'var(--green)':'var(--line)'};border-radius:7px;">
-      <img src="${escapeHtml(u)}" style="height:82px;width:116px;object-fit:cover;border-radius:5px;background:var(--bg);">
-      <div class="cita-meta" style="margin-top:4px;color:${i===0?'var(--green)':'var(--muted)'};">${i===0?'★ PORTADA':'Foto '+(i+1)}</div>
+  const box=document.getElementById('p-fotos-thumbs');
+  const urls=getFotosUrls(); normalizePhotoMeta(urls);
+  box.innerHTML=urls.map((u,i)=>{
+    const m=photoMetaDraft[i]||{};
+    return `<div style="width:220px;padding:7px;border:1px solid ${i===0?'var(--green)':'var(--line)'};border-radius:8px;">
+      <img src="${escapeHtml(u)}" style="height:125px;width:100%;object-fit:cover;border-radius:5px;background:var(--bg);">
+      <div class="cita-meta" style="margin:5px 0;color:${i===0?'var(--green)':'var(--muted)'};">${i===0?'★ PORTADA':'Foto '+(i+1)}</div>
+      <select class="photo-role" data-idx="${i}" style="width:100%;background:var(--bg);border:1px solid var(--line);color:var(--text);padding:6px;border-radius:5px;font-size:11px;">
+        <option value="">Rol…</option>${PHOTO_ROLES.map(r=>`<option value="${r}" ${m.role===r?'selected':''}>${r}</option>`).join('')}
+      </select>
+      <textarea class="photo-caption" data-idx="${i}" placeholder="Descripción breve de esta foto…" style="width:100%;min-height:58px;margin-top:5px;background:var(--bg);border:1px solid var(--line);color:var(--text);padding:6px;border-radius:5px;font-size:11px;resize:vertical;">${escapeHtml(m.caption||'')}</textarea>
       <div style="display:flex;gap:3px;flex-wrap:wrap;margin-top:4px;">
         ${i!==0?`<button type="button" class="btn btn-sm photo-cover" data-idx="${i}">Portada</button>`:''}
-        ${i>0?`<button type="button" class="btn btn-sm photo-up" data-idx="${i}" title="Mover antes">←</button>`:''}
-        ${i<urls.length-1?`<button type="button" class="btn btn-sm photo-down" data-idx="${i}" title="Mover después">→</button>`:''}
-        <button type="button" class="btn btn-sm thumb-remove" data-idx="${i}" title="Quitar" style="color:var(--red);">×</button>
+        ${i>0?`<button type="button" class="btn btn-sm photo-up" data-idx="${i}">←</button>`:''}
+        ${i<urls.length-1?`<button type="button" class="btn btn-sm photo-down" data-idx="${i}">→</button>`:''}
+        <button type="button" class="btn btn-sm thumb-remove" data-idx="${i}" style="color:var(--red);">×</button>
       </div>
-    </div>
-  `).join('');
-  box.querySelectorAll('.photo-cover').forEach(btn=>btn.addEventListener('click',()=>{
-    const a=[...urls]; const [x]=a.splice(Number(btn.dataset.idx),1); a.unshift(x); setFotosUrls(a);
-  }));
-  box.querySelectorAll('.photo-up').forEach(btn=>btn.addEventListener('click',()=>{
-    const a=[...urls], i=Number(btn.dataset.idx); [a[i-1],a[i]]=[a[i],a[i-1]]; setFotosUrls(a);
-  }));
-  box.querySelectorAll('.photo-down').forEach(btn=>btn.addEventListener('click',()=>{
-    const a=[...urls], i=Number(btn.dataset.idx); [a[i],a[i+1]]=[a[i+1],a[i]]; setFotosUrls(a);
-  }));
-  box.querySelectorAll('.thumb-remove').forEach(btn=>btn.addEventListener('click',()=>{
-    const a=[...urls]; a.splice(Number(btn.dataset.idx),1); setFotosUrls(a);
-  }));
+    </div>`;
+  }).join('');
+  box.querySelectorAll('.photo-role').forEach(el=>el.addEventListener('change',()=>{ photoMetaDraft[Number(el.dataset.idx)].role=el.value; }));
+  box.querySelectorAll('.photo-caption').forEach(el=>el.addEventListener('input',()=>{ photoMetaDraft[Number(el.dataset.idx)].caption=el.value; }));
+  const move=(from,to)=>{ const u=[...urls],m=[...photoMetaDraft]; [u[from],u[to]]=[u[to],u[from]]; [m[from],m[to]]=[m[to],m[from]]; if(m[0])m[0].role='PORTADA'; setFotosState(u,m); };
+  box.querySelectorAll('.photo-cover').forEach(b=>b.addEventListener('click',()=>{const i=Number(b.dataset.idx),u=[...urls],m=[...photoMetaDraft];u.unshift(u.splice(i,1)[0]);m.unshift(m.splice(i,1)[0]);m[0].role='PORTADA';setFotosState(u,m);}));
+  box.querySelectorAll('.photo-up').forEach(b=>b.addEventListener('click',()=>move(Number(b.dataset.idx),Number(b.dataset.idx)-1)));
+  box.querySelectorAll('.photo-down').forEach(b=>b.addEventListener('click',()=>move(Number(b.dataset.idx),Number(b.dataset.idx)+1)));
+  box.querySelectorAll('.thumb-remove').forEach(b=>b.addEventListener('click',()=>{const i=Number(b.dataset.idx),u=[...urls],m=[...photoMetaDraft];u.splice(i,1);m.splice(i,1);setFotosState(u,m);}));
 }
-document.getElementById('p-fotos').addEventListener('input', renderFotosThumbs);
+document.getElementById('p-fotos').addEventListener('input', ()=>{ normalizePhotoMeta(getFotosUrls()); renderFotosThumbs(); });
 
 document.getElementById('p-fotos-file').addEventListener('change', async (e)=>{
   const files = Array.from(e.target.files || []);
@@ -1957,6 +2349,7 @@ document.getElementById('p-fotos-file').addEventListener('change', async (e)=>{
       await ref.put(file);
       const url = await ref.getDownloadURL();
       existing.push(url);
+      photoMetaDraft.push({role:existing.length===1?'PORTADA':'',caption:''});
       done++;
       statusEl.textContent = `Subiendo ${done}/${files.length}…`;
       document.getElementById('p-fotos').value = existing.join('\n');
@@ -1990,6 +2383,8 @@ document.getElementById('btn-add-propiedad').addEventListener('click', ()=>{
   const m2t = Number(document.getElementById('p-m2t').value) || null;
   const descripcion = document.getElementById('p-descripcion').value.trim();
   const fotos = document.getElementById('p-fotos').value.split('\n').map(s=>s.trim()).filter(Boolean);
+  normalizePhotoMeta(fotos);
+  const photoMeta = photoMetaDraft.map((m,i)=>({role:m.role || (i===0?'PORTADA':''), caption:(m.caption||'').trim()}));
   if(!nombre){ alert('Ponle un nombre a la propiedad.'); return; }
   const multiunidadIniciada = propertyName || propertyGroupId || unitId || unitNumber || unitType || category;
   if(multiunidadIniciada && (!propertyName || !propertyGroupId || !unitId || !unitNumber || !unitType || !category)){
@@ -2010,7 +2405,7 @@ document.getElementById('btn-add-propiedad').addEventListener('click', ()=>{
   // sin inventar valores comerciales: solo se marca la versión, no se rellenan espacios/atributos/servicios/etc.
   const payload = {
     nombre, direccion, enlaceExterno, lat, lng,
-    operacion, precio, recamaras, banos, m2c, m2t, descripcion, fotos,
+    operacion, precio, recamaras, banos, m2c, m2t, descripcion, fotos, photoMeta,
     propertyName: propertyName || null,
     propertyGroupId: propertyGroupId || null,
     unitId: unitId || null,
@@ -2074,10 +2469,17 @@ function renderHorariosFantasma(){
 function buildContext(cita){
   const lead = cita.leadId ? (leads[cita.leadId] || null) : null;
   const propiedadViva = cita.propiedadId ? (propiedades[cita.propiedadId] || null) : null;
+  const nombreCita = String(cita.nombre || '').trim();
+  const nombreLead = String((lead && lead.nombre) || '').trim();
+  const identidadEnConflicto = !!(nombreCita && nombreLead && nombreCita.toLocaleLowerCase('es-MX') !== nombreLead.toLocaleLowerCase('es-MX'));
   return {
     persona: {
-      nombre: (lead && lead.nombre) || cita.nombre || '',
-      telefono: (lead && lead.telefono) || cita.telefono || ''
+      // La identidad capturada en la reserva es evidencia primaria de esa interacción.
+      // Un lead relacionado aporta contexto, pero nunca debe sobrescribirla silenciosamente.
+      nombre: nombreCita || nombreLead,
+      telefono: cita.telefono || (lead && lead.telefono) || '',
+      identidadEnConflicto,
+      nombreLead: identidadEnConflicto ? nombreLead : null
     },
     propiedad: {
       id: cita.propiedadId || null,
@@ -2181,6 +2583,10 @@ function citaSeguimientoItemHtml(c){
         <div>
           <b>${escapeHtml(ctx.persona.nombre)}</b> — ${c.fecha} ${c.hora} ${ctx.propiedad.nombre?'· 🏠 '+escapeHtml(ctx.propiedad.nombre):''}
           <div class="cita-meta">${escapeHtml(ctx.persona.telefono)}</div>
+          ${ctx.persona.identidadEnConflicto ? `<div class="cita-meta" style="color:var(--amber);"><b>⚠️ Identidad por verificar:</b> lead vinculado · ${escapeHtml(ctx.persona.nombreLead)}</div>` : ''}
+          ${c.intencion ? `<div class="cita-meta"><b>Intención:</b> ${escapeHtml(c.intencion)}</div>` : ''}
+          ${c.origen ? `<div class="cita-meta"><b>Origen:</b> ${escapeHtml(c.origen)}</div>` : ''}
+          ${c.notas ? `<div class="cita-meta"><b>Solicitud:</b> ${escapeHtml(c.notas)}</div>` : ''}
           <div class="cita-meta" style="color:var(--amber);">→ Siguiente: ${escapeHtml(ctx.nextAction)}</div>
         </div>
         <select class="seg-estado est-${estadoActual}" data-action="seg-estado" data-id="${c.id}">
