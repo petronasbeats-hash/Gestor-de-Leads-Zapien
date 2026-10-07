@@ -1638,6 +1638,7 @@ function renderReservationRadar(citasObj){
         <div>
           <div class="radar-title">${escapeHtml(c.label)} · ${escapeHtml(ctx.persona.nombre)}</div>
           <div class="radar-meta">${escapeHtml(c.fecha)} · ${escapeHtml(c.hora)}${ctx.propiedad.nombre?' · 🏠 '+escapeHtml(ctx.propiedad.nombre):''}</div>
+          ${c.folio?'<div class="radar-meta">🎟️ FOLIO · '+escapeHtml(c.folio)+'</div>':''}
           <div class="radar-next">→ NEXT ACTION · ${escapeHtml(c.next)}</div>
         </div>
         <span class="badge ${(c.estado||'pendiente')==='pendiente'?'st-requisitos':'st-visita_programada'}">${escapeHtml(c.estado||'pendiente')}</span>
