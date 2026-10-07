@@ -165,7 +165,7 @@
   .radar-item.tomorrow{border-left-color:var(--green);}
   .radar-top{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;}
   .radar-title{font-size:13px;font-weight:600;}
-  .radar-meta{font-size:11.5px;color:var(--muted);margin-top:4px;line-height:1.45;}
+  .radar-meta{font-size:11.5px;color:var(--muted);margin-top:4px;line-height:1.45;}\n  .folio-chip{display:inline-flex;align-items:center;gap:5px;font-family:'JetBrains Mono',monospace;font-size:10.5px;font-weight:700;color:var(--green);border:1px solid var(--green);border-radius:999px;padding:3px 7px;margin-top:5px;letter-spacing:.02em;cursor:pointer;}
   .radar-next{font-family:'JetBrains Mono',monospace;font-size:10.5px;color:var(--amber);margin-top:7px;}
   .radar-actions{display:flex;gap:6px;flex-wrap:wrap;margin-top:9px;}
   @media(max-width:480px){.admin-tab-btn{padding:8px 11px;font-size:11.5px;}}
@@ -1671,7 +1671,7 @@ function renderReservationRadar(citasObj){
         <div>
           <div class="radar-title">${escapeHtml(c.label)} · ${escapeHtml(ctx.persona.nombre)}</div>
           <div class="radar-meta">${escapeHtml(c.fecha)} · ${escapeHtml(c.hora)}${ctx.propiedad.nombre?' · 🏠 '+escapeHtml(ctx.propiedad.nombre):''}</div>
-          ${c.folio?'<div class="radar-meta">🎟️ FOLIO · '+escapeHtml(c.folio)+'</div>':''}
+          ${c.folio?'<div><span class="folio-chip" data-folio="'+escapeHtml(c.folio)+'" title="Click para copiar">🎟️ '+escapeHtml(c.folio)+'</span></div>':''}
           ${ctx.persona.identidadEnConflicto?'<div class="radar-next">⚠️ IDENTIDAD POR VERIFICAR · Lead vinculado: '+escapeHtml(ctx.persona.nombreLead)+'</div>':''}
           <div class="radar-next">→ NEXT ACTION · ${escapeHtml(c.next)}</div>
         </div>
@@ -1690,6 +1690,18 @@ function renderReservationRadar(citasObj){
     const tab = document.querySelector('.admin-tab-btn[data-tab="citas"]'); if(tab) tab.click();
   }));
 }
+document.addEventListener('click', async (e)=>{
+  const chip = e.target.closest && e.target.closest('[data-folio]');
+  if(!chip) return;
+  const folio = chip.dataset.folio;
+  try{
+    await navigator.clipboard.writeText(folio);
+    const original = chip.textContent;
+    chip.textContent = '✓ '+folio;
+    setTimeout(()=>{ chip.textContent = original; }, 900);
+  }catch(_){}
+});
+
 const reservationRadarSearchEl = document.getElementById('reservation-radar-search');
 if(reservationRadarSearchEl){
   reservationRadarSearchEl.addEventListener('input', ()=> renderReservationRadar(ultimasCitas));
