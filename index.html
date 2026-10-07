@@ -287,6 +287,9 @@
           <span class="radar-count" id="reservation-radar-count">0 por atender</span>
         </div>
         <div class="sub" style="margin-bottom:10px;">Prioriza reservas nuevas, confirmaciones y la agenda de mañana sin salir de Synapse.</div>
+        <div class="field" style="margin-bottom:10px;">
+          <input id="reservation-radar-search" type="text" placeholder="Buscar por folio, nombre, teléfono o propiedad…">
+        </div>
         <div id="reservation-radar-list" class="radar-list"></div>
       </div>
       <div class="card">
@@ -1623,8 +1626,23 @@ function reservationRadarItems(citasObj){
 function renderReservationRadar(citasObj){
   const list = document.getElementById('reservation-radar-list');
   const count = document.getElementById('reservation-radar-count');
+  const searchEl = document.getElementById('reservation-radar-search');
   if(!list || !count) return;
-  const arr = reservationRadarItems(citasObj);
+  const all = reservationRadarItems(citasObj);
+  const q = String(searchEl?.value || '').trim().toLocaleLowerCase('es-MX');
+  const arr = q ? all.filter(c=>{
+    const ctx = buildContext(c);
+    const haystack = [
+      c.folio,
+      ctx.persona.nombre,
+      ctx.persona.telefono,
+      ctx.persona.nombreLead,
+      ctx.propiedad.nombre,
+      c.fecha,
+      c.hora
+    ].filter(Boolean).join(' ').toLocaleLowerCase('es-MX');
+    return haystack.includes(q);
+  }) : all;
   const pendientes = arr.filter(c=>(c.estado||'pendiente')==='pendiente').length;
   count.textContent = pendientes ? pendientes+' por confirmar' : (arr.length ? arr.length+' próximas' : 'al día');
   if(!arr.length){
@@ -1656,6 +1674,10 @@ function renderReservationRadar(citasObj){
   list.querySelectorAll('[data-radar-action="citas"]').forEach(btn=>btn.addEventListener('click',()=>{
     const tab = document.querySelector('.admin-tab-btn[data-tab="citas"]'); if(tab) tab.click();
   }));
+}
+const reservationRadarSearchEl = document.getElementById('reservation-radar-search');
+if(reservationRadarSearchEl){
+  reservationRadarSearchEl.addEventListener('input', ()=> renderReservationRadar(ultimasCitas));
 }
 
 /* ---------- Catálogo de propiedades ---------- */
