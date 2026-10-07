@@ -1636,7 +1636,8 @@ function reservationRadarItems(citasObj){
       const estado = c.estado || 'pendiente';
       const esManana = c.fecha === tomorrow;
       let priority = 3, tone = '', label = 'Próxima visita', next = NEXT_ACTION_POR_ESTADO[estado] || 'Revisar visita';
-      if(estado === 'hold'){ priority = 1; tone = 'hold'; label = 'HOLD temporal'; next = 'Esperar / solicitar confirmación'; }\n      else if(estado === 'pendiente'){ priority = 1; tone = 'urgent'; label = 'Reserva por validar'; next = 'Confirmar reserva con el cliente'; }
+      if(estado === 'hold'){ priority = 1; tone = 'hold'; label = 'HOLD temporal'; next = 'Esperar / solicitar confirmación'; }
+      else if(estado === 'pendiente'){ priority = 1; tone = 'urgent'; label = 'Reserva por validar'; next = 'Confirmar reserva con el cliente'; }
       else if(esManana){ priority = 2; tone = 'tomorrow'; label = 'Agenda de mañana'; next = 'Preparar visita y validar agenda'; }
       return {...c, priority, tone, label, next};
     })
