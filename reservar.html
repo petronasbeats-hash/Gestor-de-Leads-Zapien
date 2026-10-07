@@ -622,7 +622,7 @@ async function detectarReservaPendienteMismaPersona(telefono, propiedadId){
 
 function folioReserva(citaId){
   const clean = String(citaId||'').replace(/[^a-z0-9]/gi,'').toUpperCase();
-  return 'SYN-' + clean.slice(-8);
+  return 'RSV-' + clean.slice(-8);
 }
 
 document.getElementById('btn-confirm-booking').addEventListener('click', async ()=>{
