@@ -2187,7 +2187,11 @@ function citaSeguimientoItemHtml(c){
           ${Object.entries(ESTADOS_CITA).map(([val,label])=>`<option value="${val}" ${val===estadoActual?'selected':''}>${label}</option>`).join('')}
         </select>
       </div>
-      ${telefonoValidoParaWhatsApp(ctx.persona.telefono) ? `<div style="margin-top:6px;"><button class="btn btn-sm" data-action="seg-wa" data-id="${c.id}">WhatsApp</button></div>` : ''}
+      <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap;">
+        ${telefonoValidoParaWhatsApp(ctx.persona.telefono) ? `<button class="btn btn-sm" data-action="seg-wa" data-id="${c.id}">WhatsApp</button>` : ''}
+        ${['no_asistio','cancelada'].includes(estadoActual) ? `<button class="btn btn-sm" data-action="seg-reprogramar" data-id="${c.id}">↻ Reprogramar visita</button>` : ''}
+        ${c.reprogramadaDesde ? `<span class="cita-meta">↳ Reprogramada desde cita ${escapeHtml(c.reprogramadaDesde)}</span>` : ''}
+      </div>
       <div class="seg-notas">
         ${notas.length ? notas.map(([nid,n])=>`<div class="seg-nota-item">🗒️ ${new Date(n.fecha).toLocaleString('es-MX',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})} — ${escapeHtml(n.texto)}</div>`).join('') : ''}
       </div>
@@ -2199,7 +2203,83 @@ function citaSeguimientoItemHtml(c){
   `;
 }
 
+
+/* SC-REAG-001 — Reprogramación vinculada, sin sobrescribir la cita de origen.
+   Validación inicial conservadora: cualquier cita activa en el mismo horario bloquea. */
+async function reprogramarCita(citaId){
+  if(!auth.currentUser){ alert('Inicia sesión para reprogramar.'); return; }
+  const original = ultimasCitas[citaId];
+  if(!original){ alert('No se encontró la cita original.'); return; }
+  if(!['no_asistio','cancelada'].includes(original.estado)){
+    alert('La reprogramación vinculada está disponible para citas no asistidas o canceladas.');
+    return;
+  }
+  const fecha = prompt('Nueva fecha (AAAA-MM-DD):', original.fecha);
+  if(fecha === null) return;
+  if(!/^\\d{4}-\\d{2}-\\d{2}$/.test(fecha) || !Number.isFinite(new Date(fecha+'T12:00:00').getTime()) || dateKey(new Date(fecha+'T12:00:00')) !== fecha){
+    alert('Fecha inválida. Usa AAAA-MM-DD.'); return;
+  }
+  const hora = prompt('Nueva hora (HH:MM, formato 24 horas):', original.hora);
+  if(hora === null) return;
+  if(!/^([01]\\d|2[0-3]):[0-5]\\d$/.test(hora)){ alert('Hora inválida.'); return; }
+  if(new Date(fecha+'T'+hora+':00').getTime() <= Date.now()){ alert('La nueva cita debe estar en el futuro.'); return; }
+  const motivo = prompt('Motivo de reprogramación (para historial):', 'Solicitada por el cliente');
+  if(motivo === null) return;
+  if(!motivo.trim()){ alert('Indica el motivo.'); return; }
+  const nuevaClave = fecha+'_'+hora;
+  // No confiar solo en el listener: refrescar el estado antes de escribir.
+  const snap = await db.ref('citas').once('value');
+  const actuales = snap.val() || {};
+  const citaActual = actuales[citaId];
+  if(!citaActual || !['no_asistio','cancelada'].includes(citaActual.estado)){
+    alert('La cita original cambió. Actualiza la agenda e inténtalo de nuevo.'); return;
+  }
+  if(Object.entries(actuales).some(([id,c])=>id!==citaId && c.fecha===fecha && c.hora===hora && !['cancelada','no_asistio'].includes(c.estado))){
+    alert('Horario ocupado por otra cita. Elige uno diferente.'); return;
+  }
+  if(ocupados[nuevaClave]){ alert('El horario figura ocupado en las reservas públicas.'); return; }
+  if(!confirm('Crear una NUEVA cita pendiente para '+fecha+' a las '+hora+'? La cita original seguirá como '+ESTADOS_CITA[citaActual.estado]+'.')) return;
+  const nuevoId = db.ref('citas').push().key;
+  const ahora = new Date().toISOString();
+  const reservaRef = db.ref('citas_publicas/'+nuevaClave);
+  // Transacción: no tomar un horario que otro proceso haya ocupado.
+  const reserva = await reservaRef.transaction(actual=>actual===null ? {propiedadId:citaActual.propiedadId||null,citaId:nuevoId,origen:'reprogramacion'} : undefined, undefined, false);
+  if(!reserva.committed){ alert('El horario fue reservado por otro proceso.'); return; }
+  const nuevo = {
+    nombre:citaActual.nombre||'', telefono:citaActual.telefono||'', notas:citaActual.notas||'',
+    propiedadId:citaActual.propiedadId||null, propiedadNombre:citaActual.propiedadNombre||null,
+    leadId:citaActual.leadId||null, fecha, hora, estado:'pendiente', manual:true,
+    nextAction:'Confirmar visita', creado:ahora, reprogramadaDesde:citaId,
+    motivoReprogramacion:motivo.trim()
+  };
+  const nuevoTrace = registrarTraceCita(nuevoId,{tipo:'creacion',fecha:ahora,origen:'reprogramacion'});
+  const originalTrace = registrarTraceCita(citaId,{tipo:'reprogramacion',fecha:ahora,origen:'synapse',fechaAnterior:citaActual.fecha,horaAnterior:citaActual.hora,fechaNueva:fecha,horaNueva:hora});
+  const updates = {};
+  updates['citas/'+nuevoId] = nuevo;
+  updates['citas/'+nuevoId+'/historial/'+nuevoTrace.traceId] = nuevoTrace.entry;
+  updates['citas/'+citaId+'/historial/'+originalTrace.traceId] = {...originalTrace.entry, citaNuevaId:nuevoId, motivo:motivo.trim()};
+  updates['citas/'+citaId+'/reprogramadaA'] = nuevoId;
+  try{
+    await db.ref().update(updates);
+    if(nuevo.leadId) await sincronizarLeadPorNuevaCita(nuevo.leadId,fecha,hora,nuevo.propiedadNombre);
+    alert('Nueva cita pendiente creada y vinculada. Confirma con el cliente.');
+  }catch(err){
+    // No liberar una reserva si otro proceso ya la reemplazó.
+    const check = await reservaRef.once('value');
+    if(check.val() && check.val().citaId===nuevoId) await reservaRef.remove();
+    alert('No se pudo completar la reprogramación. Verifica la agenda antes de reintentar. '+err.message);
+  }
+}
+
 function attachSeguimientoHandlers(container){
+  container.querySelectorAll('[data-action="seg-reprogramar"]').forEach(btn=>{
+    btn.addEventListener('click',async ()=>{
+      btn.disabled=true;
+      try{ await reprogramarCita(btn.dataset.id); }
+      catch(err){ alert('Error al reprogramar: '+err.message); }
+      finally{ btn.disabled=false; }
+    });
+  });
   container.querySelectorAll('[data-action="seg-estado"]').forEach(sel=>{
     sel.addEventListener('change', ()=>{
       const id = sel.dataset.id;
