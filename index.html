@@ -2207,6 +2207,51 @@ function citaSeguimientoItemHtml(c){
 
 /* SC-REAG-001 — Reprogramación vinculada, sin sobrescribir la cita de origen.
    Validación inicial conservadora: cualquier cita activa en el mismo horario bloquea. */
+function solicitarDatosReprogramacion(cita){
+  return new Promise(resolve=>{
+    const overlay=document.createElement('div');
+    overlay.setAttribute('role','dialog');
+    overlay.setAttribute('aria-modal','true');
+    overlay.setAttribute('aria-label','Reprogramar visita');
+    overlay.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.76);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px;';
+    const panel=document.createElement('div');
+    panel.style.cssText='background:var(--panel,#121a17);color:var(--text,#fff);border:1px solid var(--line,#385047);border-radius:12px;padding:20px;width:min(100%,460px);box-shadow:0 20px 70px #0009;';
+    const title=document.createElement('h2');title.textContent='↻ Reprogramar visita';title.style.margin='0 0 8px';
+    const context=document.createElement('p');context.style.cssText='font-size:13px;opacity:.8;line-height:1.5';
+    context.textContent=(cita.nombre||'Cliente')+' · '+(cita.propiedadNombre||'Sin inmueble')+' · Original: '+cita.fecha+' '+cita.hora+' ('+(ESTADOS_CITA[cita.estado]||cita.estado)+')';
+    const info=document.createElement('p');info.textContent='Se creará una cita nueva pendiente. La original y su historial se conservarán.';info.style.cssText='font-size:13px;line-height:1.5';
+    const form=document.createElement('form');form.style.cssText='display:grid;gap:12px;margin-top:16px';
+    function field(label,type,value,required){
+      const wrap=document.createElement('label');wrap.style.cssText='display:grid;gap:5px;font-size:13px';
+      const caption=document.createElement('span');caption.textContent=label;
+      const input=document.createElement('input');input.type=type;input.value=value;input.required=required;
+      input.style.cssText='width:100%;box-sizing:border-box;padding:11px;border-radius:7px;border:1px solid var(--line,#385047);background:var(--bg,#101510);color:var(--text,#fff);font-size:15px';
+      wrap.append(caption,input);form.append(wrap);return input;
+    }
+    const tomorrow=new Date();tomorrow.setDate(tomorrow.getDate()+1);
+    const fecha=field('Nueva fecha','date',cita.fecha>=dateKey(new Date())?cita.fecha:dateKey(tomorrow),true);
+    const hora=field('Nueva hora','time',cita.hora||'19:00',true);
+    const motivo=field('Motivo de reprogramación','text','Solicitada por el cliente',true);
+    const error=document.createElement('p');error.style.cssText='font-size:12px;color:var(--red,#ff8585);margin:0';error.setAttribute('aria-live','polite');form.append(error);
+    const actions=document.createElement('div');actions.style.cssText='display:flex;justify-content:flex-end;gap:10px;margin-top:6px';
+    const cancel=document.createElement('button');cancel.type='button';cancel.className='btn btn-sm';cancel.textContent='Cancelar';
+    const submit=document.createElement('button');submit.type='submit';submit.className='btn btn-primary btn-sm';submit.textContent='Validar y continuar';
+    actions.append(cancel,submit);form.append(actions);panel.append(title,context,info,form);overlay.append(panel);document.body.append(overlay);
+    const previous=document.activeElement;
+    function close(result){document.removeEventListener('keydown',onKey);overlay.remove();if(previous&&previous.focus)previous.focus();resolve(result);}
+    function onKey(e){if(e.key==='Escape')close(null);}
+    document.addEventListener('keydown',onKey);
+    cancel.addEventListener('click',()=>close(null));
+    overlay.addEventListener('click',e=>{if(e.target===overlay)close(null);});
+    form.addEventListener('submit',e=>{
+      e.preventDefault();
+      if(!fecha.value||!hora.value||!motivo.value.trim()){error.textContent='Completa fecha, hora y motivo.';return;}
+      close({fecha:fecha.value,hora:hora.value,motivo:motivo.value.trim()});
+    });
+    fecha.focus();
+  });
+}
+
 async function reprogramarCita(citaId){
   if(!auth.currentUser){ alert('Inicia sesión para reprogramar.'); return; }
   const original = ultimasCitas[citaId];
@@ -2215,17 +2260,14 @@ async function reprogramarCita(citaId){
     alert('La reprogramación vinculada está disponible para citas no asistidas o canceladas.');
     return;
   }
-  const fecha = prompt('Nueva fecha (AAAA-MM-DD):', original.fecha);
-  if(fecha === null) return;
+  const solicitud = await solicitarDatosReprogramacion(original);
+  if(!solicitud) return;
+  const {fecha,hora,motivo} = solicitud;
   if(!/^\\d{4}-\\d{2}-\\d{2}$/.test(fecha) || !Number.isFinite(new Date(fecha+'T12:00:00').getTime()) || dateKey(new Date(fecha+'T12:00:00')) !== fecha){
-    alert('Fecha inválida. Usa AAAA-MM-DD.'); return;
+    alert('Fecha inválida.'); return;
   }
-  const hora = prompt('Nueva hora (HH:MM, formato 24 horas):', original.hora);
-  if(hora === null) return;
   if(!/^([01]\\d|2[0-3]):[0-5]\\d$/.test(hora)){ alert('Hora inválida.'); return; }
   if(new Date(fecha+'T'+hora+':00').getTime() <= Date.now()){ alert('La nueva cita debe estar en el futuro.'); return; }
-  const motivo = prompt('Motivo de reprogramación (para historial):', 'Solicitada por el cliente');
-  if(motivo === null) return;
   if(!motivo.trim()){ alert('Indica el motivo.'); return; }
   const nuevaClave = fecha+'_'+hora;
   // No confiar solo en el listener: refrescar el estado antes de escribir.
