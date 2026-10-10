@@ -1,0 +1,104 @@
+{
+  "schemaVersion": "0.1.0",
+  "scope": "Referencia pública de trámites, sin datos personales",
+  "jurisdiction": "Tehuacán, Puebla, México",
+  "year": 2026,
+  "lastVerified": "2026-10-09",
+  "currency": "MXN",
+  "agencies": [
+    {
+      "id": "ooselite",
+      "name": "Organismo Operador del Servicio de Limpia de Tehuacán"
+    },
+    {
+      "id": "oosapat",
+      "name": "Organismo Operador de los Servicios de Agua Potable y Alcantarillado de Tehuacán"
+    }
+  ],
+  "procedures": [
+    {
+      "id": "ooselite-no-adeudo-2026",
+      "agencyId": "ooselite",
+      "title": "Constancia de no adeudo",
+      "officialFee": 138,
+      "feeStatus": "verified_official",
+      "resolutionBusinessDays": 3,
+      "validityMonths": 12,
+      "requirements": [
+        {
+          "id": "identificacion",
+          "label": "Identificación oficial vigente",
+          "official": true
+        },
+        {
+          "id": "recibo",
+          "label": "Recibo de pago vigente (o verificación de cuenta en sistema)",
+          "official": true
+        },
+        {
+          "id": "representacion",
+          "label": "Acreditar representación cuando corresponda",
+          "official": true
+        }
+      ],
+      "sourceUrl": "https://remtys.tehuacan.gob.mx/all.php?id=520",
+      "notes": "Cuota por constancia; comprobar ausencia de adeudo."
+    },
+    {
+      "id": "ooselite-alta-padron-2026",
+      "agencyId": "ooselite",
+      "title": "Alta en padrón de usuarios del servicio de limpia para vivienda y similares",
+      "officialFee": 104,
+      "feeStatus": "verified_official",
+      "resolutionBusinessDays": 3,
+      "requirements": [
+        {
+          "id": "identificacion",
+          "label": "Identificación oficial vigente",
+          "official": true
+        },
+        {
+          "id": "propiedad",
+          "label": "Documento que acredite propiedad o posesión",
+          "official": true
+        },
+        {
+          "id": "pago",
+          "label": "Comprobante de pago de derechos",
+          "official": true
+        }
+      ],
+      "sourceUrl": "https://www.remtys.tehuacan.gob.mx/all.php?id=557",
+      "notes": "Aplica a la clasificación descrita en ficha; para lotes baldíos verificar categoría y tarifa de servicio. La tarifa periódica puede variar por zona."
+    },
+    {
+      "id": "oosapat-inspeccion-alta",
+      "agencyId": "oosapat",
+      "title": "Inspección y presupuesto de contratos de agua y drenaje",
+      "officialFee": null,
+      "feeStatus": "not_verified",
+      "resolutionBusinessDays": null,
+      "requirements": [],
+      "sourceUrl": null,
+      "notes": "Indicaciones particulares del inspector no verificadas como requisitos oficiales generales. Obtener cotización del área de Contratos y Presupuestos; no asumir costo."
+    }
+  ],
+  "reviewPolicy": {
+    "frequency": "annual_and_on_change",
+    "requireOfficialSource": true,
+    "historyAppendOnly": true
+  },
+  "workflowStates": [
+    "por_iniciar",
+    "requisitos_pendientes",
+    "documentacion_recibida",
+    "presentado",
+    "en_revision",
+    "pago_pendiente",
+    "en_tramite",
+    "resuelto",
+    "entregado",
+    "observado",
+    "cancelado"
+  ]
+}

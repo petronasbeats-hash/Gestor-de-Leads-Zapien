@@ -495,6 +495,27 @@
         <div class="field"><label>Próxima acción</label><input type="text" id="f-accion" placeholder="Confirmar visita del sábado"></div>
         <div class="field"><label>Fecha próxima acción</label><input type="date" id="f-fecha-accion"></div>
       </div>
+      <div class="field" id="aval-section" style="border:1px solid var(--line);border-radius:8px;padding:12px;margin-top:10px;">
+        <strong style="font-size:14px;">Aval · Expediente de arrendamiento</strong>
+        <p class="sub" style="margin:6px 0 12px;">Información para revisión previa al contrato. No equivale a aval validado ni a contrato firmado.</p>
+        <div class="row2">
+          <div class="field"><label>Nombre completo del aval</label><input id="f-aval-nombre" type="text" autocomplete="off"></div>
+          <div class="field"><label>Teléfono del aval</label><input id="f-aval-telefono" type="tel" autocomplete="off"></div>
+        </div>
+        <div class="field"><label>Domicilio completo del aval</label><input id="f-aval-domicilio" type="text" placeholder="Calle, número, colonia, municipio, estado y CP" autocomplete="off"></div>
+        <div class="row2">
+          <div class="field"><label>Municipio de residencia</label><input id="f-aval-municipio" type="text" placeholder="Tehuacán"></div>
+          <div class="field"><label>Fecha de emisión del comprobante</label><input id="f-aval-comprobante-fecha" type="date"></div>
+        </div>
+        <div class="row2">
+          <div class="field"><label>Titular del comprobante</label><input id="f-aval-comprobante-titular" type="text"></div>
+          <div class="field"><label>Coincidencia de domicilio con INE</label>
+            <select id="f-aval-coincide-ine"><option value="pendiente">Pendiente de revisar</option><option value="si">Sí</option><option value="no">No</option></select>
+          </div>
+        </div>
+        <div class="field"><label>Estado documental</label><select id="f-aval-estado"><option value="pendiente">Pendiente</option><option value="revision">En revisión</option><option value="validado">Validado por responsable</option><option value="observado">Observado</option></select></div>
+        <p id="f-aval-aviso" class="sub" style="margin:6px 0 0;"></p>
+      </div>
       <div class="field"><label>Notas generales</label><textarea id="f-notas" placeholder="Preferencias, objeciones, contexto…"></textarea></div>
     </div>
 
@@ -989,6 +1010,28 @@ function renderAll(){
 
 const overlay = document.getElementById('overlay');
 
+function revisarAvalFormulario(){
+  const aviso=document.getElementById('f-aval-aviso');
+  if(!aviso)return;
+  const fecha=document.getElementById('f-aval-comprobante-fecha').value;
+  const titular=document.getElementById('f-aval-comprobante-titular').value.trim();
+  const nombre=document.getElementById('f-aval-nombre').value.trim();
+  const coincide=document.getElementById('f-aval-coincide-ine').value;
+  const municipio=document.getElementById('f-aval-municipio').value.trim();
+  const alertas=[];
+  if(municipio && municipio.toLocaleLowerCase('es-MX')!=='tehuacán' && municipio.toLocaleLowerCase('es-MX')!=='tehuacan') alertas.push('Residencia fuera de Tehuacán: revisar política del inmueble.');
+  if(fecha){
+    const emision=new Date(fecha+'T12:00:00');
+    const limite=new Date();limite.setMonth(limite.getMonth()-3);
+    if(emision>new Date() || emision<limite)alertas.push('Comprobante fuera del rango de 3 meses o con fecha futura.');
+  }
+  if(titular && nombre && titular.toLocaleLowerCase('es-MX')!==nombre.toLocaleLowerCase('es-MX') && coincide!=='si')alertas.push('Titular distinto: verificar coincidencia de domicilio con INE.');
+  aviso.textContent=alertas.length?'⚠ '+alertas.join(' '):'Validación documental pendiente de revisión humana.';
+}
+['f-aval-nombre','f-aval-municipio','f-aval-comprobante-fecha','f-aval-comprobante-titular','f-aval-coincide-ine'].forEach(id=>document.getElementById(id).addEventListener('change',revisarAvalFormulario));
+document.getElementById('f-operacion').addEventListener('change',()=>{
+  document.getElementById('aval-section').style.display=document.getElementById('f-operacion').value==='Renta'?'block':'none';
+});
 function openModal(id){
   currentLeadId = id || null;
   currentTab = "datos";
@@ -1018,6 +1061,15 @@ function openModal(id){
   document.getElementById('f-accion').value = accionGuardada || sugerenciaAccionPara(operacionLead, currentStageId);
   document.getElementById('f-fecha-accion').value = lead?.fechaProximaAccion || '';
   document.getElementById('f-notas').value = lead?.notas || '';
+  const aval = lead?.aval || {};
+  for(const [campo,valor] of Object.entries({
+    nombre:aval.nombre||'', telefono:aval.telefono||'', domicilio:aval.domicilio||'',
+    municipio:aval.municipio||'', 'comprobante-fecha':aval.comprobanteFecha||'',
+    'comprobante-titular':aval.comprobanteTitular||'', 'coincide-ine':aval.coincideINE||'pendiente',
+    estado:aval.estado||'pendiente'
+  })){ document.getElementById('f-aval-'+campo).value=valor; }
+  document.getElementById('aval-section').style.display=operacionLead==='Renta'?'block':'none';
+  revisarAvalFormulario();
 
   switchTab('datos');
   renderStagePane();
@@ -1153,6 +1205,16 @@ document.getElementById('btn-save').addEventListener('click', ()=>{
     proximaAccion: document.getElementById('f-accion').value.trim(),
     fechaProximaAccion: document.getElementById('f-fecha-accion').value,
     notas: document.getElementById('f-notas').value.trim(),
+    aval: document.getElementById('f-operacion').value==='Renta' ? {
+      nombre:document.getElementById('f-aval-nombre').value.trim(),
+      telefono:document.getElementById('f-aval-telefono').value.trim(),
+      domicilio:document.getElementById('f-aval-domicilio').value.trim(),
+      municipio:document.getElementById('f-aval-municipio').value.trim(),
+      comprobanteFecha:document.getElementById('f-aval-comprobante-fecha').value,
+      comprobanteTitular:document.getElementById('f-aval-comprobante-titular').value.trim(),
+      coincideINE:document.getElementById('f-aval-coincide-ine').value,
+      estado:document.getElementById('f-aval-estado').value
+    } : (existing?.aval || null),
     etapa: currentStageId,
     fechaCreacion: existing?.fechaCreacion || todayStr(),
     fechaCierre: (isNowGanado && wasNotGanado) ? todayStr() : (existing?.fechaCierre || null),
@@ -2187,7 +2249,12 @@ function citaSeguimientoItemHtml(c){
           ${Object.entries(ESTADOS_CITA).map(([val,label])=>`<option value="${val}" ${val===estadoActual?'selected':''}>${label}</option>`).join('')}
         </select>
       </div>
-      ${telefonoValidoParaWhatsApp(ctx.persona.telefono) ? `<div style="margin-top:6px;"><button class="btn btn-sm" data-action="seg-wa" data-id="${c.id}">WhatsApp</button></div>` : ''}
+      <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap;">
+        ${telefonoValidoParaWhatsApp(ctx.persona.telefono) ? `<button class="btn btn-sm" data-action="seg-wa" data-id="${c.id}">WhatsApp</button>` : ''}
+        ${['no_asistio','cancelada'].includes(estadoActual) && !c.reprogramadaA ? `<button class="btn btn-sm" data-action="seg-reprogramar" data-id="${c.id}">↻ Reprogramar visita</button>` : ''}
+        ${c.reprogramadaA ? `<span class="cita-meta">↳ Nueva cita vinculada: ${escapeHtml(c.reprogramadaA)}</span>` : ''}
+        ${c.reprogramadaDesde ? `<span class="cita-meta">↳ Reprogramada desde cita ${escapeHtml(c.reprogramadaDesde)}</span>` : ''}
+      </div>
       <div class="seg-notas">
         ${notas.length ? notas.map(([nid,n])=>`<div class="seg-nota-item">🗒️ ${new Date(n.fecha).toLocaleString('es-MX',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})} — ${escapeHtml(n.texto)}</div>`).join('') : ''}
       </div>
@@ -2199,7 +2266,156 @@ function citaSeguimientoItemHtml(c){
   `;
 }
 
+
+/* SC-REAG-001 — Reprogramación vinculada, sin sobrescribir la cita de origen.
+   Validación inicial conservadora: cualquier cita activa en el mismo horario bloquea. */
+function solicitarDatosReprogramacion(cita){
+  return new Promise(resolve=>{
+    const overlay=document.createElement('div');
+    overlay.setAttribute('role','dialog');
+    overlay.setAttribute('aria-modal','true');
+    overlay.setAttribute('aria-label','Reprogramar visita');
+    overlay.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.76);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px;';
+    const panel=document.createElement('div');
+    panel.style.cssText='background:var(--panel,#121a17);color:var(--text,#fff);border:1px solid var(--line,#385047);border-radius:12px;padding:20px;width:min(100%,460px);box-shadow:0 20px 70px #0009;';
+    const title=document.createElement('h2');title.textContent='↻ Reprogramar visita';title.style.margin='0 0 8px';
+    const context=document.createElement('p');context.style.cssText='font-size:13px;opacity:.8;line-height:1.5';
+    context.textContent=(cita.nombre||'Cliente')+' · '+(cita.propiedadNombre||'Sin inmueble')+' · Original: '+cita.fecha+' '+cita.hora+' ('+(ESTADOS_CITA[cita.estado]||cita.estado)+')';
+    const info=document.createElement('p');info.textContent='Se creará una cita nueva pendiente. La original y su historial se conservarán.';info.style.cssText='font-size:13px;line-height:1.5';
+    const form=document.createElement('form');form.style.cssText='display:grid;gap:12px;margin-top:16px';
+    function field(label,type,value,required){
+      const wrap=document.createElement('label');wrap.style.cssText='display:grid;gap:5px;font-size:13px';
+      const caption=document.createElement('span');caption.textContent=label;
+      const input=document.createElement('input');input.type=type;input.value=value;input.required=required;
+      input.style.cssText='width:100%;box-sizing:border-box;padding:11px;border-radius:7px;border:1px solid var(--line,#385047);background:var(--bg,#101510);color:var(--text,#fff);font-size:15px';
+      wrap.append(caption,input);form.append(wrap);return input;
+    }
+    const tomorrow=new Date();tomorrow.setDate(tomorrow.getDate()+1);
+    const fecha=field('Nueva fecha','date',cita.fecha>=dateKey(new Date())?cita.fecha:dateKey(tomorrow),true);
+    const hora=field('Nueva hora','time',cita.hora||'19:00',true);
+    const motivo=field('Motivo de reprogramación','text','Solicitada por el cliente',true);
+    const error=document.createElement('p');error.style.cssText='font-size:12px;color:var(--red,#ff8585);margin:0';error.setAttribute('aria-live','polite');form.append(error);
+    const actions=document.createElement('div');actions.style.cssText='display:flex;justify-content:flex-end;gap:10px;margin-top:6px';
+    const cancel=document.createElement('button');cancel.type='button';cancel.className='btn btn-sm';cancel.textContent='Cancelar';
+    const submit=document.createElement('button');submit.type='submit';submit.className='btn btn-primary btn-sm';submit.textContent='Validar y continuar';
+    actions.append(cancel,submit);form.append(actions);panel.append(title,context,info,form);overlay.append(panel);document.body.append(overlay);
+    const previous=document.activeElement;
+    function close(result){document.removeEventListener('keydown',onKey);overlay.remove();if(previous&&previous.focus)previous.focus();resolve(result);}
+    function onKey(e){if(e.key==='Escape')close(null);}
+    document.addEventListener('keydown',onKey);
+    cancel.addEventListener('click',()=>close(null));
+    overlay.addEventListener('click',e=>{if(e.target===overlay)close(null);});
+    form.addEventListener('submit',e=>{
+      e.preventDefault();
+      if(!fecha.value||!hora.value||!motivo.value.trim()){error.textContent='Completa fecha, hora y motivo.';return;}
+      close({fecha:fecha.value,hora:hora.value,motivo:motivo.value.trim()});
+    });
+    fecha.focus();
+  });
+}
+
+/* SC-REAG-001: validación local de intervalos; la disponibilidad compartida
+   y la exclusión concurrente entre canales requieren un gate posterior. */
+function minutosHora(hhmm){ const p=hhmm.split(':').map(Number); return p[0]*60+p[1]; }
+function validarVentanaReprogramacion(fecha,hora,citas){
+  if(!horario) return 'La configuración de disponibilidad no está cargada.';
+  const dia=new Date(fecha+'T12:00:00').getDay();
+  const diaKey=DAY_KEYS[dia];
+  const cfg=normalizarDia(horario[diaKey]);
+  if(!cfg.activo) return 'El día seleccionado no está habilitado para visitas.';
+  const duracion=Math.max(1,Number(horario.duracionMin)||30);
+  const inicio=minutosHora(hora), fin=inicio+duracion;
+  if(!cfg.rangos.some(r=>inicio>=minutosHora(r.inicio)&&fin<=minutosHora(r.fin))){
+    return 'La visita queda fuera del horario configurado, considerando su duración.';
+  }
+  const conflicto=Object.values(citas).some(c=>{
+    if(c.fecha!==fecha||!c.hora||['cancelada','no_asistio'].includes(c.estado)) return false;
+    const otroInicio=minutosHora(c.hora);
+    const otroFin=otroInicio+Math.max(1,Number(c.duracionMin)||duracion);
+    return inicio<otroFin&&otroInicio<fin;
+  });
+  if(conflicto) return 'Hay otra cita que se superpone con la duración de esta visita.';
+  return null;
+}
+
+async function reprogramarCita(citaId){
+  if(!auth.currentUser){ alert('Inicia sesión para reprogramar.'); return; }
+  const original = ultimasCitas[citaId];
+  if(!original){ alert('No se encontró la cita original.'); return; }
+  if(!['no_asistio','cancelada'].includes(original.estado)){
+    alert('La reprogramación vinculada está disponible para citas no asistidas o canceladas.');
+    return;
+  }
+  const solicitud = await solicitarDatosReprogramacion(original);
+  if(!solicitud) return;
+  const {fecha,hora,motivo} = solicitud;
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(fecha) || !Number.isFinite(new Date(fecha+'T12:00:00').getTime()) || dateKey(new Date(fecha+'T12:00:00')) !== fecha){
+    alert('Fecha inválida.'); return;
+  }
+  if(!/^([01]\d|2[0-3]):[0-5]\d$/.test(hora)){ alert('Hora inválida.'); return; }
+  if(new Date(fecha+'T'+hora+':00').getTime() <= Date.now()){ alert('La nueva cita debe estar en el futuro.'); return; }
+  if(!motivo.trim()){ alert('Indica el motivo.'); return; }
+  const nuevaClave = fecha+'_'+hora;
+  // No confiar solo en el listener: refrescar el estado antes de escribir.
+  const snap = await db.ref('citas').once('value');
+  const actuales = snap.val() || {};
+  const citaActual = actuales[citaId];
+  if(!citaActual || !['no_asistio','cancelada'].includes(citaActual.estado)){
+    alert('La cita original cambió. Actualiza la agenda e inténtalo de nuevo.'); return;
+  }
+  if(citaActual.reprogramadaA || Object.entries(actuales).some(([id,c])=>id!==citaId && c.reprogramadaDesde===citaId && c.estado!=='cancelada')){
+    alert('Esta cita ya tiene una reprogramación vinculada. Revisa el seguimiento antes de crear otra.'); return;
+  }
+  const errorVentana=validarVentanaReprogramacion(fecha,hora,actuales);
+  if(errorVentana){ alert(errorVentana); return; }
+  if(ocupados[nuevaClave]){ alert('El horario figura ocupado en las reservas públicas.'); return; }
+  if(!confirm('Crear una NUEVA cita pendiente para '+fecha+' a las '+hora+'? La cita original seguirá como '+ESTADOS_CITA[citaActual.estado]+'.')) return;
+  const nuevoId = db.ref('citas').push().key;
+  const ahora = new Date().toISOString();
+  const reservaRef = db.ref('citas_publicas/'+nuevaClave);
+  // Transacción: no tomar un horario que otro proceso haya ocupado.
+  const reserva = await reservaRef.transaction(actual=>actual===null ? {propiedadId:citaActual.propiedadId||null,citaId:nuevoId,origen:'reprogramacion'} : undefined, undefined, false);
+  if(!reserva.committed){ alert('El horario fue reservado por otro proceso.'); return; }
+  const nuevo = {
+    nombre:citaActual.nombre||'', telefono:citaActual.telefono||'', notas:citaActual.notas||'',
+    propiedadId:citaActual.propiedadId||null, propiedadNombre:citaActual.propiedadNombre||null,
+    leadId:citaActual.leadId||null, fecha, hora, estado:'pendiente', manual:true,
+    nextAction:'Confirmar visita', creado:ahora, reprogramadaDesde:citaId,
+    motivoReprogramacion:motivo.trim()
+  };
+  const nuevoTrace = registrarTraceCita(nuevoId,{tipo:'creacion',fecha:ahora,origen:'reprogramacion'});
+  const originalTrace = registrarTraceCita(citaId,{tipo:'reprogramacion',fecha:ahora,origen:'synapse',fechaAnterior:citaActual.fecha,horaAnterior:citaActual.hora,fechaNueva:fecha,horaNueva:hora});
+  const updates = {};
+  // Un único nodo completo: Firebase RTDB rechaza actualizaciones multipath
+  // que escriben simultáneamente una ruta padre y su ruta hija.
+  updates['citas/'+nuevoId] = {...nuevo, historial:{[nuevoTrace.traceId]:nuevoTrace.entry}};
+  updates['citas/'+citaId+'/historial/'+originalTrace.traceId] = {...originalTrace.entry, citaNuevaId:nuevoId, motivo:motivo.trim()};
+  updates['citas/'+citaId+'/reprogramadaA'] = nuevoId;
+  try{
+    await db.ref().update(updates);
+    if(nuevo.leadId) {
+      try { await sincronizarLeadPorNuevaCita(nuevo.leadId,fecha,hora,nuevo.propiedadNombre); }
+      catch(syncError) { console.warn('Cita creada; seguimiento del lead pendiente de sincronizar:',syncError); }
+    }
+    alert('Nueva cita pendiente creada y vinculada. Confirma con el cliente.');
+  }catch(err){
+    // No liberar una reserva si otro proceso ya la reemplazó.
+    const check = await reservaRef.once('value');
+    const nuevaPersistida = await db.ref('citas/'+nuevoId).once('value');
+    if(!nuevaPersistida.exists() && check.val() && check.val().citaId===nuevoId) await reservaRef.remove();
+    alert('No se pudo completar la reprogramación. Verifica la agenda antes de reintentar. '+err.message);
+  }
+}
+
 function attachSeguimientoHandlers(container){
+  container.querySelectorAll('[data-action="seg-reprogramar"]').forEach(btn=>{
+    btn.addEventListener('click',async ()=>{
+      btn.disabled=true;
+      try{ await reprogramarCita(btn.dataset.id); }
+      catch(err){ alert('Error al reprogramar: '+err.message); }
+      finally{ btn.disabled=false; }
+    });
+  });
   container.querySelectorAll('[data-action="seg-estado"]').forEach(sel=>{
     sel.addEventListener('change', ()=>{
       const id = sel.dataset.id;

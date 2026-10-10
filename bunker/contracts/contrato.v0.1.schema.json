@@ -1,0 +1,95 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "BunkerContratoV01",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "organizationId",
+    "expedienteId",
+    "status",
+    "signingMode"
+  ],
+  "properties": {
+    "organizationId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "expedienteId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "propertyId": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "unitId": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "arrendatarioId": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "arrendadorId": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "avalId": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "documentId": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "versionId": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "status": {
+      "enum": [
+        "borrador",
+        "revision",
+        "listo_para_firma",
+        "firma_pendiente",
+        "firmado",
+        "archivado",
+        "anulado"
+      ]
+    },
+    "signingMode": {
+      "enum": [
+        "autografa_digitalizada",
+        "electronica_proveedor",
+        "pendiente_definir"
+      ]
+    },
+    "signatureEvidenceIds": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "signedAt": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date-time"
+    }
+  }
+}
