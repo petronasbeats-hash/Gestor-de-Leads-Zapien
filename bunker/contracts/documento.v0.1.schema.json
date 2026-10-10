@@ -1,0 +1,81 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "BunkerDocumentoV01",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "organizationId",
+    "expedienteId",
+    "tipo",
+    "versionId",
+    "storagePath",
+    "mimeType",
+    "sizeBytes",
+    "status",
+    "uploadedAt",
+    "uploadedBy"
+  ],
+  "properties": {
+    "organizationId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "expedienteId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "tipo": {
+      "enum": [
+        "ine_aval",
+        "comprobante_aval",
+        "contrato",
+        "otro"
+      ]
+    },
+    "versionId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "storagePath": {
+      "type": "string",
+      "pattern": "^bunker/"
+    },
+    "mimeType": {
+      "enum": [
+        "application/pdf",
+        "image/jpeg",
+        "image/png"
+      ]
+    },
+    "sizeBytes": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 10485760
+    },
+    "sha256": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "status": {
+      "enum": [
+        "pendiente",
+        "cuarentena",
+        "revision",
+        "validado",
+        "observado",
+        "rechazado"
+      ]
+    },
+    "uploadedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "uploadedBy": {
+      "type": "string",
+      "minLength": 1
+    }
+  }
+}
