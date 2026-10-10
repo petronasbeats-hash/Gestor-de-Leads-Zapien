@@ -2261,12 +2261,16 @@ async function reprogramarCita(citaId){
   updates['citas/'+citaId+'/reprogramadaA'] = nuevoId;
   try{
     await db.ref().update(updates);
-    if(nuevo.leadId) await sincronizarLeadPorNuevaCita(nuevo.leadId,fecha,hora,nuevo.propiedadNombre);
+    if(nuevo.leadId) {
+      try { await sincronizarLeadPorNuevaCita(nuevo.leadId,fecha,hora,nuevo.propiedadNombre); }
+      catch(syncError) { console.warn('Cita creada; seguimiento del lead pendiente de sincronizar:',syncError); }
+    }
     alert('Nueva cita pendiente creada y vinculada. Confirma con el cliente.');
   }catch(err){
     // No liberar una reserva si otro proceso ya la reemplazó.
     const check = await reservaRef.once('value');
-    if(check.val() && check.val().citaId===nuevoId) await reservaRef.remove();
+    const nuevaPersistida = await db.ref('citas/'+nuevoId).once('value');
+    if(!nuevaPersistida.exists() && check.val() && check.val().citaId===nuevoId) await reservaRef.remove();
     alert('No se pudo completar la reprogramación. Verifica la agenda antes de reintentar. '+err.message);
   }
 }
