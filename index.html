@@ -495,6 +495,27 @@
         <div class="field"><label>Próxima acción</label><input type="text" id="f-accion" placeholder="Confirmar visita del sábado"></div>
         <div class="field"><label>Fecha próxima acción</label><input type="date" id="f-fecha-accion"></div>
       </div>
+      <div class="field" id="aval-section" style="border:1px solid var(--line);border-radius:8px;padding:12px;margin-top:10px;">
+        <strong style="font-size:14px;">Aval · Expediente de arrendamiento</strong>
+        <p class="sub" style="margin:6px 0 12px;">Información para revisión previa al contrato. No equivale a aval validado ni a contrato firmado.</p>
+        <div class="row2">
+          <div class="field"><label>Nombre completo del aval</label><input id="f-aval-nombre" type="text" autocomplete="off"></div>
+          <div class="field"><label>Teléfono del aval</label><input id="f-aval-telefono" type="tel" autocomplete="off"></div>
+        </div>
+        <div class="field"><label>Domicilio completo del aval</label><input id="f-aval-domicilio" type="text" placeholder="Calle, número, colonia, municipio, estado y CP" autocomplete="off"></div>
+        <div class="row2">
+          <div class="field"><label>Municipio de residencia</label><input id="f-aval-municipio" type="text" placeholder="Tehuacán"></div>
+          <div class="field"><label>Fecha de emisión del comprobante</label><input id="f-aval-comprobante-fecha" type="date"></div>
+        </div>
+        <div class="row2">
+          <div class="field"><label>Titular del comprobante</label><input id="f-aval-comprobante-titular" type="text"></div>
+          <div class="field"><label>Coincidencia de domicilio con INE</label>
+            <select id="f-aval-coincide-ine"><option value="pendiente">Pendiente de revisar</option><option value="si">Sí</option><option value="no">No</option></select>
+          </div>
+        </div>
+        <div class="field"><label>Estado documental</label><select id="f-aval-estado"><option value="pendiente">Pendiente</option><option value="revision">En revisión</option><option value="validado">Validado por responsable</option><option value="observado">Observado</option></select></div>
+        <p id="f-aval-aviso" class="sub" style="margin:6px 0 0;"></p>
+      </div>
       <div class="field"><label>Notas generales</label><textarea id="f-notas" placeholder="Preferencias, objeciones, contexto…"></textarea></div>
     </div>
 
@@ -989,6 +1010,28 @@ function renderAll(){
 
 const overlay = document.getElementById('overlay');
 
+function revisarAvalFormulario(){
+  const aviso=document.getElementById('f-aval-aviso');
+  if(!aviso)return;
+  const fecha=document.getElementById('f-aval-comprobante-fecha').value;
+  const titular=document.getElementById('f-aval-comprobante-titular').value.trim();
+  const nombre=document.getElementById('f-aval-nombre').value.trim();
+  const coincide=document.getElementById('f-aval-coincide-ine').value;
+  const municipio=document.getElementById('f-aval-municipio').value.trim();
+  const alertas=[];
+  if(municipio && municipio.toLocaleLowerCase('es-MX')!=='tehuacán' && municipio.toLocaleLowerCase('es-MX')!=='tehuacan') alertas.push('Residencia fuera de Tehuacán: revisar política del inmueble.');
+  if(fecha){
+    const emision=new Date(fecha+'T12:00:00');
+    const limite=new Date();limite.setMonth(limite.getMonth()-3);
+    if(emision>new Date() || emision<limite)alertas.push('Comprobante fuera del rango de 3 meses o con fecha futura.');
+  }
+  if(titular && nombre && titular.toLocaleLowerCase('es-MX')!==nombre.toLocaleLowerCase('es-MX') && coincide!=='si')alertas.push('Titular distinto: verificar coincidencia de domicilio con INE.');
+  aviso.textContent=alertas.length?'⚠ '+alertas.join(' '):'Validación documental pendiente de revisión humana.';
+}
+['f-aval-nombre','f-aval-municipio','f-aval-comprobante-fecha','f-aval-comprobante-titular','f-aval-coincide-ine'].forEach(id=>document.getElementById(id).addEventListener('change',revisarAvalFormulario));
+document.getElementById('f-operacion').addEventListener('change',()=>{
+  document.getElementById('aval-section').style.display=document.getElementById('f-operacion').value==='Renta'?'block':'none';
+});
 function openModal(id){
   currentLeadId = id || null;
   currentTab = "datos";
@@ -1018,6 +1061,15 @@ function openModal(id){
   document.getElementById('f-accion').value = accionGuardada || sugerenciaAccionPara(operacionLead, currentStageId);
   document.getElementById('f-fecha-accion').value = lead?.fechaProximaAccion || '';
   document.getElementById('f-notas').value = lead?.notas || '';
+  const aval = lead?.aval || {};
+  for(const [campo,valor] of Object.entries({
+    nombre:aval.nombre||'', telefono:aval.telefono||'', domicilio:aval.domicilio||'',
+    municipio:aval.municipio||'', 'comprobante-fecha':aval.comprobanteFecha||'',
+    'comprobante-titular':aval.comprobanteTitular||'', 'coincide-ine':aval.coincideINE||'pendiente',
+    estado:aval.estado||'pendiente'
+  })){ document.getElementById('f-aval-'+campo).value=valor; }
+  document.getElementById('aval-section').style.display=operacionLead==='Renta'?'block':'none';
+  revisarAvalFormulario();
 
   switchTab('datos');
   renderStagePane();
@@ -1153,6 +1205,16 @@ document.getElementById('btn-save').addEventListener('click', ()=>{
     proximaAccion: document.getElementById('f-accion').value.trim(),
     fechaProximaAccion: document.getElementById('f-fecha-accion').value,
     notas: document.getElementById('f-notas').value.trim(),
+    aval: document.getElementById('f-operacion').value==='Renta' ? {
+      nombre:document.getElementById('f-aval-nombre').value.trim(),
+      telefono:document.getElementById('f-aval-telefono').value.trim(),
+      domicilio:document.getElementById('f-aval-domicilio').value.trim(),
+      municipio:document.getElementById('f-aval-municipio').value.trim(),
+      comprobanteFecha:document.getElementById('f-aval-comprobante-fecha').value,
+      comprobanteTitular:document.getElementById('f-aval-comprobante-titular').value.trim(),
+      coincideINE:document.getElementById('f-aval-coincide-ine').value,
+      estado:document.getElementById('f-aval-estado').value
+    } : (existing?.aval || null),
     etapa: currentStageId,
     fechaCreacion: existing?.fechaCreacion || todayStr(),
     fechaCierre: (isNowGanado && wasNotGanado) ? todayStr() : (existing?.fechaCierre || null),
