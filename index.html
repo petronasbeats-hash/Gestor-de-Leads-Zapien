@@ -2263,10 +2263,10 @@ async function reprogramarCita(citaId){
   const solicitud = await solicitarDatosReprogramacion(original);
   if(!solicitud) return;
   const {fecha,hora,motivo} = solicitud;
-  if(!/^\\d{4}-\\d{2}-\\d{2}$/.test(fecha) || !Number.isFinite(new Date(fecha+'T12:00:00').getTime()) || dateKey(new Date(fecha+'T12:00:00')) !== fecha){
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(fecha) || !Number.isFinite(new Date(fecha+'T12:00:00').getTime()) || dateKey(new Date(fecha+'T12:00:00')) !== fecha){
     alert('Fecha inválida.'); return;
   }
-  if(!/^([01]\\d|2[0-3]):[0-5]\\d$/.test(hora)){ alert('Hora inválida.'); return; }
+  if(!/^([01]\d|2[0-3]):[0-5]\d$/.test(hora)){ alert('Hora inválida.'); return; }
   if(new Date(fecha+'T'+hora+':00').getTime() <= Date.now()){ alert('La nueva cita debe estar en el futuro.'); return; }
   if(!motivo.trim()){ alert('Indica el motivo.'); return; }
   const nuevaClave = fecha+'_'+hora;
