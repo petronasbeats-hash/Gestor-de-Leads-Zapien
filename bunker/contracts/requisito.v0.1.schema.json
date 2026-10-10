@@ -1,0 +1,90 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "BunkerRequisitoV01",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "organizationId",
+    "expedienteId",
+    "participantRole",
+    "requirementCode",
+    "status"
+  ],
+  "properties": {
+    "organizationId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "expedienteId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "participantId": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "participantRole": {
+      "enum": [
+        "arrendatario",
+        "aval",
+        "arrendador"
+      ]
+    },
+    "requirementCode": {
+      "type": "string",
+      "minLength": 1
+    },
+    "status": {
+      "enum": [
+        "pendiente",
+        "solicitado",
+        "recibido",
+        "en_revision",
+        "validado",
+        "observado",
+        "exento"
+      ]
+    },
+    "documentId": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "requestedAt": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date-time"
+    },
+    "receivedAt": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date-time"
+    },
+    "reviewedAt": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date-time"
+    },
+    "reviewedBy": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "notes": {
+      "type": [
+        "string",
+        "null"
+      ]
+    }
+  }
+}
