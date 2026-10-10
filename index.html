@@ -2324,8 +2324,9 @@ async function reprogramarCita(citaId){
   const nuevoTrace = registrarTraceCita(nuevoId,{tipo:'creacion',fecha:ahora,origen:'reprogramacion'});
   const originalTrace = registrarTraceCita(citaId,{tipo:'reprogramacion',fecha:ahora,origen:'synapse',fechaAnterior:citaActual.fecha,horaAnterior:citaActual.hora,fechaNueva:fecha,horaNueva:hora});
   const updates = {};
-  updates['citas/'+nuevoId] = nuevo;
-  updates['citas/'+nuevoId+'/historial/'+nuevoTrace.traceId] = nuevoTrace.entry;
+  // Un único nodo completo: Firebase RTDB rechaza actualizaciones multipath
+  // que escriben simultáneamente una ruta padre y su ruta hija.
+  updates['citas/'+nuevoId] = {...nuevo, historial:{[nuevoTrace.traceId]:nuevoTrace.entry}};
   updates['citas/'+citaId+'/historial/'+originalTrace.traceId] = {...originalTrace.entry, citaNuevaId:nuevoId, motivo:motivo.trim()};
   updates['citas/'+citaId+'/reprogramadaA'] = nuevoId;
   try{
