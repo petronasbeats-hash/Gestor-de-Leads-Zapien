@@ -1,10 +1,10 @@
-# BUNKER · Resguardo documental V0.1 (laboratorio)
+# BUNKER · Núcleo universal de custodia digital V0.1 (laboratorio)
 
 **Estado:** arquitectura inicial y contratos de datos. No desplegado; no almacenar documentos reales todavía.
 
-BUNKER es el sistema privado de expedientes y evidencia documental para Synapse Core, Property Core y Cobranza Core. El lead conserva solo referencias mínimas a expedientes y estados; las identificaciones, comprobantes y contratos se resguardan fuera de la base de leads.
+BUNKER es una infraestructura autónoma y transversal de resguardo, custodia, integridad, control de acceso, trazabilidad, recuperación y compartición segura de activos digitales. No pertenece al dominio inmobiliario ni depende de Synapse, Property Core o Cobranza Core. Estos son consumidores posibles de sus servicios mediante interfaces versionadas. El dominio inmobiliario es únicamente el primer escenario piloto, no la definición del producto. La arquitectura definitiva debe vivir en un repositorio privado y servicios independientes; este directorio es material de transición de laboratorio, no la sede permanente de BUNKER. En el caso de Synapse, el lead conserva solo referencias mínimas a expedientes y estados; las identificaciones, comprobantes y contratos se resguardan fuera de la base de leads.
 
-## Primer flujo: aval para arrendamiento
+## Escenario piloto 01: aval para arrendamiento
 
 1. Synapse crea o recupera un `expedienteId` vinculado al `leadId`, `organizationId` y `propertyId` (opcional).
 2. El operador autorizado registra metadatos de aval y solicita documentos INE y comprobante de domicilio.
