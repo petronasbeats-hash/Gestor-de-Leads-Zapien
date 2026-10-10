@@ -2252,6 +2252,30 @@ function solicitarDatosReprogramacion(cita){
   });
 }
 
+/* SC-REAG-001: validación local de intervalos; la disponibilidad compartida
+   y la exclusión concurrente entre canales requieren un gate posterior. */
+function minutosHora(hhmm){ const p=hhmm.split(':').map(Number); return p[0]*60+p[1]; }
+function validarVentanaReprogramacion(fecha,hora,citas){
+  if(!horario) return 'La configuración de disponibilidad no está cargada.';
+  const dia=new Date(fecha+'T12:00:00').getDay();
+  const diaKey=DAY_KEYS[dia];
+  const cfg=normalizarDia(horario[diaKey]);
+  if(!cfg.activo) return 'El día seleccionado no está habilitado para visitas.';
+  const duracion=Math.max(1,Number(horario.duracionMin)||30);
+  const inicio=minutosHora(hora), fin=inicio+duracion;
+  if(!cfg.rangos.some(r=>inicio>=minutosHora(r.inicio)&&fin<=minutosHora(r.fin))){
+    return 'La visita queda fuera del horario configurado, considerando su duración.';
+  }
+  const conflicto=Object.values(citas).some(c=>{
+    if(c.fecha!==fecha||!c.hora||['cancelada','no_asistio'].includes(c.estado)) return false;
+    const otroInicio=minutosHora(c.hora);
+    const otroFin=otroInicio+Math.max(1,Number(c.duracionMin)||duracion);
+    return inicio<otroFin&&otroInicio<fin;
+  });
+  if(conflicto) return 'Hay otra cita que se superpone con la duración de esta visita.';
+  return null;
+}
+
 async function reprogramarCita(citaId){
   if(!auth.currentUser){ alert('Inicia sesión para reprogramar.'); return; }
   const original = ultimasCitas[citaId];
@@ -2280,9 +2304,8 @@ async function reprogramarCita(citaId){
   if(citaActual.reprogramadaA || Object.entries(actuales).some(([id,c])=>id!==citaId && c.reprogramadaDesde===citaId && c.estado!=='cancelada')){
     alert('Esta cita ya tiene una reprogramación vinculada. Revisa el seguimiento antes de crear otra.'); return;
   }
-  if(Object.entries(actuales).some(([id,c])=>id!==citaId && c.fecha===fecha && c.hora===hora && !['cancelada','no_asistio'].includes(c.estado))){
-    alert('Horario ocupado por otra cita. Elige uno diferente.'); return;
-  }
+  const errorVentana=validarVentanaReprogramacion(fecha,hora,actuales);
+  if(errorVentana){ alert(errorVentana); return; }
   if(ocupados[nuevaClave]){ alert('El horario figura ocupado en las reservas públicas.'); return; }
   if(!confirm('Crear una NUEVA cita pendiente para '+fecha+' a las '+hora+'? La cita original seguirá como '+ESTADOS_CITA[citaActual.estado]+'.')) return;
   const nuevoId = db.ref('citas').push().key;
