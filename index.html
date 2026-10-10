@@ -2189,7 +2189,8 @@ function citaSeguimientoItemHtml(c){
       </div>
       <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap;">
         ${telefonoValidoParaWhatsApp(ctx.persona.telefono) ? `<button class="btn btn-sm" data-action="seg-wa" data-id="${c.id}">WhatsApp</button>` : ''}
-        ${['no_asistio','cancelada'].includes(estadoActual) ? `<button class="btn btn-sm" data-action="seg-reprogramar" data-id="${c.id}">↻ Reprogramar visita</button>` : ''}
+        ${['no_asistio','cancelada'].includes(estadoActual) && !c.reprogramadaA ? `<button class="btn btn-sm" data-action="seg-reprogramar" data-id="${c.id}">↻ Reprogramar visita</button>` : ''}
+        ${c.reprogramadaA ? `<span class="cita-meta">↳ Nueva cita vinculada: ${escapeHtml(c.reprogramadaA)}</span>` : ''}
         ${c.reprogramadaDesde ? `<span class="cita-meta">↳ Reprogramada desde cita ${escapeHtml(c.reprogramadaDesde)}</span>` : ''}
       </div>
       <div class="seg-notas">
@@ -2233,6 +2234,9 @@ async function reprogramarCita(citaId){
   const citaActual = actuales[citaId];
   if(!citaActual || !['no_asistio','cancelada'].includes(citaActual.estado)){
     alert('La cita original cambió. Actualiza la agenda e inténtalo de nuevo.'); return;
+  }
+  if(citaActual.reprogramadaA || Object.entries(actuales).some(([id,c])=>id!==citaId && c.reprogramadaDesde===citaId && c.estado!=='cancelada')){
+    alert('Esta cita ya tiene una reprogramación vinculada. Revisa el seguimiento antes de crear otra.'); return;
   }
   if(Object.entries(actuales).some(([id,c])=>id!==citaId && c.fecha===fecha && c.hora===hora && !['cancelada','no_asistio'].includes(c.estado))){
     alert('Horario ocupado por otra cita. Elige uno diferente.'); return;
