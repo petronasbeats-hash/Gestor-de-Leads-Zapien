@@ -1,0 +1,29 @@
+# Synapse Comercial — Gate de preparación de despliegue (12 octubre 2026)
+
+**Estado: NO AUTORIZADO PARA DEPLOY.** Documento de auditoría; no modifica comportamiento.
+
+## Fuente verificada
+- Rama `main`: `index.html` (2476 líneas), `agenda.html` (610), `reservar.html` (645).
+- No se encontró `firebase.json`, `.firebaserc` ni `package.json` en la raíz de `main` al consultar GitHub.
+- Existe evidencia de trabajo local anterior sobre un `index.html` de ~3165 líneas; **no está demostrada** la equivalencia entre GitHub, copia local y versión desplegada.
+- `synapse-gate-lab` y su Recovery V3.2 son un proyecto de laboratorio independiente. No deben bloquear el deploy comercial ni incorporarse por accidente.
+
+## Riesgo confirmado por lectura de código
+- `index.html` marca `citas_publicas/{fecha}_{hora}` con `.set()` antes de completar la escritura de `citas` (aprox. línea 1866). Si una etapa posterior falla, existe riesgo de horario ocupado sin cita. No se ha probado el comportamiento de la versión local más reciente.
+- `agenda.html` y `reservar.html` escriben tanto `citas_publicas` como `citas` en un `db.ref().update(updates)` (aprox. líneas 564 y 596). Esta atomicidad multipath es distinta de la ruta manual del administrador. **No concluir** que toda reserva pública tiene el mismo fallo.
+
+## Gate antes de producción
+- [ ] Obtener versión local más reciente de `index.html`, `agenda.html`, `reservar.html`, `404.html`, `firebase.json` y `.firebaserc`; identificar hashes y diferencias respecto de `main`.
+- [ ] Confirmar qué archivos y configuración corresponden al sitio efectivamente desplegado.
+- [ ] Revisar reglas de Firebase y permisos, sin exponer secretos ni escribir en datos reales durante pruebas.
+- [ ] Unificar la reserva manual para no dejar `citas_publicas` huérfanas cuando falla la creación de la cita.
+- [ ] Probar reserva pública, reserva manual, cambios de estado, cancelación/liberación de horario, cambios de inmueble, vinculación de leads y retrocompatibilidad multiunidad.
+- [ ] Probar idempotencia/concurrencia, errores de red y recuperación ante escritura parcial en emulador o entorno aislado.
+- [ ] Preparar respaldo, plan de rollback y lista de archivos exactos para deploy.
+- [ ] Obtener autorización explícita antes de desplegar a producción.
+
+## Caso de aceptación: Heber y Nora
+Una visita para Heber el 12/10/2026 17:30 en 16 Norte Departamento 6; Nora queda como lead relacionado y posible cohabitante, sin asistencia programada. La cita previa de Nora solo podrá conciliarse al comprobar que es la misma oportunidad; conservar procedencia, historial y trazabilidad. **No se han escrito estos datos en Firebase**.
+
+## Alcance
+Este archivo solo documenta hallazgos y próximos controles. No certifica disponibilidad de deploy ni implica aprobación para merge a `main`.
