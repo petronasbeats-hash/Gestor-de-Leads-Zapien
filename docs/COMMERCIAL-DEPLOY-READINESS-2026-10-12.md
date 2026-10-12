@@ -27,3 +27,18 @@ Una visita para Heber el 12/10/2026 17:30 en 16 Norte Departamento 6; Nora queda
 
 ## Alcance
 Este archivo solo documenta hallazgos y próximos controles. No certifica disponibilidad de deploy ni implica aprobación para merge a `main`.
+
+
+## Revisión adicional del flujo manual (12 octubre)
+- En `index.html`, `crearLeadDesdeCitaManual` escribe `leads/{id}` antes de crear `citas/{id}` (aprox. 1813–1841). Si falla la cita, puede quedar un lead sin cita; requiere estrategia de recuperación o enlace posterior.
+- En `index.html` (aprox. 1878–1889), el objeto `updates` contiene simultáneamente `citas/{id}` y `citas/{id}/historial/{traceId}`. **Riesgo adicional:** rutas ancestro/descendiente solapadas en una misma actualización multipath; comprobar contra emulador, no asumir que la escritura funciona.
+- La escritura de `citas_publicas` se realiza antes de esas operaciones, agravando la posibilidad de una ocupación huérfana.
+- En `agenda.html` y `reservar.html`, aunque la actualización multipath de `citas_publicas` y `citas` es conjunta, **no equivale a exclusión concurrente**: dos clientes podrían competir por el mismo horario sin una precondición transaccional o regla de seguridad adecuada. Requiere prueba específica con emulador.
+- No modificar datos reales para probar estos escenarios.
+
+## Criterios de aceptación específicos
+1. Reserva manual: crea una cita y una ocupación vinculada, o ninguna ocupación nueva si falla.
+2. Reserva pública: no permite dos confirmaciones exitosas incompatibles para el mismo horario.
+3. Cambio/cancelación: libera solo la ocupación perteneciente a la cita correcta; preserva bitácora.
+4. Reintento de red: no duplica lead ni cita cuando el primer intento sí se confirmó.
+5. Falla de permisos: el usuario recibe error explícito y la base queda consistente.
