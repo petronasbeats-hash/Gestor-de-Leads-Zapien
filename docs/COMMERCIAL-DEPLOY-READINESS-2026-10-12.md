@@ -42,3 +42,10 @@ Este archivo solo documenta hallazgos y próximos controles. No certifica dispon
 3. Cambio/cancelación: libera solo la ocupación perteneciente a la cita correcta; preserva bitácora.
 4. Reintento de red: no duplica lead ni cita cuando el primer intento sí se confirmó.
 5. Falla de permisos: el usuario recibe error explícito y la base queda consistente.
+
+## Decisión operativa — folio público de confirmación (12 octubre 2026)
+- **No cambiar el flujo actual de Habitat en producción por ahora.** La reserva de Alexia Motte del sábado 17/10/2026 a las 10:00 debe conservarse sin recreación ni alteración.
+- El WhatsApp actual comparte nombre, fecha/hora, dirección y ubicación, pero no muestra folio público. Es una **mejora pendiente**, no un incidente que justifique un hotfix inmediato.
+- El usuario indica que la funcionalidad de folio ya fue revisada en laboratorio. **Recuperar y auditar esa implementación antes de escribir otra**, verificando si existe en una rama, archivos locales o documentación.
+- Requisitos de aceptación: folio único y estable asociado a `citas/{id}`; visible al confirmar; compartible en WhatsApp; consultable en administración; conservarse al reprogramar; sin duplicar citas; compatible con registros anteriores sin folio; no exponer identificadores internos sensibles.
+- Implementación en rama aislada, pruebas en entorno controlado y deploy solo tras aprobación expresa. No mezclar con Recovery V3.2.
