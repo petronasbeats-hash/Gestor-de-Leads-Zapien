@@ -49,3 +49,16 @@ Este archivo solo documenta hallazgos y próximos controles. No certifica dispon
 - El usuario indica que la funcionalidad de folio ya fue revisada en laboratorio. **Recuperar y auditar esa implementación antes de escribir otra**, verificando si existe en una rama, archivos locales o documentación.
 - Requisitos de aceptación: folio único y estable asociado a `citas/{id}`; visible al confirmar; compartible en WhatsApp; consultable en administración; conservarse al reprogramar; sin duplicar citas; compatible con registros anteriores sin folio; no exponer identificadores internos sensibles.
 - Implementación en rama aislada, pruebas en entorno controlado y deploy solo tras aprobación expresa. No mezclar con Recovery V3.2.
+
+## Backlog aprobado — Radar de Compromisos Comerciales (12 octubre 2026)
+
+**Decisión del usuario:** aprobados los puntos 1, 2, 3 y 4; **aplazar implementación hasta concluir pendientes actuales** de consolidación y deploy comercial. No bloquear el deploy por este módulo.
+
+1. **Tarjeta radar por oportunidad:** mostrar persona, inmueble, estado comercial, importes comprometidos, recibidos y pendientes, fechas de cada abono, siguiente acción, firma/entrega prevista y tareas de acondicionamiento. No confundir promesa de pago con pago acreditado.
+2. **Seguimiento operativo inmediato:** conservar resultado de cita `Realizada / Interesado` independiente de etapa comercial `Apartado comprometido / pendiente de pago`; campos de próxima acción, fecha, prioridad y monto esperado.
+3. **Radar automatizado reutilizable:** acciones del día, compromisos por vencer/vencidos, alertas de pagos, acondicionamiento, contrato y entrega; una alerta vencida no implica declarar incumplimiento sin validación. Registro de evidencias y cierre/reprogramación explícitos.
+4. **Integración con agenda y trazabilidad:** evento/recordatorio de seguimiento sin duplicar reservas; secuencia `Visita → Interés → Compromiso → Recordatorio → Evidencia → Siguiente acción`. Preparar integración futura con Property Core y Cobranza Core.
+
+**Piloto de aceptación:** Heber, 16 Norte Departamento 6, renta MXN 2,500; compromisos de MXN 1,250 el 14/10/2026 y MXN 1,250 el 20/10/2026, firma/entrega prevista 01/11/2026, tareas de electricidad, vidrios, limpieza, llaves y verificación CFE. Los importes son promesas hasta existir evidencia de recepción. No editar registros reales como parte de este backlog.
+
+**Arquitectura:** genérico por `organizationId`, cliente, inmueble, cita y compromiso; no codificar excepciones específicas para Heber. Implementación en rama futura aislada, con pruebas y autorización de despliegue.
