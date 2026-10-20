@@ -2,7 +2,7 @@
 
 Objetivo: instalar Synapse en Mac y Huawei, sin modificar flujos de reserva.
 
-Archivos iniciales: manifest.webmanifest e iconos SVG provisionales. **No declarar lista la instalación** hasta generar PNG de 192 y 512 px, vincular manifest en index.html, agenda.html y reservar.html, validar rutas HTTPS, evaluar service worker sin caché de datos de clientes y verificar instalación en dispositivos reales.
+Archivos iniciales: manifest.webmanifest e iconos SVG provisionales. **No declarar lista la instalación** hasta generar PNG de 192 y 512 px, vincular manifest solo a la entrada administrativa (actualmente index.html), sin agregarlo a reservar.html; decidir si Agenda debe integrarse a la PWA tras separar rutas, validar rutas HTTPS, evaluar service worker sin caché de datos de clientes y verificar instalación en dispositivos reales.
 
 **Bloqueadores previos al deploy:** reconciliar diferencias entre versión local/producción y GitHub main; probar Admin, Agenda, Reservar y sincronización; verificar seguridad; aprobar deploy explícitamente.
 
@@ -10,7 +10,7 @@ Archivos iniciales: manifest.webmanifest e iconos SVG provisionales. **No declar
 
 **Política de caché:** nunca cachear API Firebase, respuestas autenticadas, datos de clientes, citas ni documentos. Network-only para contenido dinámico; offline solo shell estático después de pruebas.
 
-Estado: PREPARACIÓN, no integrado, no probado, no desplegado.
+Estado: PREPARACIÓN; integración inicial de index.html y sw.js realizada en rama; no probado en dispositivos ni desplegado.
 
 ## Decisión aprobada: separación administrativa/pública (20 octubre 2026)
 
