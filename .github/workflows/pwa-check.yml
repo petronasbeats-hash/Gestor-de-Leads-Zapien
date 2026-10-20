@@ -12,6 +12,7 @@ on:
       - 'sw.js'
       - 'scripts/check-pwa.cjs'
       - 'scripts/check-pwa-session.cjs'
+      - 'scripts/test-pwa-session-runtime.cjs'
       - 'scripts/build-pwa-icons.py'
       - 'icons/**'
       - '.github/workflows/pwa-check.yml'
@@ -39,4 +40,5 @@ jobs:
         run: |
           node scripts/check-pwa.cjs
           node scripts/check-pwa-session.cjs
+          node scripts/test-pwa-session-runtime.cjs
 # This workflow does not deploy, publish, or modify Firebase.
