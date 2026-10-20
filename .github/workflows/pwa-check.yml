@@ -36,6 +36,15 @@ jobs:
         run: |
           python3 -m pip install --user cairosvg
           python3 scripts/build-pwa-icons.py
+      - name: Preserve generated install icons
+        uses: actions/upload-artifact@v4
+        with:
+          name: synapse-pwa-icons
+          path: |
+            icons/synapse-192.png
+            icons/synapse-512.png
+          if-no-files-found: error
+          retention-days: 14
       - name: Run static PWA gate
         run: |
           node scripts/check-pwa.cjs
