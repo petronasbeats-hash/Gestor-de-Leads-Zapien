@@ -1,10 +1,10 @@
 {
-  "id": "/",
+  "id": "/?source=pwa-admin",
   "name": "Synapse Core",
   "short_name": "Synapse",
-  "description": "Gestión de leads y agenda de visitas",
+  "description": "Administración y seguimiento privado de Synapse",
   "lang": "es-MX",
-  "start_url": "/",
+  "start_url": "/?source=pwa-admin",
   "scope": "/",
   "display": "standalone",
   "background_color": "#0a0d0c",
