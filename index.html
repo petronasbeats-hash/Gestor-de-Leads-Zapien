@@ -639,6 +639,7 @@ function stopSessionListeners() {
 }
 
 let activeSessionUid = null;
+let authStateInitialized = false;
 function clearSessionData(){
   leads = {};
   propiedades = {};
@@ -648,7 +649,8 @@ function clearSessionData(){
 }
 firebase.auth().onAuthStateChanged(user=>{
   const nextUid = user ? user.uid : null;
-  if(nextUid === activeSessionUid) return;
+  if(authStateInitialized && nextUid === activeSessionUid) return;
+  authStateInitialized = true;
   // Detach subscriptions before starting a different user's session.
   stopSessionListeners();
   clearSessionData();
