@@ -18,6 +18,13 @@ assert.ok(!/caches\.open\s*\(|cache\.put\s*\(|addAll\s*\(/.test(sw), 'Private da
 assert.ok(!/addEventListener\s*\(\s*['"]fetch['"]/.test(sw), 'SW must not intercept Firebase/API traffic');
 assert.ok(manifest.icons.length > 0);
 console.log('PASS: PWA static checks');
+const release = process.argv.includes('--release');
+if (release) {
+  assert.notEqual(manifest.scope, '/', 'RELEASE BLOCKED: admin scope includes public booking');
+  assert.ok(manifest.icons.some(x => x.type === 'image/png' && x.sizes === '192x192'), 'RELEASE BLOCKED: PNG 192 missing');
+  assert.ok(manifest.icons.some(x => x.type === 'image/png' && x.sizes === '512x512'), 'RELEASE BLOCKED: PNG 512 missing');
+  console.log('PASS: PWA release prerequisites');
+}
 if (manifest.scope === '/') console.warn('BLOCKER: manifest scope includes /reservar; isolate admin route/origin before public launch.');
 if (!manifest.icons.some(x => x.type === 'image/png' && x.sizes === '192x192')) console.warn('BLOCKER: missing PNG 192 icon for broad device support.');
 if (!manifest.icons.some(x => x.type === 'image/png' && x.sizes === '512x512')) console.warn('BLOCKER: missing PNG 512 icon for broad device support.');
