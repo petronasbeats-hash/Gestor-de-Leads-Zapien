@@ -25,11 +25,23 @@ assert.ok(!/caches\.open\s*\(|cache\.put\s*\(|addAll\s*\(/.test(sw), 'Private da
 assert.ok(!/addEventListener\s*\(\s*['"]fetch['"]/.test(sw), 'SW must not intercept Firebase/API traffic');
 assert.ok(manifest.icons.length > 0);
 console.log('PASS: PWA static checks');
+function isValidPngIcon(icon) {
+  if(icon.type !== 'image/png') return false;
+  const match = /^(\\d+)x(\\d+)$/.exec(icon.sizes || '');
+  if(!match || match[1] !== match[2]) return false;
+  const file = icon.src.slice(1);
+  if(!fs.existsSync(file)) return false;
+  const png = fs.readFileSync(file);
+  const signature = Buffer.from([137,80,78,71,13,10,26,10]);
+  return png.length >= 24 && png.subarray(0,8).equals(signature) &&
+    png.readUInt32BE(16) === Number(match[1]) &&
+    png.readUInt32BE(20) === Number(match[2]);
+}
 const release = process.argv.includes('--release');
 if (release) {
   assert.notEqual(manifest.scope, '/', 'RELEASE BLOCKED: admin scope includes public booking');
-  assert.ok(manifest.icons.some(x => x.type === 'image/png' && x.sizes === '192x192'), 'RELEASE BLOCKED: PNG 192 missing');
-  assert.ok(manifest.icons.some(x => x.type === 'image/png' && x.sizes === '512x512'), 'RELEASE BLOCKED: PNG 512 missing');
+  assert.ok(manifest.icons.some(x => x.sizes === '192x192' && isValidPngIcon(x)), 'RELEASE BLOCKED: PNG 192 missing');
+  assert.ok(manifest.icons.some(x => x.sizes === '512x512' && isValidPngIcon(x)), 'RELEASE BLOCKED: PNG 512 missing');
   console.log('PASS: PWA release prerequisites');
 }
 if (manifest.scope === '/') console.warn('BLOCKER: manifest scope includes /reservar; isolate admin route/origin before public launch.');
