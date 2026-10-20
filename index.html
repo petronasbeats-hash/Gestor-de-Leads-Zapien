@@ -659,7 +659,8 @@ firebase.auth().onAuthStateChanged(user=>{
   const nextUid = user ? user.uid : null;
   if(authStateInitialized && nextUid === activeSessionUid) return;
   authStateInitialized = true;
-  // Detach subscriptions before starting a different user's session.
+  // Hide the previous user's administrative UI before changing identities.
+  showLogin();
   stopSessionListeners();
   clearSessionData();
   activeSessionUid = nextUid;
@@ -667,8 +668,6 @@ firebase.auth().onAuthStateChanged(user=>{
     showApp();
     startListening();
     loadAdminData();
-  } else {
-    showLogin();
   }
 });
 
