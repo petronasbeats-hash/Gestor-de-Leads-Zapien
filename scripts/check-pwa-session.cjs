@@ -1,0 +1,13 @@
+const fs = require('node:fs');
+const assert = require('node:assert/strict');
+const src = fs.readFileSync('index.html', 'utf8');
+const tracked = src.split('listenForSession(db.ref(').length - 1;
+assert.equal(tracked, 5, 'Five administrative database listeners must be tracked');
+assert.ok(src.includes('function stopSessionListeners()'), 'Missing listener teardown');
+assert.ok(src.includes('ref.off(eventType, callback)'), 'Teardown must use matching callbacks');
+assert.ok(src.includes('adminDataLoaded = false;'), 'Admin data reload flag must reset');
+const auth = src.slice(src.indexOf('firebase.auth().onAuthStateChanged'), src.indexOf('firebase.auth().onAuthStateChanged') + 500);
+assert.ok(auth.includes('stopSessionListeners();'), 'Logout must release listeners');
+assert.ok(auth.includes('leads = {};'), 'Logout must clear lead data');
+assert.ok(auth.includes('propiedades = {};'), 'Logout must clear property data');
+console.log('PASS: static session lifecycle checks (not runtime security validation)');
