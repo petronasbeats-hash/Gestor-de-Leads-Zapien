@@ -39,6 +39,14 @@ function isValidPngIcon(icon) {
 }
 const release = process.argv.includes('--release');
 if (release) {
+  // Release is blocked until the public booking/backend access migration
+  // has been verified against deployed rules and an isolated environment.
+  // A source-only repository cannot prove these controls.
+  assert.ok(
+    process.env.SYNAPSE_BACKEND_SECURITY_VERIFIED === 'true' &&
+    process.env.SYNAPSE_BOOKING_E2E_VERIFIED === 'true',
+    'RELEASE BLOCKED: Firebase authorization and public booking E2E gates not attested'
+  );
   assert.notEqual(manifest.scope, '/', 'RELEASE BLOCKED: admin scope includes public booking');
   assert.ok(manifest.icons.some(x => x.sizes === '192x192' && isValidPngIcon(x)), 'RELEASE BLOCKED: PNG 192 missing');
   assert.ok(manifest.icons.some(x => x.sizes === '512x512' && isValidPngIcon(x)), 'RELEASE BLOCKED: PNG 512 missing');
