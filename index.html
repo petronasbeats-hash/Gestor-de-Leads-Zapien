@@ -638,19 +638,27 @@ function stopSessionListeners() {
   adminDataLoaded = false;
 }
 
+let activeSessionUid = null;
+function clearSessionData(){
+  leads = {};
+  propiedades = {};
+  ultimasCitas = {};
+  ocupados = {};
+  horario = null;
+}
 firebase.auth().onAuthStateChanged(user=>{
+  const nextUid = user ? user.uid : null;
+  if(nextUid === activeSessionUid) return;
+  // Detach subscriptions before starting a different user's session.
+  stopSessionListeners();
+  clearSessionData();
+  activeSessionUid = nextUid;
   if(user){
     showApp();
     startListening();
     loadAdminData();
   } else {
     showLogin();
-    stopSessionListeners();
-    leads = {};
-    propiedades = {};
-    ultimasCitas = {};
-    ocupados = {};
-    horario = null;
   }
 });
 
