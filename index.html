@@ -848,7 +848,7 @@ function startListening(){
   let backfillHecho = false;
   listenForSession(db.ref('leads'), 'value', snap=>{
     leads = snap.val() || {};
-    statusTextEl.textContent = '● conectado a Firebase (sesión segura)';
+    statusTextEl.textContent = '● conectado a Firebase (sesión activa)';
     statusWrapEl.classList.remove('err');
     renderAll();
     renderManualLeadSelect();
