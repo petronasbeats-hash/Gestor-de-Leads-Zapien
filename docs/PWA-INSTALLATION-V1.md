@@ -23,3 +23,15 @@ Estado: PREPARACIÓN, no integrado, no probado, no desplegado.
 **Pruebas de aceptación:** (1) instalación en Huawei y Mac abre administración; (2) visitante sin sesión no ve ni consulta datos privados; (3) /reservar permanece accesible por navegador sin instalación ni autenticación administrativa; (4) una reserva pública no altera permisos privados; (5) no caché de datos sensibles; (6) sesiones caducadas no muestran información privada en offline.
 
 **Estado:** decisión documentada; implementación y despliegue pendientes de validación.
+
+## Propuesta funcional: captación desde cualquier dispositivo (20 octubre 2026)
+
+La PWA administrativa debe evolucionar de visor/seguimiento a **estación de trabajo inmobiliaria adaptable** para celular Android/Huawei, iPhone, iPad, tablet, laptop y Mac. Propuesta pendiente de priorización y validación, no implementada.
+
+**Flujo inicial de captación:** identificar propietario/contacto y consentimiento; registrar inmueble o grupo/unidad reutilizando Property Core; ubicación con privacidad y acceso según rol; recorrido con fotografías, medidas y observaciones; condiciones comerciales; documentos y checklist BUNKER; pendientes, validación y autorización antes de publicación; crear siguientes acciones y agenda.
+
+**UX:** interfaz responsive y táctil, formularios progresivos con guardado seguro de borradores, carga de fotos desde cámara/galería, campos contextuales, prevención de duplicados, posibilidad de reanudar y trazabilidad de cambios. No inventar ni autocompletar datos críticos sin confirmación.
+
+**Seguridad y consistencia:** autenticar y autorizar cada escritura en backend/reglas RTDB/Storage; aislar organizaciones y roles; nunca guardar documentos sensibles en caché sin diseño de seguridad; evitar publicación automática; conservar módulos existentes y no desplegar sin pruebas. El modo sin conexión requiere diseño separado de conflictos y permisos.
+
+**Estado:** propuesta de producto documentada, no codificada.
