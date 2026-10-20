@@ -8,7 +8,8 @@ assert.ok(src.includes('ref.off(eventType, callback)'), 'Teardown must use match
 assert.ok(src.includes('adminDataLoaded = false;'), 'Admin data reload flag must reset');
 const auth = src.slice(src.indexOf('firebase.auth().onAuthStateChanged'), src.indexOf('firebase.auth().onAuthStateChanged') + 800);
 const reset = src.slice(src.indexOf('function clearSessionData()'), src.indexOf('firebase.auth().onAuthStateChanged'));
-assert.ok(auth.includes('nextUid === activeSessionUid'), 'Identity changes must be detected');
+assert.ok(auth.includes('authStateInitialized && nextUid === activeSessionUid'), 'Initial null auth state must be handled');
+assert.ok(src.includes('let authStateInitialized = false;'), 'Initial auth state guard missing');
 assert.ok(auth.includes('stopSessionListeners();'), 'Session change must release old listeners');
 assert.ok(auth.includes('clearSessionData();'), 'Session change must clear old data');
 assert.ok(reset.includes('leads = {};'), 'Session reset must clear lead data');
