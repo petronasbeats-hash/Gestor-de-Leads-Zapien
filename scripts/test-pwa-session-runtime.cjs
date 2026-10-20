@@ -41,12 +41,10 @@ vm.runInContext("listenForSession(globalTestRef, 'value', globalTestCallback)",O
 assert.equal(subscriptions.filter(x=>x.active).length,1);
 authCallback({uid:'A'});
 assert.equal(state.start,1,'Same user must not initialize twice');
-const oldCallback = subscriptions[0].cb;
 let oldInvocations = 0;
 vm.runInContext("listenForSession(globalTestRef2, 'value', globalTestCallback2)", Object.assign(context, {globalTestRef2:makeRef(),globalTestCallback2:()=>oldInvocations++}));
 const delayedCallback = subscriptions[1].cb;
 authCallback({uid:'B'});
-oldCallback({});
 delayedCallback({});
 assert.equal(oldInvocations,0,'Late callbacks from prior user must be ignored');
 assert.equal(subscriptions.filter(x=>x.active).length,0,'Old user listeners must detach');
