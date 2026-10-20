@@ -37,6 +37,7 @@ const makeRef=()=>({
 });
 authCallback({uid:'A'});
 assert.equal(state.app,1);
+assert.equal(state.login,2,'Old UI must be hidden before showing authenticated app');
 vm.runInContext("listenForSession(globalTestRef, 'value', globalTestCallback)",Object.assign(context,{globalTestRef:makeRef(),globalTestCallback:()=>{}}));
 assert.equal(subscriptions.filter(x=>x.active).length,1);
 authCallback({uid:'A'});
