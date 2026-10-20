@@ -13,6 +13,7 @@ on:
       - 'scripts/check-pwa.cjs'
       - 'scripts/check-pwa-session.cjs'
       - 'scripts/test-pwa-session-runtime.cjs'
+      - 'scripts/check-reservar-access-contract.cjs'
       - 'scripts/build-pwa-icons.py'
       - 'icons/**'
       - '.github/workflows/pwa-check.yml'
@@ -50,4 +51,5 @@ jobs:
           node scripts/check-pwa.cjs
           node scripts/check-pwa-session.cjs
           node scripts/test-pwa-session-runtime.cjs
+          node scripts/check-reservar-access-contract.cjs
 # This workflow does not deploy, publish, or modify Firebase.
