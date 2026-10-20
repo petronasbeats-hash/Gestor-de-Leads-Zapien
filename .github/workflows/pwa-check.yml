@@ -1,0 +1,33 @@
+name: Synapse PWA static gate
+
+on:
+  push:
+    branches:
+      - 'feature/synapse-pwa-installable-v1-20261020'
+  pull_request:
+    paths:
+      - 'index.html'
+      - 'reservar.html'
+      - 'manifest.webmanifest'
+      - 'sw.js'
+      - 'scripts/check-pwa.cjs'
+      - '.github/workflows/pwa-check.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  static-pwa-gate:
+    name: Validate admin PWA boundaries
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Run static PWA gate
+        run: node scripts/check-pwa.cjs
+# This workflow does not deploy, publish, or modify Firebase.
