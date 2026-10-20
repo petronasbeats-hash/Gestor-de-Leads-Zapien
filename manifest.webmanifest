@@ -1,0 +1,26 @@
+{
+  "id": "/",
+  "name": "Synapse Core",
+  "short_name": "Synapse",
+  "description": "Gestión de leads y agenda de visitas",
+  "lang": "es-MX",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#0a0d0c",
+  "theme_color": "#0a0d0c",
+  "icons": [
+    {
+      "src": "/icons/synapse-192.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/synapse-512.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}
