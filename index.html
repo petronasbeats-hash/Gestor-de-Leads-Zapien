@@ -4,7 +4,12 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>Synapse Core — Iré Inmobiliaria</title>
-<link rel="manifest" href="data:application/manifest+json,{}">
+<link rel="manifest" href="/manifest.webmanifest">
+<meta name="theme-color" content="#0a0d0c">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Synapse">
+<link rel="icon" type="image/svg+xml" href="/icons/synapse-192.svg">
 <style>
   @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600;700&display=swap');
 
@@ -2468,6 +2473,15 @@ function addCitaToGoogleCalendar(c){
     alert('Agregado a tu Google Calendar.');
   }).catch(()=>{
     alert('No se pudo agregar. Intenta reconectar Google Calendar.');
+  });
+}
+</script>
+<script>
+/* PWA: administrative shell only. No offline data caching. */
+if ('serviceWorker' in navigator && location.protocol === 'https:') {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js', { scope: '/' })
+      .catch(error => console.warn('Synapse PWA: service worker unavailable', error));
   });
 }
 </script>
