@@ -52,5 +52,7 @@ assert.equal(state.start,2,'New user must initialize');
 assert.equal(state.login,3,'Previous admin UI must be concealed on account switch');
 authCallback(null);
 assert.equal(state.login,4,'Logout must show login again');
+authCallback(null);
+assert.equal(state.login,4,'Repeated signed-out callback must not redraw login');
 assert.equal(state.start,2);
 console.log('PASS: simulated initial logout, login, duplicate auth, account switch and logout');
