@@ -6,8 +6,11 @@ assert.equal(tracked, 5, 'Five administrative database listeners must be tracked
 assert.ok(src.includes('function stopSessionListeners()'), 'Missing listener teardown');
 assert.ok(src.includes('ref.off(eventType, callback)'), 'Teardown must use matching callbacks');
 assert.ok(src.includes('adminDataLoaded = false;'), 'Admin data reload flag must reset');
-const auth = src.slice(src.indexOf('firebase.auth().onAuthStateChanged'), src.indexOf('firebase.auth().onAuthStateChanged') + 500);
-assert.ok(auth.includes('stopSessionListeners();'), 'Logout must release listeners');
-assert.ok(auth.includes('leads = {};'), 'Logout must clear lead data');
-assert.ok(auth.includes('propiedades = {};'), 'Logout must clear property data');
+const auth = src.slice(src.indexOf('firebase.auth().onAuthStateChanged'), src.indexOf('firebase.auth().onAuthStateChanged') + 800);
+const reset = src.slice(src.indexOf('function clearSessionData()'), src.indexOf('firebase.auth().onAuthStateChanged'));
+assert.ok(auth.includes('nextUid === activeSessionUid'), 'Identity changes must be detected');
+assert.ok(auth.includes('stopSessionListeners();'), 'Session change must release old listeners');
+assert.ok(auth.includes('clearSessionData();'), 'Session change must clear old data');
+assert.ok(reset.includes('leads = {};'), 'Session reset must clear lead data');
+assert.ok(reset.includes('propiedades = {};'), 'Session reset must clear property data');
 console.log('PASS: static session lifecycle checks (not runtime security validation)');
