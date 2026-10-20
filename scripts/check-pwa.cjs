@@ -10,10 +10,17 @@ const sw = read('sw.js');
 assert.equal(manifest.name, 'Synapse Core');
 assert.equal(manifest.display, 'standalone');
 assert.ok(manifest.start_url.startsWith('/'));
+assert.ok(manifest.scope.startsWith('/'));
+assert.ok(manifest.icons.every(icon => icon.src.startsWith('/')), 'Icons must be absolute local paths');
+for (const icon of manifest.icons) {
+  assert.ok(fs.existsSync(icon.src.slice(1)), 'Missing icon file: ' + icon.src);
+}
+assert.ok(fs.existsSync('sw.js'), 'Missing service worker');
 assert.ok(admin.includes('href="/manifest.webmanifest"'));
 assert.ok(admin.includes("serviceWorker.register('/sw.js'"));
 assert.ok(!publicPage.includes('href="/manifest.webmanifest"'), 'Public booking must not register administrative PWA');
 assert.ok(!publicPage.includes("serviceWorker.register('/sw.js'"), 'Public booking must not register admin SW');
+assert.ok(!publicPage.includes('rel="manifest"'), 'Public booking must not link admin manifest');
 assert.ok(!/caches\.open\s*\(|cache\.put\s*\(|addAll\s*\(/.test(sw), 'Private data must not be cached');
 assert.ok(!/addEventListener\s*\(\s*['"]fetch['"]/.test(sw), 'SW must not intercept Firebase/API traffic');
 assert.ok(manifest.icons.length > 0);
