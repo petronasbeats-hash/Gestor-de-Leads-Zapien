@@ -625,6 +625,19 @@ document.getElementById('forgot-password-link').addEventListener('click', functi
     });
 });
 
+// Centralized RTDB listeners owned by the current authenticated session.
+const sessionListeners = [];
+function listenForSession(ref, eventType, callback) {
+  ref.on(eventType, callback);
+  sessionListeners.push({ ref, eventType, callback });
+}
+function stopSessionListeners() {
+  for (const { ref, eventType, callback } of sessionListeners.splice(0)) {
+    ref.off(eventType, callback);
+  }
+  adminDataLoaded = false;
+}
+
 firebase.auth().onAuthStateChanged(user=>{
   if(user){
     showApp();
@@ -632,8 +645,12 @@ firebase.auth().onAuthStateChanged(user=>{
     loadAdminData();
   } else {
     showLogin();
-    if(db) db.ref('leads').off();
+    stopSessionListeners();
     leads = {};
+    propiedades = {};
+    ultimasCitas = {};
+    ocupados = {};
+    horario = null;
   }
 });
 
@@ -811,7 +828,7 @@ function startListening(){
   statusTextEl.textContent = 'conectando…';
   statusWrapEl.classList.remove('err');
   let backfillHecho = false;
-  db.ref('leads').on('value', snap=>{
+  listenForSession(db.ref('leads'), 'value', snap=>{
     leads = snap.val() || {};
     statusTextEl.textContent = '● conectado a Firebase (sesión segura)';
     statusWrapEl.classList.remove('err');
@@ -1456,15 +1473,15 @@ document.getElementById('btn-save-horario').addEventListener('click', ()=>{
 function loadAdminData(){
   if(adminDataLoaded) return;
   adminDataLoaded = true;
-  db.ref('disponibilidad/horarios').on('value', snap=>{
+  listenForSession(db.ref('disponibilidad/horarios'), 'value', snap=>{
     horario = snap.val();
     renderHorarioEditor(horario);
   });
-  db.ref('citas_publicas').on('value', snap=>{
+  listenForSession(db.ref('citas_publicas'), 'value', snap=>{
     ocupados = snap.val() || {};
     renderHorariosFantasma();
   });
-  db.ref('citas').orderByChild('fecha').on('value', snap=>{
+  listenForSession(db.ref('citas').orderByChild('fecha'), 'value', snap=>{
     ultimasCitas = snap.val() || {};
     renderCitasList(ultimasCitas);
     renderSeguimientoList(ultimasCitas);
@@ -1472,7 +1489,7 @@ function loadAdminData(){
     renderResumenStats();
     renderHorariosFantasma();
   });
-  db.ref('propiedades').on('value', snap=>{
+  listenForSession(db.ref('propiedades'), 'value', snap=>{
     propiedades = snap.val() || {};
     renderPropiedadesAdmin(propiedades);
     renderManualPropiedadSelect();
