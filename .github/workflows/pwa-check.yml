@@ -12,6 +12,8 @@ on:
       - 'sw.js'
       - 'scripts/check-pwa.cjs'
       - 'scripts/check-pwa-session.cjs'
+      - 'scripts/build-pwa-icons.py'
+      - 'icons/**'
       - '.github/workflows/pwa-check.yml'
   workflow_dispatch:
 
@@ -29,6 +31,10 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - name: Generate PNG icon assets for validation
+        run: |
+          python3 -m pip install --user cairosvg
+          python3 scripts/build-pwa-icons.py
       - name: Run static PWA gate
         run: |
           node scripts/check-pwa.cjs
