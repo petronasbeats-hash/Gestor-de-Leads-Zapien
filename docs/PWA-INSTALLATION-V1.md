@@ -35,3 +35,16 @@ La PWA administrativa debe evolucionar de visor/seguimiento a **estación de tra
 **Seguridad y consistencia:** autenticar y autorizar cada escritura en backend/reglas RTDB/Storage; aislar organizaciones y roles; nunca guardar documentos sensibles en caché sin diseño de seguridad; evitar publicación automática; conservar módulos existentes y no desplegar sin pruebas. El modo sin conexión requiere diseño separado de conflictos y permisos.
 
 **Estado:** propuesta de producto documentada, no codificada.
+
+## Avance de integración (20 octubre 2026)
+
+- [x] `index.html`: manifiesto real vinculado; metadatos de aplicación móvil y tema.
+- [x] `sw.js`: service worker sin caché ni interceptación de solicitudes (network-only).
+- [x] Solo entrada administrativa registra service worker; `reservar.html` no recibe cambios.
+- [ ] Generar y validar iconos PNG 192/512 y Apple touch icon; SVG provisional no garantiza instalación en todos los navegadores.
+- [ ] Evaluar aislamiento real de alcance PWA: el manifest actual usa `scope: "/"` por coexistencia de rutas en un origen; esto **no significa** que /reservar sea privado. Planear `/admin/` o subdominio para limitar alcance antes de declarar separación completa.
+- [ ] Verificar reglas de acceso y autenticación; la PWA no añade seguridad por sí misma.
+- [ ] Pruebas reales en Huawei, iPad y Mac; validación de flujos y diferencias local/main.
+- [ ] Despliegue solo tras aprobación expresa.
+
+**No está lista para instalarse oficialmente en producción. No se ha desplegado.**
