@@ -11,6 +11,7 @@ on:
       - 'manifest.webmanifest'
       - 'sw.js'
       - 'scripts/check-pwa.cjs'
+      - 'scripts/check-pwa-session.cjs'
       - '.github/workflows/pwa-check.yml'
   workflow_dispatch:
 
@@ -29,5 +30,7 @@ jobs:
         with:
           node-version: '22'
       - name: Run static PWA gate
-        run: node scripts/check-pwa.cjs
+        run: |
+          node scripts/check-pwa.cjs
+          node scripts/check-pwa-session.cjs
 # This workflow does not deploy, publish, or modify Firebase.
