@@ -627,11 +627,19 @@ document.getElementById('forgot-password-link').addEventListener('click', functi
 
 // Centralized RTDB listeners owned by the current authenticated session.
 const sessionListeners = [];
+let sessionGeneration = 0;
 function listenForSession(ref, eventType, callback) {
-  ref.on(eventType, callback);
-  sessionListeners.push({ ref, eventType, callback });
+  const generation = sessionGeneration;
+  // Ignore queued Firebase callbacks belonging to a previous admin session.
+  const guardedCallback = (...args) => {
+    if(generation !== sessionGeneration) return;
+    callback(...args);
+  };
+  ref.on(eventType, guardedCallback);
+  sessionListeners.push({ ref, eventType, callback: guardedCallback });
 }
 function stopSessionListeners() {
+  sessionGeneration++;
   for (const { ref, eventType, callback } of sessionListeners.splice(0)) {
     ref.off(eventType, callback);
   }
