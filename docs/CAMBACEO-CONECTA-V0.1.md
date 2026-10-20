@@ -27,3 +27,18 @@ Acceso administrativo autenticado; reglas RTDB/Storage por rol/organización; pe
 Acción principal «+ Detectar oportunidad» en PWA administrativa; captura en 3-5 campos, resto opcional; guardado progresivo, estados claros y acceso táctil. Probar en Huawei sin GMS y Safari iPad/Mac. Mantener Habitat /reservar separado.
 
 Estado: DISEÑO PROPUESTO, NO IMPLEMENTADO NI DESPLEGADO.
+
+## Fototeca geográfica / Mapa de fotografías (decisión de producto 20 octubre 2026)
+
+Inspiración UX: vista «Lugares» de Fotos en iOS, adaptada a prospección inmobiliaria, sin copiar su interfaz literalmente.
+
+- Al capturar desde PWA, solicitar permiso de geolocalización y registrar `captureLocation: {lat, lng, accuracyMeters, capturedAt, source: 'browser-geolocation'}`; preservar fecha/hora, agente y asociación foto-oportunidad.
+- Al importar fotos, intentar leer GPS EXIF **si existe**; indicar claramente cuando no exista, esté eliminado o no sea confiable; permitir fijar ubicación manualmente. No asumir que la ubicación EXIF es siempre la del inmueble.
+- Mantener `propertyLocation` como campo **distinto** de `captureLocation`; ofrecer corregir el pin del inmueble sin sobrescribir el origen de la fotografía.
+- Fototeca con mapa, marcadores agrupados por proximidad/zoom, miniaturas al tocar un pin, carrusel de fotos por oportunidad, filtros por circuito/fecha/agente/tipo/estado y navegación a la ficha de seguimiento.
+- Si varias fotos corresponden al mismo anuncio, asociarlas a una oportunidad sin crear duplicados. Detección automática de coincidencias sujeta a revisión humana.
+- Evitar seguimiento continuo de agentes; obtener ubicación solamente durante captura o por acción explícita. No publicar coordenadas, fotos, teléfonos ni datos de campo en Habitat /reservar.
+- Guardar metadatos mínimos, aplicar autorización en RTDB/Storage, y no cachear imágenes privadas indiscriminadamente. Considerar errores de precisión, permisos denegados, capturas sin red y sincronización diferida.
+- Probar permisos GPS y cámara en Huawei sin GMS, Safari iPad/iPhone y navegadores de escritorio. Una PWA no puede garantizar acceso a todas las fotos o a los metadatos que el SO elimina.
+
+**Estado:** requisito funcional documentado; pendiente de implementación y pruebas, sin despliegue.
