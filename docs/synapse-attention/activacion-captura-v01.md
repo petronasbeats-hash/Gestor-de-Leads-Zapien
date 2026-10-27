@@ -10,8 +10,11 @@ realizadas por clientes o con una validación completa de producción.
 La primera lectura autenticada de `/atencion_acl` devolvió `null`. Posteriormente,
 el operador ejecutó la activación desde `1dd4555` y recibió `applied:true` tras la
 verificación de lectura: organización `synapse-core`, nombre Synapse Core, 11
-publicaciones y un asesor con rol `agent`. El acceso en el navegador y la primera
-captura/bitácora persistente aún requieren comprobación. La comprobación HTTP del
+publicaciones y un asesor con rol `agent`. Las capturas recibidas a las 11:48–11:49
+muestran acceso al monitor, una atención PRUEBA INTERNA, ficha de 16 Norte, cambio
+de contacto y eventos de creación de enlaces en la bitácora leída desde el
+servicio. No muestran todavía un resumen manual guardado ni una recuperación
+del chat por el cliente. La comprobación HTTP del
 canal respondió 200 para el monitor y health, y 401 para sesión sin credenciales;
 health conserva `booking:false` y `reminders:false`.
 
@@ -125,6 +128,34 @@ no se sustituyeron por stubs. `static-source-manifest.json` conserva sus hashes.
 La página personal de `/leia` se conserva como entrada del directorio original
 para el paquete, sin añadir su contenido al repositorio de Atención.
 
+### Invitaciones durante la validación
+
+La prueba interna mostró que la configuración inicial generaba invitaciones en
+el dominio principal, donde `/atencion` aún no estaba publicado. El generador
+acepta ahora `--attention-origin` para apuntar las invitaciones al canal publicado
+de validación. Solo permite HTTPS en el sitio indicado o en sus canales Firebase
+Hosting; rechaza sitios ajenos, credenciales, puertos, rutas y parámetros. El
+origen de Reservar se mantiene separado y ambos quedan en el manifiesto.
+
+```bash
+node scripts/build-attention-release.cjs \
+  --site synapse-core \
+  --legacy-root "$HOME/Downloads/Gestor-de-Leads-Zapien" \
+  --attention-origin https://synapse-core--atencion-validacion-thf4730i.web.app \
+  --out "$HOME/Downloads/synapse-atencion-validacion-v02"
+```
+
+Cambiar ese parámetro exige desplegar la función construida; el ajuste de ancho
+de columnas/galería y del texto para contactos sin teléfono exige actualizar el
+canal Hosting. Ambos cambios están preparados y probados, pendientes de ese
+despliegue. Crear otra invitación tras actualizar produce el nuevo destino y
+revoca la anterior mediante el control de versión existente. No se cambia la
+autoridad de acceso ni se redirigen URLs recibidas del navegador.
+
+La vista previa tiene vencimiento: no debe utilizarse como dominio permanente
+de atención a clientes. Al publicar el monitor definitivo se debe volver a
+construir/desplegar con el origen definitivo y probar las invitaciones.
+
 Antes de desplegar: validar el paquete real completo, la cuenta del asesor y ACL,
 proveedores/dominios de Authentication, integración telefónica y regresión de
 Admin/Agenda/Reservar. La ruta SMS propuesta usa Firebase Auth; su activación y
@@ -180,5 +211,6 @@ operativos de producción por el solo hecho de que sus pruebas de simulación pa
 Las pruebas anteriores usaron datos sintéticos separados de clientes reales. El
 despliegue del servicio y del canal de vista previa se recibió después mediante
 la Terminal del operador. La escritura de ACL y su verificación de lectura se
-confirmaron después con el recibo `applied:true`. Aún no hay evidencia de primera
-atención real, reserva nueva o envío de recordatorios. No se desplegaron reglas.
+confirmaron después con el recibo `applied:true`. Hay evidencia visual de una
+atención interna y su bitácora, todavía no de un cliente real atendido, una
+reserva nueva o envío de recordatorios. No se desplegaron reglas.

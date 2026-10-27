@@ -138,7 +138,10 @@
     $('conditions').addEventListener('click', () => run(async () => {await mutate('conditions', {expectedVersion: active.conversation.version}); status('Requisitos y condiciones habilitados para esta atención.');}));
     $('invite').addEventListener('click', () => run(async () => {
       const result = await mutate('invite', {expectedVersion: active.conversation.version});
-      $('share-text').value = 'Hola. Para continuar la atención sobre ' + active.sheet.name + ', consultar su ficha y conversar con nosotros, abre este enlace de Synapse:\n' + result.url + '\nPara acceder a los mensajes, verifica el teléfono que compartiste con tu asesor.';
+      const access = active.conversation.context.phone
+        ? 'Para acceder a los mensajes, verifica el teléfono que compartiste con tu asesor.'
+        : 'Puedes consultar la ficha. Para continuar por el chat, comparte primero tu teléfono con tu asesor por este mismo canal.';
+      $('share-text').value = 'Hola. Para continuar la atención sobre ' + active.sheet.name + ', abre este enlace de Synapse:\n' + result.url + '\n' + access;
       status('Enlace preparado. Cópialo y compártelo con el cliente por su canal de origen.');
     }));
     $('revoke').addEventListener('click', () => run(async () => {await mutate('revoke', {expectedVersion: active.conversation.version}); $('share-text').value = ''; status('Enlace revocado.');}));

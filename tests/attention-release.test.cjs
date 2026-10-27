@@ -29,6 +29,20 @@ test('release exige sitio explícito y dependencias existentes; no reemplaza sal
     assert.equal(fs.existsSync(path.join(result.output, 'functions/server/attention-service.cjs')), true);
     assert.equal(fs.existsSync(path.join(result.output, 'public/atencion-operador.html')), true);
     assert.equal(JSON.parse(fs.readFileSync(path.join(result.output, 'release-manifest.json'))).capabilities.booking, false);
+    assert.match(fs.readFileSync(path.join(result.output, 'functions/.env.gestor-leads-zapien'), 'utf8'), /ATTENTION_PUBLIC_ORIGIN=https:\/\/synapse-core.web.app\n/);
     assert.throws(() => build(options), /OUTPUT_ALREADY_EXISTS/);
+    for (const attentionOrigin of ['http://synapse-core.web.app', 'https://other.web.app', 'https://synapse-core--preview.web.app.evil.example', 'https://synapse-core--preview.web.app/path', 'https://user@synapse-core.web.app', 'https://synapse-core.web.app:8443', 'https://synapse-core.web.app?next=other']) {
+      assert.throws(() => build({...options, '--out': path.join(temp, 'invalid'), '--attention-origin': attentionOrigin}), /INVALID_ATTENTION_ORIGIN/);
+      assert.equal(fs.existsSync(path.join(temp, 'invalid')), false);
+    }
+    const attentionOrigin = 'https://synapse-core--atencion-validacion-example.web.app';
+    const preview = build({...options, '--out': path.join(temp, 'preview'), '--attention-origin': attentionOrigin});
+    assert.equal(preview.attentionOrigin, attentionOrigin);
+    const manifest = JSON.parse(fs.readFileSync(path.join(preview.output, 'release-manifest.json')));
+    assert.equal(manifest.attentionOrigin, attentionOrigin);
+    assert.equal(manifest.reservationOrigin, 'https://synapse-core.web.app');
+    const publicConfig = fs.readFileSync(path.join(preview.output, 'public/web/attention/config.js'), 'utf8');
+    assert.match(publicConfig, /"reservationOrigin":"https:\/\/synapse-core.web.app"/);
+    assert.ok(fs.readFileSync(path.join(preview.output, 'functions/.env.gestor-leads-zapien'), 'utf8').includes('ATTENTION_PUBLIC_ORIGIN=' + attentionOrigin + '\n'));
   } finally {fs.rmSync(temp, {recursive: true, force: true});}
 });
