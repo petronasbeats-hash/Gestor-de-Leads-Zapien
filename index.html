@@ -570,6 +570,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-storage-compat.js"></script>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
+<script src="shared/reservation-reference.js"></script>
 
 <script>
 const firebaseConfig = {
@@ -1709,8 +1710,7 @@ function renderReservationRadar(citasObj){
   }));
   list.querySelectorAll('[data-radar-action="convert-hold"]').forEach(btn=>btn.addEventListener('click',()=>{
     const c = arr.find(x=>x.id===btn.dataset.id); if(!c || !confirm('¿El cliente confirmó? Este HOLD se convertirá en reserva registrada.')) return;
-    const clean = String(c.id||'').replace(/[^a-z0-9]/gi,'').toUpperCase();
-    const folio = 'RSV-' + clean.slice(-8);
+    const folio = SynapseReservationReference.fromCitaId(c.id,c.folio);
     const trace = registrarTraceCita(c.id,{tipo:'estado',anterior:'hold',nuevo:'pendiente',origen:'synapse'});
     const updates={};
     updates['citas/'+c.id+'/estado']='pendiente';
