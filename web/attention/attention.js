@@ -4,7 +4,7 @@
   const role = document.body.dataset.role;
   const config = window.SYNAPSE_ATTENTION_CONFIG;
   const pending = new Map();
-  let auth, active, catalog = [], busy = false, confirmation, verifier;
+  let auth, active, catalog = [], busy = false, confirmation, verifier, guestSecret, guestJoined = false;
   const token = role === 'customer' ? location.hash.slice(1) : '';
   const sourceNames = {marketplace_facebook: 'Marketplace Facebook', facebook: 'Facebook', whatsapp: 'WhatsApp', casa_login: 'Casa Login', hype_synapse_experience: 'HYPE by Synapse Experience', directa: 'Directa'};
   const errors = {
@@ -14,6 +14,8 @@
     INVITATION_INVALID: 'El enlace venció o fue revocado. Solicita uno nuevo a tu asesor.',
     INVITATION_REISSUE_REQUIRED: 'El enlace anterior se creó, pero no se recuperó. Actualiza y crea otro enlace.',
     CUSTOMER_VERIFICATION_REQUIRED: 'No se pudo verificar el acceso. Usa el teléfono que compartiste con tu asesor.',
+    GUEST_ACCESS_REQUIRED: 'No se pudo recuperar el acceso de este navegador. Solicita otro enlace a tu asesor.',
+    GUEST_LINK_IN_USE: 'Este enlace ya se abrió en otro navegador. Continúa allí o pide otro enlace a tu asesor.',
     CONDITIONS_NOT_CONFIGURED: 'Los requisitos de este inmueble todavía están por confirmar.',
     SERVICE_UNAVAILABLE: 'El servicio no está disponible. Tus datos permanecen en el formulario; vuelve a intentarlo.',
     PHONE_INVALID: 'Escribe un teléfono mexicano de diez dígitos.', PHONE_REQUIRED: 'Revisa el teléfono.',
@@ -34,7 +36,7 @@
   }
   async function api(path, data, authenticated = true) {
     const headers = {'Content-Type': 'application/json'};
-    const user = auth.currentUser;
+    const user = auth?.currentUser;
     if (authenticated) {
       if (!user) throw Error('AUTHENTICATION_REQUIRED');
       headers.Authorization = 'Bearer ' + await user.getIdToken();
@@ -46,11 +48,11 @@
     return result;
   }
   const agentApi = (path, data = {}) => api('/agent/' + path, {organizationId: $('organization').value, ...data});
-  async function command(path, data, customer = false) {
+  async function command(path, data, customer = false, authenticated = true) {
     const body = customer ? data : {organizationId: $('organization').value, ...data};
     const signature = path + JSON.stringify({...body, ...(body.occurredAt ? {occurredAt: 'current-interaction'} : {})});
     if (!pending.has(signature)) pending.set(signature, {...body, requestId: crypto.randomUUID()});
-    const result = await api(path, pending.get(signature));
+    const result = await api(path, pending.get(signature), authenticated);
     pending.delete(signature);
     return result;
   }
@@ -78,7 +80,7 @@
     const root = $('messages'); root.replaceChildren();
     messages.sort((a, b) => a.recordedAt.localeCompare(b.recordedAt)).forEach(message => {
       const item = node('div', '', 'message ' + message.actorRole);
-      item.append(node('small', (message.actorRole === 'agent' ? 'Asesor' : 'Cliente') + ' · ' + new Date(message.recordedAt).toLocaleString('es-MX', {timeZone: 'America/Mexico_City'})), node('div', message.text)); root.append(item);
+      item.append(node('small', (message.actorRole === 'agent' ? 'Asesor' : message.actorRole === 'guest' ? 'Cliente invitado' : 'Cliente') + ' · ' + new Date(message.recordedAt).toLocaleString('es-MX', {timeZone: 'America/Mexico_City'})), node('div', message.text)); root.append(item);
     });
   }
   async function list() {
@@ -90,10 +92,15 @@
     if (!items.length) $('conversations').append(node('p', 'Todavía no hay atenciones registradas.', 'muted'));
   }
   async function inspect(conversationId) {
-    active = await agentApi('inspect', {conversationId});
+    const next = await agentApi('inspect', {conversationId});
+    if (active?.conversation.id !== next.conversation.id || active?.conversation.version !== next.conversation.version) $('share-text').value = '';
+    active = next;
     const current = active.conversation;
     $('detail').hidden = false; $('customer-title').textContent = [current.context.displayName, current.context.surname].filter(Boolean).join(' ') || 'Nombre pendiente';
-    $('attribution').textContent = (sourceNames[current.context.source] || current.context.source) + ' · Entrada: ' + current.context.entryChannel + ' · Canal actual: Synapse Atención';
+    $('attribution').textContent = (sourceNames[current.context.source] || current.context.source) + ' · Entrada: ' + current.context.entryChannel + ' · Canal actual: Synapse Attention by HYPE Business';
+    $('access-state').textContent = current.invitation?.accessMode === 'hype_business_guest'
+      ? (current.guestAccess ? 'Invitado conectado · identidad sin verificar. Respondes al enlace actual.' : 'Atención por enlace · sin registro. Respondes al enlace actual.')
+      : 'Historial con acceso verificado. Crea un enlace nuevo para continuar sin SMS.';
     $('interest').value = current.context.currentPropertyId;
     $('contact-name').value = current.context.displayName; $('contact-surname').value = current.context.surname; $('contact-phone').value = current.context.phone;
     renderSheet(active.sheet); renderMessages(active.messages);
@@ -138,15 +145,15 @@
     $('conditions').addEventListener('click', () => run(async () => {await mutate('conditions', {expectedVersion: active.conversation.version}); status('Requisitos y condiciones habilitados para esta atención.');}));
     $('invite').addEventListener('click', () => run(async () => {
       const result = await mutate('invite', {expectedVersion: active.conversation.version});
-      const access = active.conversation.context.phone
-        ? 'Para acceder a los mensajes, verifica el teléfono que compartiste con tu asesor.'
-        : 'Puedes consultar la ficha. Para continuar por el chat, comparte primero tu teléfono con tu asesor por este mismo canal.';
-      $('share-text').value = 'Hola. Para continuar la atención sobre ' + active.sheet.name + ', abre este enlace de Synapse:\n' + result.url + '\n' + access;
+      $('share-text').value = 'Hola. Continúa aquí tu atención sobre ' + active.sheet.name + ' con Synapse Attention by HYPE Business:\n' + result.url + '\nConsulta la ficha y conversa con tu asesor. No necesitas registrarte ni recibir un SMS. Abre el enlace en tu navegador y consérvalo para continuar.';
       status('Enlace preparado. Cópialo y compártelo con el cliente por su canal de origen.');
     }));
     $('revoke').addEventListener('click', () => run(async () => {await mutate('revoke', {expectedVersion: active.conversation.version}); $('share-text').value = ''; status('Enlace revocado.');}));
     for (const [button, field] of [['copy-share', 'share-text'], ['copy-message', 'message']]) $(button).addEventListener('click', () => run(async () => {await navigator.clipboard.writeText($(field).value); status('Texto copiado.');}));
-    $('message-form').addEventListener('submit', event => {event.preventDefault(); run(async () => {await mutate('message', {text: $('message').value}); $('message').value = ''; status('Mensaje registrado en Synapse.');});});
+    $('message-form').addEventListener('submit', event => {event.preventDefault(); run(async () => {
+      const threadId = active?.conversation.invitation?.accessMode === 'hype_business_guest' ? active.conversation.invitation.threadId : null;
+      await mutate('message', {text: $('message').value, ...(threadId ? {threadId} : {})}); $('message').value = ''; status('Mensaje registrado en Synapse.');
+    });});
     $('summary-form').addEventListener('submit', event => {event.preventDefault(); run(async () => {
       await mutate('summary', {summary: $('summary').value, nextAction: $('next-action').value ? {description: $('next-action').value, dueDate: $('due-date').value || null, status: 'pending'} : null, occurredAt: $('occurred-now').checked ? new Date().toISOString() : null});
       $('summary').value = ''; status('Resumen y siguiente acción guardados en bitácora.');
@@ -172,17 +179,55 @@
     });
   }
   async function refreshCustomer() {
-    const data = await api('/customer/view', {token}); active = data;
+    let data;
+    if (guestSecret) {
+      try {data = await api('/guest/view', {token, secret: guestSecret}, false); guestJoined = true;}
+      catch (error) {
+        if (error.message !== 'GUEST_ACCESS_REQUIRED' || guestJoined) throw error;
+        // Opening or previewing the link must not consume the recipient's session.
+        // Bind this browser only when the visitor deliberately sends a message.
+        $('verification').hidden = true; $('customer-chat').hidden = false;
+        $('access-state').textContent = 'Invitado · sin registro. Escribe tu consulta para comenzar; tu teléfono es opcional.';
+        renderMessages([]); return false;
+      }
+    } else data = await api('/customer/view', {token});
+    active = data;
     renderSheet(data.sheet); renderMessages(data.messages); $('verification').hidden = true; $('customer-chat').hidden = false;
+    $('access-state').textContent = guestSecret ? 'Invitado · sin registro. Tu identidad no está verificada. Continúa desde este navegador.' : 'Acceso con teléfono verificado.';
     const root = $('shared-conditions'); root.replaceChildren();
     if (data.conditions) {
       const conditions = data.conditions; root.append(node('h3', 'Requisitos y condiciones compartidos'));
       root.append(node('p', 'Plazo: ' + conditions.termMonths + ' meses · Depósito: $' + conditions.deposit + ' MXN'));
       const list = node('ul', '', 'list'); conditions.requirements.forEach(item => list.append(node('li', item.label))); root.append(list);
     }
+    return true;
   }
   async function setupCustomer() {
-    const data = await api('/invitation/preview', {token}, false); renderSheet(data.sheet); $('verification').hidden = false;
+    const data = await api('/invitation/preview', {token}, false); renderSheet(data.sheet);
+    $('refresh-customer').addEventListener('click', () => run(refreshCustomer));
+    $('message-form').addEventListener('submit', event => {event.preventDefault(); run(async () => {
+      if (guestSecret) {
+        if (!guestJoined) {await command('/guest/open', {token, secret: guestSecret}, true, false); guestJoined = true;}
+        await command('/guest/message', {token, secret: guestSecret, text: $('message').value}, true, false);
+      }
+      else await command('/customer/message', {token, conversationId: active.conversationId, text: $('message').value}, true);
+      $('message').value = ''; await refreshCustomer(); status('Mensaje registrado.');
+    });});
+    if (data.accessMode === 'hype_business_guest') {
+      const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(token));
+      const storageKey = 'synapse-hype-guest-' + Array.from(new Uint8Array(digest), value => value.toString(16).padStart(2, '0')).join('');
+      let persistent = true;
+      try {guestSecret = localStorage.getItem(storageKey);} catch {persistent = false;}
+      if (!/^[A-Za-z0-9_-]{43}$/.test(guestSecret || '')) {
+        guestSecret = btoa(String.fromCharCode(...crypto.getRandomValues(new Uint8Array(32)))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+        try {localStorage.setItem(storageKey, guestSecret);} catch {persistent = false;}
+      }
+      await refreshCustomer(); status(persistent ? 'Tu atención continúa aquí. Puedes escribir sin teléfono ni SMS.' : 'Puedes conversar. Este navegador no conserva el acceso: mantén abierta esta pestaña.');
+      return;
+    }
+    // Older invitations retain their verified-phone gate. They are never
+    // silently converted into guest access or used to expose old messages.
+    await loadLegacyAuth(); initializeAuth(); $('verification').hidden = false;
     verifier = new firebase.auth.RecaptchaVerifier('recaptcha', {size: 'normal'}, auth.app);
     $('phone-form').addEventListener('submit', event => {event.preventDefault(); run(async () => {
       let phone = $('customer-phone').value.replace(/[\s()+.-]/g, ''); if (/^\d{10}$/.test(phone)) phone = '52' + phone;
@@ -192,19 +237,21 @@
       await confirmation.confirm($('sms-code').value.trim());
       await command('/customer/claim', {token}, true); await refreshCustomer(); status('Acceso verificado. Tu atención continúa aquí.');
     });});
-    $('refresh-customer').addEventListener('click', () => run(refreshCustomer));
-    $('message-form').addEventListener('submit', event => {event.preventDefault(); run(async () => {
-      await command('/customer/message', {token, conversationId: active.conversationId, text: $('message').value}, true);
-      $('message').value = ''; await refreshCustomer(); status('Mensaje registrado.');
-    });});
     await new Promise(resolve => {let stop = () => {}; stop = auth.onAuthStateChanged(() => {stop(); resolve();});});
     if (auth.currentUser) {try {await refreshCustomer();} catch { /* Show verification rather than another person's session. */ }}
+  }
+  async function loadLegacyAuth() {
+    for (const source of ['firebase-app-compat.js', 'firebase-auth-compat.js']) {
+      await new Promise((resolve, reject) => {const script = document.createElement('script'); script.src = 'https://www.gstatic.com/firebasejs/10.7.1/' + source; script.onload = resolve; script.onerror = () => reject(Error('SERVICE_UNAVAILABLE')); document.head.append(script);});
+    }
   }
   if (!config?.firebase || !config?.reservationOrigin) {status('La atención todavía no tiene configuración de conexión.', true); return;}
   // Reuse the advisor's Admin session; isolate customer phone verification so
   // testing an invitation does not replace the advisor's Firebase login.
-  const appName = role === 'agent' ? '[DEFAULT]' : 'synapse-attention-customer';
-  const app = firebase.apps.find(item => item.name === appName) || (role === 'agent' ? firebase.initializeApp(config.firebase) : firebase.initializeApp(config.firebase, appName));
-  auth = app.auth();
-  if (role === 'agent') setupAgent(); else run(setupCustomer);
+  function initializeAuth() {
+    const appName = role === 'agent' ? '[DEFAULT]' : 'synapse-attention-customer';
+    const app = firebase.apps.find(item => item.name === appName) || (role === 'agent' ? firebase.initializeApp(config.firebase) : firebase.initializeApp(config.firebase, appName));
+    auth = app.auth();
+  }
+  if (role === 'agent') {initializeAuth(); setupAgent();} else run(setupCustomer);
 })();

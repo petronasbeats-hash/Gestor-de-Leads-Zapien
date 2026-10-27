@@ -1,5 +1,5 @@
 'use strict';
-const knownErrors = new Set(['INVALID_IDENTIFIER', 'INVALID_FIELDS', 'INVALID_TEXT', 'PHONE_REQUIRED', 'PHONE_INVALID', 'NAME_REQUIRED', 'SOURCE_REQUIRED', 'ENTRY_CHANNEL_REQUIRED', 'PROPERTY_NOT_PUBLISHED', 'PROPERTY_FORBIDDEN', 'AUTHENTICATION_REQUIRED', 'ORGANIZATION_FORBIDDEN', 'AGENT_REQUIRED', 'CONVERSATION_NOT_FOUND', 'VERSION_CONFLICT', 'COMMAND_ID_CONFLICT', 'INVITATION_INVALID', 'INVITATION_REISSUE_REQUIRED', 'CUSTOMER_VERIFICATION_REQUIRED', 'CONDITIONS_NOT_CONFIGURED', 'AVAILABILITY_UNAVAILABLE']);
+const knownErrors = new Set(['INVALID_IDENTIFIER', 'INVALID_FIELDS', 'INVALID_TEXT', 'PHONE_REQUIRED', 'PHONE_INVALID', 'NAME_REQUIRED', 'SOURCE_REQUIRED', 'ENTRY_CHANNEL_REQUIRED', 'PROPERTY_NOT_PUBLISHED', 'PROPERTY_FORBIDDEN', 'AUTHENTICATION_REQUIRED', 'ORGANIZATION_FORBIDDEN', 'AGENT_REQUIRED', 'CONVERSATION_NOT_FOUND', 'VERSION_CONFLICT', 'COMMAND_ID_CONFLICT', 'INVITATION_INVALID', 'INVITATION_REISSUE_REQUIRED', 'CUSTOMER_VERIFICATION_REQUIRED', 'CONDITIONS_NOT_CONFIGURED', 'AVAILABILITY_UNAVAILABLE', 'GUEST_ACCESS_REQUIRED', 'GUEST_LINK_IN_USE']);
 function createAttentionHttp({service, authority}) {
   return async function attentionHttp(req, res) {
     const reply = (status, payload) => {
@@ -10,7 +10,7 @@ function createAttentionHttp({service, authority}) {
       res.end(JSON.stringify(payload));
     };
     const path = new URL(req.url, 'https://localhost').pathname.replace(/^\/attention-api(?=\/)/, '');
-    if (req.method === 'GET' && path === '/health') return reply(200, {service: 'synapse-attention', intake: true, booking: false, reminders: false});
+    if (req.method === 'GET' && path === '/health') return reply(200, {service: 'synapse-attention', intake: true, guestConversation: true, hypeProfiles: false, booking: false, reminders: false});
     if (req.method === 'GET' && path === '/agent/session') {
       try { return reply(200, await authority.session(req.headers.authorization)); }
       catch { return reply(401, {error: 'AUTHENTICATION_REQUIRED'}); }
@@ -38,6 +38,9 @@ function createAttentionHttp({service, authority}) {
         if (Object.keys(body).some(key => key !== 'token')) throw Error('INVALID_FIELDS');
         return reply(200, await service.previewInvitation(body.token));
       }
+      if (path === '/guest/open') return reply(200, await service.openGuest(body));
+      if (path === '/guest/view') return reply(200, await service.guestView(body));
+      if (path === '/guest/message') return reply(200, await service.guestMessage(body));
       if (path === '/customer/claim') return reply(200, await service.claim(await authority.customer(bearer), body));
       if (path === '/customer/view') {
         if (Object.keys(body).some(key => key !== 'token')) throw Error('INVALID_FIELDS');
@@ -65,8 +68,8 @@ function createAttentionHttp({service, authority}) {
     } catch (error) {
       const code = error.message;
       const status = code === 'AUTHENTICATION_REQUIRED' ? 401
-        : /FORBIDDEN|AGENT_REQUIRED|CUSTOMER_VERIFICATION_REQUIRED/.test(code) ? 403
-        : /CONFLICT|REISSUE/.test(code) ? 409
+        : /FORBIDDEN|AGENT_REQUIRED|CUSTOMER_VERIFICATION_REQUIRED|GUEST_ACCESS_REQUIRED/.test(code) ? 403
+        : /CONFLICT|REISSUE|GUEST_LINK_IN_USE/.test(code) ? 409
         : code === 'CONVERSATION_NOT_FOUND' || code === 'INVITATION_INVALID' ? 404
         : knownErrors.has(code) ? 400 : 503;
       return reply(status, {error: knownErrors.has(code) ? code : 'SERVICE_UNAVAILABLE'});

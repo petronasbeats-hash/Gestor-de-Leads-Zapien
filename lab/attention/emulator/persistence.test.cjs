@@ -2,7 +2,7 @@
 const assert = require('node:assert/strict');
 const {createRequire} = require('node:module');
 const path = require('node:path');
-const {randomUUID} = require('node:crypto');
+const {randomUUID, randomBytes} = require('node:crypto');
 const dependency = createRequire(path.resolve(__dirname, '../../../attention-functions/package.json'));
 const {initializeApp, deleteApp} = dependency('firebase-admin/app');
 const {getDatabase} = dependency('firebase-admin/database');
@@ -49,7 +49,22 @@ async function main() {
     const directWrite = await fetch('http://127.0.0.1:19020/atencion_v1/orgs/' + organizationId + '/journal/forged.json?ns=demo-synapse-attention-default-rtdb', {method: 'PUT', body: JSON.stringify({summary: 'forged'})});
     assert.equal(directWrite.status, 401);
     console.log('PASS E5: lectura y escritura directas sin autorización denegadas');
+    const invitation = await service.invite(principal, {requestId: randomUUID(), conversationId: input.requestId, expectedVersion: 2});
+    const token = new URL(invitation.url).hash.slice(1), secret = randomBytes(32).toString('base64url');
+    const opened = await service.openGuest({requestId: randomUUID(), token, secret});
+    await service.guestMessage({requestId: randomUUID(), token, secret, text: 'Guest emulator message'});
+    await service.sendMessage(principal, {requestId: randomUUID(), conversationId: input.requestId, threadId: opened.threadId, text: 'Advisor emulator reply'});
+    assert.equal((await service.guestView({token, secret})).messages.length, 2);
+    assert.equal(JSON.stringify(await store.read(organizationId)).includes(secret), false);
+    console.log('PASS E6: invitado sin teléfono, mensaje y respuesta persistidos sin guardar secreto plano');
+    await assert.rejects(service.openGuest({requestId: randomUUID(), token, secret: randomBytes(32).toString('base64url')}), /GUEST_LINK_IN_USE/);
+    await assert.rejects(service.guestView({token, secret: randomBytes(32).toString('base64url')}), /GUEST_ACCESS_REQUIRED/);
+    console.log('PASS E7: otro navegador no reclama ni recupera la sesión del invitado');
+    const latest = (await service.inspect(principal, input.requestId)).conversation;
+    await service.revoke(principal, {requestId: randomUUID(), conversationId: input.requestId, expectedVersion: latest.version});
+    await assert.rejects(service.guestView({token, secret}), /INVITATION_INVALID/);
+    console.log('PASS E8: revocación invalida el acceso de invitado');
   } finally { await deleteApp(app); }
 }
-const deadline = setTimeout(() => {console.error('EMULATOR_TEST_DEADLINE'); process.exit(1);}, 25000);
+const deadline = setTimeout(() => {console.error('EMULATOR_TEST_DEADLINE'); process.exit(1);}, 45000);
 main().catch(error => {console.error(error.message); process.exitCode = 1;}).finally(() => clearTimeout(deadline));

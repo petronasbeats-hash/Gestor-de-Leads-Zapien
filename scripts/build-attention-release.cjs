@@ -65,7 +65,7 @@ function build(options) {
     {source: '/atencion', destination: '/atencion.html'},
     {source: '/reservar', destination: '/reservar.html'},
     {source: '/leia', destination: '/leia.html'}]}}, null, 2) + '\n');
-  write('release-manifest.json', JSON.stringify({site, projectId: firebase.projectId, attentionOrigin, reservationOrigin, capabilities: {intake: true, conversation: true, booking: false, automaticReminders: false, leasePreparation: false}, files}, null, 2) + '\n');
+  write('release-manifest.json', JSON.stringify({site, projectId: firebase.projectId, attentionOrigin, reservationOrigin, capabilities: {intake: true, conversation: true, guestConversation: true, hypeProfiles: false, booking: false, automaticReminders: false, leasePreparation: false}, files}, null, 2) + '\n');
   return {output, site, projectId: firebase.projectId, attentionOrigin, reservationOrigin, files: files.length};
 }
 if (require.main === module) {try {console.log(JSON.stringify(build(args(process.argv.slice(2))), null, 2));} catch (error) {console.error(error.message); process.exitCode = 1;}}

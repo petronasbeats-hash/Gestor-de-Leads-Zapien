@@ -59,10 +59,10 @@ node scripts/activate-attention-access.cjs \
   consultar horarios; todavía no crea una cita desde la conversación.
 - Enlace con 256 bits aleatorios, almacenado como hash, con vigencia de 24 horas,
   rotación y revocación. Su preparación no envía mensajes a Marketplace/WhatsApp.
-- El enlace muestra únicamente ficha pública. La vista de mensajes exige una
-  verificación adicional del teléfono; escribirlo en un formulario no verifica
-  su titularidad. Si no se capturó teléfono, el asesor debe obtenerlo por su canal
-  antes de habilitar esa recuperación. Cambiar teléfono revoca el acceso anterior.
+- Los enlaces nuevos de Synapse Attention by HYPE Business abren una conversación
+  de invitado sin teléfono, SMS, registro ni dependencia de un proveedor Auth.
+  El acceso por enlace no verifica identidad. Los enlaces anteriores conservan
+  su requisito de teléfono y no se convierten silenciosamente en accesos de invitado.
 - Requisitos y condiciones permanecen separados de la ficha pública hasta que
   el asesor los comparte. Se conserva unidad y versión; una ficha distinta no
   hereda requisitos ADN ni condiciones de CL. Los textos libres heredados no se
@@ -73,13 +73,59 @@ node scripts/activate-attention-access.cjs \
 
 ## Identidad y persistencia
 
-`server/attention-service.cjs` recibe una autoridad ya verificada: no confía en
-UID, organización, permisos o catálogo enviados por el navegador.
+Para las rutas de asesor y recuperación verificada, `server/attention-service.cjs`
+recibe una autoridad ya verificada: no confía en UID, organización, permisos o
+catálogo enviados por el navegador. Para el invitado verifica una capacidad
+temporal de enlace y navegador, descrita a continuación; no la trata como una
+identidad personal verificada ni como una cuenta HYPE.
 `server/attention-firebase-authority.cjs` es el adaptador candidato de Firebase
 Auth existente: verifica el ID token y revocación con Admin SDK y resuelve la ACL
 privada de Atención. No constituye integración con Zap Auth ni autorización para
 modificar esa aplicación. El contrato permite sustituir el adaptador por Zap Auth
 cuando su verificación de servidor se haya integrado y probado.
+
+### Synapse Attention by HYPE Business: invitado por enlace
+
+La petición del usuario es que el vínculo sea una puerta de continuidad sin
+fricción, y una entrada opcional posterior a HYPE. Los enlaces nuevos contienen
+una capacidad aleatoria de 256 bits y habilitan un hilo nuevo dirigido al
+invitado. El navegador genera otro secreto de 256 bits y lo conserva localmente.
+Cuando el visitante envía su primer mensaje, lo presenta por HTTPS y el servidor
+vincula de forma transaccional su hash al enlace vigente. Abrir o previsualizar
+la página sin escribir no consume la sesión del destinatario. Una recarga en ese navegador
+recupera el hilo; otro secreto o navegador no reclama la sesión ya abierta.
+No hay SMS, CAPTCHA, cuenta anónima Firebase ni alta de proveedor Auth en esta ruta.
+
+La persona que envíe primero un mensaje desde el enlace obtiene esa capacidad de invitado; esto no
+prueba que sea el destinatario esperado. La interfaz del asesor indica identidad
+sin verificar. Los enlaces deben compartirse por el canal de atención del cliente.
+Si el destinatario cambia de navegador, pierde sus datos locales o el vínculo
+vence, el asesor puede rotarlo. La rotación crea otro hilo de invitado: no abre
+automáticamente los mensajes anteriores. El historial queda conservado para el
+asesor. Vencimiento, revocación y cambio de teléfono invalidan el enlace anterior.
+
+El invitado solo recibe ficha pública, requisitos expresamente compartidos y
+mensajes del hilo de su enlace. No recibe nombre/contacto capturados por el
+asesor, bitácora, mensajes anteriores protegidos, hashes ni catálogo interno.
+Las respuestas del asesor se dirigen explícitamente al hilo del enlace actual;
+el historial verificado mantiene sus mensajes separados. Cambiar de atención
+limpia el enlace compartible anterior para evitar enviarlo a otra persona.
+Los secretos planos no se guardan en eventos ni recibos de comandos. La sesión
+de invitado no modifica `customerUid` ni `identityStatus` del contacto existente.
+
+Este cambio implementa la entrada y conversación de invitado con esa identidad
+de producto. No crea perfiles Hyper, no registra una cuenta HYPE real ni integra
+todavía Zap Auth. La vinculación de perfil opcional mostrada en la demo era una
+simulación; `health` y el manifiesto declaran `hypeProfiles:false`. No se incluyen
+botones de registro que aparenten crear una cuenta real.
+
+Validación del cambio: ocho pruebas de invitado y once de servicio/release pasan.
+Incluyen carrera de primer acceso, reintentos, fallo sin mensaje parcial, secretos
+equivocados, rotación/revocación/vencimiento, aislamiento de historial, requisitos
+por unidad y rutas HTTP. El script real del cliente se ejecutó contra el handler
+con almacenamiento simulado y sin SDK Firebase, validando apertura automática,
+envío y recuperación tras recarga, sin consumir la sesión al previsualizar. Esto no sustituye una prueba de navegador de
+producción. Despliegue de esta versión y prueba cliente/asesor reales pendientes.
 
 ACL propuesta, configurada únicamente mediante un administrador autenticado:
 
@@ -149,19 +195,19 @@ Cambiar ese parámetro exige desplegar la función construida; el ajuste de anch
 de columnas/galería y del texto para contactos sin teléfono exige actualizar el
 canal Hosting. Ambos cambios están preparados y probados, pendientes de ese
 despliegue. Crear otra invitación tras actualizar produce el nuevo destino y
-revoca la anterior mediante el control de versión existente. No se cambia la
-autoridad de acceso ni se redirigen URLs recibidas del navegador.
+revoca la anterior mediante el control de versión existente. La versión de
+invitado descrita arriba requiere igualmente crear una invitación nueva; las
+anteriores conservan su política. No se redirigen URLs recibidas del navegador.
 
 La vista previa tiene vencimiento: no debe utilizarse como dominio permanente
 de atención a clientes. Al publicar el monitor definitivo se debe volver a
 construir/desplegar con el origen definitivo y probar las invitaciones.
 
-Antes de desplegar: validar el paquete real completo, la cuenta del asesor y ACL,
-proveedores/dominios de Authentication, integración telefónica y regresión de
-Admin/Agenda/Reservar. La ruta SMS propuesta usa Firebase Auth; su activación y
-costos no se dan por autorizados o configurados por el código. El paquete de
-Cloud Functions requiere comprobar el plan/facturación del proyecto antes de
-activar un servicio que no estaba desplegado.
+Antes de desplegar: validar el paquete real completo, cuenta y ACL del asesor y
+regresión de Admin/Agenda/Reservar. El proyecto ya confirmó plan Blaze. El nuevo
+flujo de invitado no exige SMS; los proveedores/dominios de Authentication siguen
+siendo relevantes para el asesor y los enlaces antiguos con verificación. No se
+activaron proveedores telefónicos ni se dieron por autorizados sus costos.
 
 ## Pendientes que impiden anunciar el flujo completo
 
@@ -207,6 +253,10 @@ operativos de producción por el solo hecho de que sus pruebas de simulación pa
   Firebase del Admin y el cliente tiene una sesión independiente; la recuperación
   de sesión del cliente espera a que Firebase termine de restaurarla.
 - No se ha ejecutado la prueba completa de navegador ni la verificación SMS.
+- E6–E8 pasan con RTDB Emulator: entrada de invitado sin teléfono, persistencia
+  de mensaje y respuesta, secreto no almacenado en texto plano, rechazo de otro
+  navegador y revocación efectiva. El script real de cliente se comprobó también
+  sin Firebase SDK contra el handler, con envío y recuperación del hilo tras recarga.
 
 Las pruebas anteriores usaron datos sintéticos separados de clientes reales. El
 despliegue del servicio y del canal de vista previa se recibió después mediante

@@ -70,6 +70,21 @@ function createAttentionService({store, readAvailability, leaseConfig = {}, now 
     if (current.invitation?.tokenHash !== tokenHash || current.invitation.revoked || Date.parse(current.invitation.expiresAt) <= now().getTime()) throw Error('INVITATION_INVALID');
     return {state, current, tokenHash, organizationId: locator.organizationId};
   }
+  function guestCredential(secret) {
+    if (typeof secret !== 'string' || !/^[A-Za-z0-9_-]{43}$/.test(secret)) throw Error('GUEST_ACCESS_REQUIRED');
+    const secretHash = hash(secret);
+    return {secretHash, uid: 'guest_' + secretHash.slice(0, 40)};
+  }
+  function activeGuestInvitation(current, tokenHash) {
+    const invitation = current.invitation;
+    if (!invitation || invitation.accessMode !== 'hype_business_guest' || invitation.tokenHash !== tokenHash || invitation.revoked || Date.parse(invitation.expiresAt) <= now().getTime()) throw Error('INVITATION_INVALID');
+    return invitation;
+  }
+  function guestAccess(current, tokenHash, credential) {
+    const invitation = activeGuestInvitation(current, tokenHash);
+    if (current.guestAccess?.secretHash !== credential.secretHash || current.guestAccess?.tokenHash !== tokenHash || current.guestAccess?.threadId !== invitation.threadId) throw Error('GUEST_ACCESS_REQUIRED');
+    return invitation;
+  }
   return {
     async catalog(principal) {
       agent(principal);
@@ -155,7 +170,8 @@ function createAttentionService({store, readAvailability, leaseConfig = {}, now 
       await store.indexInvitation(tokenHash, {organizationId: principal.organizationId, conversationId: id(input.conversationId), expiresAt});
       const receipt = await store.apply(principal.organizationId, id(input.requestId), principal.uid, {operation: 'invite', input}, state => {
         const current = conversation(state, input.conversationId); permitted(principal, current.context.currentPropertyId); revision(current, input.expectedVersion);
-        current.invitation = {tokenHash, expiresAt, revoked: false};
+        current.invitation = {tokenHash, expiresAt, revoked: false, accessMode: 'hype_business_guest', threadId: 'thread_' + tokenHash.slice(0, 32)};
+        delete current.guestAccess;
         current.version++;
         event(state, principal, input.requestId, current, 'invitation_created', 'Se preparó un enlace temporal; el envío al cliente se realiza por el canal autorizado.');
         return {state, receipt: {conversationId: current.id, version: current.version, expiresAt}};
@@ -186,7 +202,7 @@ function createAttentionService({store, readAvailability, leaseConfig = {}, now 
       });
     },
     async sendMessage(principal, input) {
-      fields(input, ['requestId', 'conversationId', 'text', 'token']);
+      fields(input, ['requestId', 'conversationId', 'text', 'token', 'threadId']);
       const messageText = text(input.text, 2000, true);
       let organizationId;
       let resolved;
@@ -196,12 +212,15 @@ function createAttentionService({store, readAvailability, leaseConfig = {}, now 
         resolved = await resolveInvitation(input.token); organizationId = resolved.organizationId;
         if (resolved.current.id !== input.conversationId || resolved.current.customerUid !== principal.uid) throw Error('CUSTOMER_VERIFICATION_REQUIRED');
       }
-      const safePayload = {operation: 'message', conversationId: input.conversationId, text: messageText, tokenHash: resolved?.tokenHash || null};
+      if (principal?.role !== 'agent' && input.threadId) throw Error('INVALID_FIELDS');
+      const threadId = input.threadId ? id(input.threadId) : null;
+      const safePayload = {operation: 'message', conversationId: input.conversationId, text: messageText, ...(threadId ? {threadId} : {}), tokenHash: resolved?.tokenHash || null};
       return store.apply(organizationId, id(input.requestId), id(principal.uid), safePayload, state => {
         const current = conversation(state, input.conversationId);
         if (principal.role === 'agent') permitted(principal, current.context.currentPropertyId);
         else if (current.customerUid !== principal.uid || current.invitation?.tokenHash !== resolved.tokenHash || current.invitation.revoked || Date.parse(current.invitation.expiresAt) <= now().getTime()) throw Error('CUSTOMER_VERIFICATION_REQUIRED');
-        state.messages = {...state.messages, [current.id]: {...state.messages?.[current.id], [input.requestId]: {id: input.requestId, actorRole: principal.role, text: messageText, recordedAt: now().toISOString()}}};
+        if (threadId && activeGuestInvitation(current, current.invitation?.tokenHash).threadId !== threadId) throw Error('GUEST_ACCESS_REQUIRED');
+        state.messages = {...state.messages, [current.id]: {...state.messages?.[current.id], [input.requestId]: {id: input.requestId, actorRole: principal.role, threadId, text: messageText, recordedAt: now().toISOString()}}};
         event(state, {...principal, organizationId}, input.requestId, current, 'message_recorded', 'Mensaje de ' + (principal.role === 'agent' ? 'asesor' : 'cliente') + ': ' + messageText,
           {nextAction: {description: principal.role === 'customer' ? 'Responder al cliente' : 'Esperar respuesta del cliente', status: 'pending'}});
         return {state, receipt: {conversationId: current.id, messageId: input.requestId, status: 'recorded'}};
@@ -215,7 +234,51 @@ function createAttentionService({store, readAvailability, leaseConfig = {}, now 
       if (!property || property.activo === false) throw Error('PROPERTY_NOT_PUBLISHED');
       // Only public property data. Never return the lead's name, phone, history,
       // journal, address/coordinates, org identifiers or invitation hash here.
-      return {sheet: publicSheet(lease.propertySheet(propertyId, property, leaseConfig)), verificationRequired: true};
+      const guest = current.invitation.accessMode === 'hype_business_guest';
+      return {sheet: publicSheet(lease.propertySheet(propertyId, property, leaseConfig)), verificationRequired: !guest, accessMode: guest ? 'hype_business_guest' : 'verified_phone'};
+    },
+    async openGuest(input) {
+      fields(input, ['requestId', 'token', 'secret']);
+      const resolved = await resolveInvitation(input.token), credential = guestCredential(input.secret);
+      activeGuestInvitation(resolved.current, resolved.tokenHash);
+      return store.apply(resolved.organizationId, id(input.requestId), credential.uid, {operation: 'guest_open', tokenHash: resolved.tokenHash, secretHash: credential.secretHash}, state => {
+        const current = conversation(state, resolved.current.id);
+        const invitation = activeGuestInvitation(current, resolved.tokenHash);
+        if (current.guestAccess && (current.guestAccess.secretHash !== credential.secretHash || current.guestAccess.tokenHash !== resolved.tokenHash)) throw Error('GUEST_LINK_IN_USE');
+        if (!current.guestAccess) {
+          current.guestAccess = {secretHash: credential.secretHash, tokenHash: resolved.tokenHash, threadId: invitation.threadId, identityStatus: 'unverified', openedAt: now().toISOString()};
+          current.version++;
+          event(state, {uid: credential.uid, role: 'guest', organizationId: resolved.organizationId}, input.requestId, current, 'guest_connected', 'Se abrió una conversación de invitado por enlace de Synapse Attention by HYPE Business. Identidad sin verificar.');
+        }
+        return {state, receipt: {conversationId: current.id, threadId: invitation.threadId, identityStatus: 'unverified'}};
+      });
+    },
+    async guestView(input) {
+      fields(input, ['token', 'secret']);
+      const {state, current, tokenHash} = await resolveInvitation(input.token);
+      const invitation = guestAccess(current, tokenHash, guestCredential(input.secret));
+      const snapshot = await readSnapshot(), propertyId = current.context.currentPropertyId;
+      const property = snapshot.properties?.[propertyId];
+      if (!property || property.activo === false) throw Error('PROPERTY_NOT_PUBLISHED');
+      const sheet = lease.propertySheet(propertyId, property, leaseConfig);
+      return {conversationId: current.id, threadId: invitation.threadId, identityStatus: 'unverified', expiresAt: invitation.expiresAt,
+        sheet: publicSheet(sheet), messages: Object.values(state.messages?.[current.id] || {}).filter(item => item.threadId === invitation.threadId),
+        conditions: current.sharedConditions?.propertyId === propertyId && current.sharedConditions?.conditionsVersion === sheet.conditionsVersion ? current.sharedConditions : null};
+    },
+    async guestMessage(input) {
+      fields(input, ['requestId', 'token', 'secret', 'text']);
+      const messageText = text(input.text, 2000, true);
+      const resolved = await resolveInvitation(input.token), credential = guestCredential(input.secret);
+      guestAccess(resolved.current, resolved.tokenHash, credential);
+      return store.apply(resolved.organizationId, id(input.requestId), credential.uid, {operation: 'guest_message', tokenHash: resolved.tokenHash, secretHash: credential.secretHash, text: messageText}, state => {
+        const current = conversation(state, resolved.current.id);
+        const invitation = guestAccess(current, resolved.tokenHash, credential);
+        state.messages = {...state.messages, [current.id]: {...state.messages?.[current.id], [input.requestId]: {
+          id: input.requestId, actorRole: 'guest', threadId: invitation.threadId, text: messageText, recordedAt: now().toISOString()}}};
+        event(state, {uid: credential.uid, role: 'guest', organizationId: resolved.organizationId}, input.requestId, current, 'message_recorded', 'Mensaje de invitado: ' + messageText,
+          {nextAction: {description: 'Responder al invitado', status: 'pending'}});
+        return {state, receipt: {conversationId: current.id, messageId: input.requestId, status: 'recorded'}};
+      });
     },
     async claim(principal, input) {
       fields(input, ['requestId', 'token']);
@@ -239,7 +302,7 @@ function createAttentionService({store, readAvailability, leaseConfig = {}, now 
       const propertyId = current.context.currentPropertyId;
       if (!snapshot.properties?.[propertyId] || snapshot.properties[propertyId].activo === false) throw Error('PROPERTY_NOT_PUBLISHED');
       const sheet = lease.propertySheet(propertyId, snapshot.properties[propertyId], leaseConfig);
-      return {conversationId: current.id, sheet: publicSheet(sheet), messages: Object.values(state.messages?.[current.id] || {}),
+      return {conversationId: current.id, sheet: publicSheet(sheet), messages: Object.values(state.messages?.[current.id] || {}).filter(item => !item.threadId),
         conditions: current.sharedConditions?.propertyId === propertyId && current.sharedConditions?.conditionsVersion === sheet.conditionsVersion ? current.sharedConditions : null};
     },
     async report(principal, date) {
