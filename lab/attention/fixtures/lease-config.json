@@ -1,0 +1,43 @@
+{
+  "profiles": [
+    {
+      "propertyGroupId": "adn-suites-studios",
+      "unitTypes": ["STUDIO"],
+      "version": "adn-yin-2026-10-v1",
+      "source": "Resident Guide V1; correcciones del usuario de plazo, depósito y amenidades; ficha pública de unidad",
+      "termMonths": 6,
+      "depositMonths": 1,
+      "included": ["Agua", "Internet compartido", "Calentamiento solar de agua", "Espacio para motos y bicicletas sujeto a capacidad"],
+      "excluded": ["Sky Terrace", "Jardín Botánico", "Área de lavado y tendido"],
+      "additional": ["Electricidad: cobro adicional según el esquema de la unidad", "Estacionamiento de automóvil: costo adicional y sujeto a disponibilidad"],
+      "pending": ["Estimación del costo de electricidad"],
+      "requirements": [
+        {"id":"tenant_ine","label":"INE del arrendatario"},
+        {"id":"tenant_contact","label":"Número de contacto del arrendatario"},
+        {"id":"guarantor_ine","label":"INE del aval"},
+        {"id":"guarantor_address","label":"Comprobante de domicilio actualizado del aval"},
+        {"id":"guarantor_contact","label":"Número de contacto del aval"}
+      ]
+    },
+    {
+      "propertyGroupId": "adn-suites-studios",
+      "unitTypes": ["SUITE"],
+      "version": "adn-yang-2026-10-v1",
+      "source": "Resident Guide V1; correcciones del usuario de plazo, depósito y amenidades; ficha pública de unidad",
+      "termMonths": 6,
+      "depositMonths": 1,
+      "included": ["Agua", "Internet compartido", "Calentamiento solar de agua", "Sky Terrace", "Jardín Botánico", "Área de lavado y tendido", "Espacio para motos y bicicletas sujeto a capacidad"],
+      "excluded": [],
+      "additional": ["Estacionamiento de automóvil: costo adicional y sujeto a disponibilidad"],
+      "pending": ["Esquema y costo de electricidad por confirmar en esta unidad"],
+      "requirements": [
+        {"id":"tenant_ine","label":"INE del arrendatario"},
+        {"id":"tenant_contact","label":"Número de contacto del arrendatario"},
+        {"id":"guarantor_ine","label":"INE del aval"},
+        {"id":"guarantor_address","label":"Comprobante de domicilio actualizado del aval"},
+        {"id":"guarantor_contact","label":"Número de contacto del aval"}
+      ]
+    }
+  ],
+  "properties": {}
+}
