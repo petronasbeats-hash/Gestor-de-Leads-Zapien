@@ -1,5 +1,10 @@
 # Candidato de captura y continuidad V0.1
 
+La siguiente mejora de interfaz está descrita en `operador-compacto-v01.md`:
+monitor por pestañas, formularios en diálogos y combo de respuestas preparadas
+por inmueble. Está implementada y requiere publicar el paquete de Hosting para
+su comprobación visual; no modifica el servicio de invitado ya validado.
+
 Este cambio agrega una aplicación de atención y su servicio persistente. El 27 de
 octubre de 2026 el operador desplegó `attentionApi` en el proyecto
 `gestor-leads-zapien` y el canal Hosting `atencion-validacion` de `synapse-core`,

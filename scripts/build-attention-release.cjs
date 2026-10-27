@@ -40,7 +40,7 @@ function build(options) {
     files.push({path: relative, sha256: createHash('sha256').update(content).digest('hex')});
   }
   function copy(source, relative) {if (fs.lstatSync(source).isSymbolicLink()) throw Error('SYMLINK_NOT_ALLOWED'); write(relative, fs.readFileSync(source));}
-  for (const item of ['index.html', 'agenda.html', 'reservar.html', 'atencion.html', 'atencion-operador.html', 'shared/reservation-reference.js', 'web/attention/attention.js', 'web/attention/attention.css']) copy(path.join(root, item), 'public/' + item);
+  for (const item of ['index.html', 'agenda.html', 'reservar.html', 'atencion.html', 'atencion-operador.html', 'shared/reservation-reference.js', 'shared/attention-quick-replies.js', 'web/attention/attention.js', 'web/attention/attention.css']) copy(path.join(root, item), 'public/' + item);
   for (const item of ['404.html', 'leia.html']) copy(path.join(legacy, item), 'public/' + item);
   function assets(directory) {
     for (const entry of fs.readdirSync(directory, {withFileTypes: true})) {
