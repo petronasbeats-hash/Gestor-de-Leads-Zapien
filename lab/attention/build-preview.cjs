@@ -1,0 +1,11 @@
+'use strict';
+const fs=require('node:fs');
+const path=require('node:path');
+const template=fs.readFileSync(path.join(__dirname,'preview.fragment.html'),'utf8');
+const core=fs.readFileSync(path.join(__dirname,'continuity-contract.js'),'utf8');
+const data=fs.readFileSync(path.join(__dirname,'fixtures/public-snapshot.json'),'utf8');
+const fragment=template.replace('/* CONTINUITY_CORE */',core).replace('/* PUBLIC_SNAPSHOT */',data.replace(/</g,'\\u003c'));
+if(fragment.includes('/* CONTINUITY_CORE */')||fragment.includes('/* PUBLIC_SNAPSHOT */'))throw Error('UNRESOLVED_PREVIEW_MARKER');
+const output=process.argv[2];if(!output)throw Error('OUTPUT_REQUIRED');
+fs.writeFileSync(output,fragment);
+console.log('Prepared continuity preview: '+Buffer.byteLength(fragment)+' bytes.');
