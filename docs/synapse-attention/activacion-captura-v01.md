@@ -1,8 +1,45 @@
 # Candidato de captura y continuidad V0.1
 
-Este cambio agrega una aplicación de atención y su servicio persistente. No está
-desplegado. No confundir las pruebas de contrato o del prototipo anterior con
-reservas realizadas por clientes ni con una validación de producción.
+Este cambio agrega una aplicación de atención y su servicio persistente. El 27 de
+octubre de 2026 el operador desplegó `attentionApi` en el proyecto
+`gestor-leads-zapien` y el canal Hosting `atencion-validacion` de `synapse-core`,
+desde el commit `fb6a564e747abfcbb0662cc2290aced4372df877`. El canal principal no se
+actualizó. No confundir este despliegue ni las pruebas de contrato con reservas
+realizadas por clientes o con una validación completa de producción.
+
+La lectura autenticada de `/atencion_acl` devolvió `null` y la captura de pantalla
+mostró una sesión iniciada sin organización autorizada. El permiso de asesor y
+la prueba de captura/bitácora siguen pendientes. La comprobación HTTP del canal
+respondió 200 para el monitor y health, y 401 para sesión sin credenciales;
+health conserva `booking:false` y `reminders:false`.
+
+### Activación inicial del acceso
+
+`scripts/activate-attention-access.cjs` utiliza la sesión local existente del CLI;
+no exporta usuarios ni solicita claves. Lee las reglas y requiere que una sola
+cuenta sea la administradora explícita de leads y propiedades. Lee el catálogo
+actual, excluye publicaciones con `activo:false` y prepara una organización con
+ese administrador como único asesor. No incluye publicaciones futuras de forma
+automática. Sin `--apply` solamente prepara un resumen sin escribir.
+
+Con `--apply`, comprueba que la ACL siga ausente, escribe exclusivamente un PATCH
+en `/atencion_acl/orgs` y verifica el resultado. Conserva otras organizaciones en
+ese PATCH; cualquier ACL ya existente obliga a revisar el acceso por otro flujo.
+Es una inicialización de un solo administrador, no un gestor concurrente de ACL.
+Las lecturas previas y el PATCH del CLI no constituyen una transacción condicional.
+No modifica reglas, leads, citas, bitácoras existentes ni proveedores Auth. Los
+archivos temporales privados se eliminan al terminar y no se imprime el UID.
+
+Ejemplo autorizado para la operación actual:
+
+```bash
+node scripts/activate-attention-access.cjs \
+  --project gestor-leads-zapien \
+  --instance gestor-leads-zapien-default-rtdb \
+  --organization synapse-core \
+  --name 'Synapse Core' \
+  --apply
+```
 
 ## Comportamiento implementado
 
@@ -138,5 +175,7 @@ operativos de producción por el solo hecho de que sus pruebas de simulación pa
   de sesión del cliente espera a que Firebase termine de restaurarla.
 - No se ha ejecutado la prueba completa de navegador ni la verificación SMS.
 
-No se desplegaron funciones, páginas, reglas ni ACL. Los datos usados en las
-pruebas son sintéticos, separados de clientes reales.
+Las pruebas anteriores usaron datos sintéticos separados de clientes reales. El
+despliegue del servicio y del canal de vista previa se recibió después mediante
+la Terminal del operador. Aún no hay evidencia de escritura de ACL, primera
+atención real, reserva nueva o envío de recordatorios. No se desplegaron reglas.
