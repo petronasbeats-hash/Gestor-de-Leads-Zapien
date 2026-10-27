@@ -166,6 +166,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
+<script src="shared/reservation-reference.js"></script>
 
 <script>
 /* =========================================================
@@ -621,8 +622,7 @@ async function detectarReservaPendienteMismaPersona(telefono, propiedadId){
 }
 
 function folioReserva(citaId){
-  const clean = String(citaId||'').replace(/[^a-z0-9]/gi,'').toUpperCase();
-  return 'RSV-' + clean.slice(-8);
+  return SynapseReservationReference.fromCitaId(citaId);
 }
 
 document.getElementById('btn-confirm-booking').addEventListener('click', async ()=>{
