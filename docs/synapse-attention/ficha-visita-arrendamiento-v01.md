@@ -31,6 +31,27 @@ reales de YIN 05 sin alterarlas.
 - No se heredan los requisitos ni condiciones de ADN a Casa Clavel u otras
   publicaciones. Las condiciones sin configuración permanecen por confirmar.
 
+### Casa Clavel (CL): condición de depósito solicitada
+
+El usuario indicó incorporar a los requisitos de CL la condición conversada
+de depósito no reembolsable. El alcance es únicamente Casa Clavel. La condición
+recuperada establece que no se devuelve en efectivo ni se aplica a cuenta de
+rentas; al finalizar se reconoce mediante un periodo adicional de ocupación,
+cuya duración y condiciones deben constar por escrito antes de firmar.
+
+Estado: instrucción comercial registrada; pendiente de validación contractual,
+como en el acuerdo previo. No se presenta como cláusula legal definitiva ni se
+activa en el paquete compartible todavía. No se traslada a ADN ni a otras
+propiedades. Tampoco se interpreta como pérdida automática de un apartado si
+no se formaliza el arrendamiento.
+
+Los antecedentes contienen montos y casos distintos. Esta instrucción no fija
+un importe vigente ni reutiliza periodos de ocupación de contratos anteriores.
+El paquete de CL deberá conservar monto, duración/condiciones de compensación
+y versión contractual correspondientes a la operación concreta. La configuración
+de ADN permanece sin cambios; no se crea una condición genérica por inmueble
+desconocido o por coincidencia parcial del nombre.
+
 ## Recordatorios previos
 
 `server/visit-reminders.cjs` calcula avisos a 48 horas, 24 horas y una hora de la
