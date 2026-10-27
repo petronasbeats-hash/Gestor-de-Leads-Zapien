@@ -71,7 +71,64 @@ compartida aplicada a los HTML, lector de disponibilidad viva y adaptador de
 bitácora con síntesis diaria. Pruebas de contrato y simulación separadas de la
 validación real de RTDB.
 
-Para activar: conectar Firebase, inspeccionar proyecto/reglas/Auth/hosting reales,
-integrar el gateway, las invitaciones y los eventos en el Monitor, pasar las
-pruebas de concurrencia y regresión y desplegar el candidato revisado. No se
-modifican las reglas ni se abre escritura pública para salvar este bloqueo.
+Para activar: completar la inspección de Auth y Storage, revisar los módulos
+locales actualizados, integrar el gateway, las invitaciones y los eventos en el
+Monitor, pasar las pruebas de concurrencia y regresión y desplegar el candidato
+revisado. No se modifican las reglas ni se abre escritura pública para salvar
+este bloqueo. El acceso CLI del Mac permite continuar; no constituye una conexión
+autenticada de Firebase a este chat.
+
+## Evidencia real recibida · 26 de octubre de 2026, México
+
+La salida CLI compartida por el usuario confirma el proyecto
+`gestor-leads-zapien`, una instancia `gestor-leads-zapien-default-rtdb` y cuatro
+sitios de Hosting. No se reportan Cloud Functions desplegadas. Esto no descarta
+servicios externos; su existencia no está acreditada en esta revisión.
+
+La carpeta actual del Mac es `~/Downloads/Gestor-de-Leads-Zapien`, rama
+`lab/property-experience-v2`. Tiene cambios en Admin/Reservar y módulos locales
+de reservas, disponibilidad y emulador que aún no están incorporados al repositorio
+remoto revisado. Deben inspeccionarse antes de sustituir archivos o integrar el
+candidato. No usar `reset`, `clean` ni un cambio de rama que pierda ese trabajo.
+
+La configuración local dirige el target `synapse` al sitio `synapse-core`.
+Las consultas públicas de esta sesión confirman que tanto `synapse-core.web.app`
+como `gestor-leads-zapien.web.app` responden, pero sus HTML de Admin y Reservar
+son distintos. Ninguno incorpora el nuevo contrato `SynapseContinuity`.
+El destino del despliegue debe quedar explícito antes de publicar. La raíz
+de Hosting es `.` y su lista de exclusiones no aparta respaldos/laboratorios;
+se necesita preparar una salida de publicación acotada al candidato validado.
+
+### Reglas RTDB recibidas desde el proyecto
+
+Fuente: exportación autenticada `database:get '/.settings/rules'`, con variables
+de emulador retiradas para ese comando, compartida por el usuario en este chat.
+El original permanece en el adjunto privado; no se copia a GitHub su UID real.
+
+- No existe permiso para `atencion_v1` ni concesión en la raíz: el acceso desde
+  clientes al nuevo journal/Monitor permanece denegado, incluso para el UID
+  operador. Un servicio Admin puede tener otros privilegios y debe implementar
+  su propia autorización efectiva; no se supone protegido por estas reglas.
+- Leads/citas privados tienen lecturas restringidas a un único UID operador.
+  No es todavía un modelo de autorización por organización ni identifica por
+  sí solo la conexión con Zap Auth.
+- Hay permisos de creación sin autenticación para citas y slots inexistentes.
+  La creación pública de leads depende únicamente de la condición de fuente.
+  No se observan validaciones de esquema, folio, identidad ni vínculo entre esas
+  escrituras. Una concesión de creación no acredita reserva atómica o sin choque.
+- En leads existentes, `proximaAccion` y `fechaProximaAccion` se pueden escribir
+  sin autenticación; se permite añadir una nota de bitácora si el lead existe.
+  El nuevo Monitor no debe reutilizar estos permisos como autorización.
+- El índice de teléfonos impide leer el padre, pero permite leer cada teléfono
+  individual y crear una entrada ausente sin autenticación. Conocer un teléfono
+  no verifica la titularidad de la conversación.
+- Propiedades, disponibilidad y citas públicas tienen lectura pública. Revisar
+  el contenido permitido antes de proyectar datos a una vista de cliente; no
+  asumir que toda la ficha o una cita privada puede publicarse.
+- La salida recibida muestra `Agenda pÃºblica` en la condición de fuente. Se
+  debe verificar el valor literal y el código local antes de corregir una
+  posible diferencia de codificación; no se normalizó ni cambió producción.
+
+Se trata de un análisis de reglas y de salidas CLI, no de pruebas ejecutadas
+contra clientes reales. No se intentaron escrituras anónimas en producción,
+no se cambiaron reglas y no se desplegó el Monitor.
