@@ -80,9 +80,11 @@ node scripts/build-attention-release.cjs \
 El generador crea un directorio público acotado, un paquete de funciones separado,
 un manifiesto y parámetros de proyecto/dominio. No publica ni cambia reglas.
 Rechaza un directorio de salida existente y exige `404.html`, `leia.html` y
-`assets/js/reprogramar-ui.v1.js`: el ZIP de fuentes recibido no incluyó esos
-archivos, aunque el Admin actualizado referencia el script de reprogramación.
-No sustituir dependencias reales con stubs para completar el release.
+`assets/js/reprogramar-ui.v1.js`. El ZIP de estáticos recibido el 27 de octubre
+completó esas dependencias. Se verificó la construcción con sus bytes reales;
+no se sustituyeron por stubs. `static-source-manifest.json` conserva sus hashes.
+La página personal de `/leia` se conserva como entrada del directorio original
+para el paquete, sin añadir su contenido al repositorio de Atención.
 
 Antes de desplegar: validar el paquete real completo, la cuenta del asesor y ACL,
 proveedores/dominios de Authentication, integración telefónica y regresión de
@@ -124,8 +126,17 @@ operativos de producción por el solo hecho de que sus pruebas de simulación pa
   exige proyecto `demo-synapse-attention` y loopback 127.0.0.1:19020. Respeta la
   exclusión NO_PROXY de loopback, que el transporte WebSocket del SDK no aplica
   automáticamente. No contacta la base de producción.
-- No se ha ejecutado la prueba completa de navegador, la verificación SMS ni el
-  paquete construido con las dependencias estáticas reales que faltan del Mac.
+- El paquete completo se construyó con los estáticos reales recibidos el 27 de
+  octubre. Su función exporta `attentionApi` con metadatos gcfv2/us-central1 y
+  sus rutas relativas resuelven en el paquete. Las referencias locales de los
+  HTML publicados y los hashes de dependencias se verificaron.
+- El wrapper de la función empaquetada pasó una prueba HTTP local: `health`
+  responde 200 con reservas deshabilitadas; sesión y captura sin credenciales
+  responden 401. Esta prueba no abrió sesiones ni escribió datos de producción.
+- Se añadió una entrada a Atención en el Admin. El asesor reutiliza la sesión
+  Firebase del Admin y el cliente tiene una sesión independiente; la recuperación
+  de sesión del cliente espera a que Firebase termine de restaurarla.
+- No se ha ejecutado la prueba completa de navegador ni la verificación SMS.
 
 No se desplegaron funciones, páginas, reglas ni ACL. Los datos usados en las
 pruebas son sintéticos, separados de clientes reales.

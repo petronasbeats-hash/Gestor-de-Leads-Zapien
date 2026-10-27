@@ -1,0 +1,23 @@
+{
+  "source": "User-supplied static dependencies 2026-10-27",
+  "files": [
+    {
+      "path": "leia.html",
+      "sha256": "bc0eb34566edcbecc6e87d12a4c67a2c310ca8fe343d5388b990d70c5f3dadb9",
+      "bytes": 5875,
+      "sourceTracked": false
+    },
+    {
+      "path": "404.html",
+      "sha256": "b77b97fe780d35d18248abd1d2f42f444afbabe43f6abcd8fa8ebb3d47825eee",
+      "bytes": 1808,
+      "sourceTracked": true
+    },
+    {
+      "path": "assets/js/reprogramar-ui.v1.js",
+      "sha256": "be829884fe2198640a3a5ef925e5a9725d2dce23629b9ad4fb2b7cf7106d2fdf",
+      "bytes": 1810,
+      "sourceTracked": true
+    }
+  ]
+}

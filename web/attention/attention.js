@@ -194,10 +194,14 @@
       await command('/customer/message', {token, conversationId: active.conversationId, text: $('message').value}, true);
       $('message').value = ''; await refreshCustomer(); status('Mensaje registrado.');
     });});
+    await new Promise(resolve => {let stop = () => {}; stop = auth.onAuthStateChanged(() => {stop(); resolve();});});
     if (auth.currentUser) {try {await refreshCustomer();} catch { /* Show verification rather than another person's session. */ }}
   }
   if (!config?.firebase || !config?.reservationOrigin) {status('La atención todavía no tiene configuración de conexión.', true); return;}
-  const app = firebase.apps.find(item => item.name === 'synapse-attention') || firebase.initializeApp(config.firebase, 'synapse-attention');
+  // Reuse the advisor's Admin session; isolate customer phone verification so
+  // testing an invitation does not replace the advisor's Firebase login.
+  const appName = role === 'agent' ? '[DEFAULT]' : 'synapse-attention-customer';
+  const app = firebase.apps.find(item => item.name === appName) || (role === 'agent' ? firebase.initializeApp(config.firebase) : firebase.initializeApp(config.firebase, appName));
   auth = app.auth();
   if (role === 'agent') setupAgent(); else run(setupCustomer);
 })();
