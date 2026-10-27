@@ -7,10 +7,12 @@ desde el commit `fb6a564e747abfcbb0662cc2290aced4372df877`. El canal principal n
 actualizó. No confundir este despliegue ni las pruebas de contrato con reservas
 realizadas por clientes o con una validación completa de producción.
 
-La lectura autenticada de `/atencion_acl` devolvió `null` y la captura de pantalla
-mostró una sesión iniciada sin organización autorizada. El permiso de asesor y
-la prueba de captura/bitácora siguen pendientes. La comprobación HTTP del canal
-respondió 200 para el monitor y health, y 401 para sesión sin credenciales;
+La primera lectura autenticada de `/atencion_acl` devolvió `null`. Posteriormente,
+el operador ejecutó la activación desde `1dd4555` y recibió `applied:true` tras la
+verificación de lectura: organización `synapse-core`, nombre Synapse Core, 11
+publicaciones y un asesor con rol `agent`. El acceso en el navegador y la primera
+captura/bitácora persistente aún requieren comprobación. La comprobación HTTP del
+canal respondió 200 para el monitor y health, y 401 para sesión sin credenciales;
 health conserva `booking:false` y `reminders:false`.
 
 ### Activación inicial del acceso
@@ -177,5 +179,6 @@ operativos de producción por el solo hecho de que sus pruebas de simulación pa
 
 Las pruebas anteriores usaron datos sintéticos separados de clientes reales. El
 despliegue del servicio y del canal de vista previa se recibió después mediante
-la Terminal del operador. Aún no hay evidencia de escritura de ACL, primera
+la Terminal del operador. La escritura de ACL y su verificación de lectura se
+confirmaron después con el recibo `applied:true`. Aún no hay evidencia de primera
 atención real, reserva nueva o envío de recordatorios. No se desplegaron reglas.
