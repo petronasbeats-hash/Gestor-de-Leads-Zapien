@@ -162,11 +162,11 @@
   </div>
 </div>
 
+<script src="shared/reservation-reference.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
-<script src="shared/reservation-reference.js"></script>
 
 <script>
 /* =========================================================
@@ -235,14 +235,17 @@ function loadPublicAvailability(){
   });
   db.ref('propiedades').on('value', snap=>{
     propiedades = snap.val() || {};
-    unidadParamEncontrada = null;
-    if(unidadParam){
-      const match = Object.entries(propiedades).find(([id,p])=>p && String(p.unitId||'').toLowerCase()===unidadParam && p.activo!==false);
-      if(match){ selectedPropiedadId = match[0]; unidadParamEncontrada = match[0]; }
-      else selectedPropiedadId = null;
+    unidadParamEncontrada = unidadParam
+      ? (Object.entries(propiedades).find(([id,p]) =>
+          p && String(p.unitId||'').toLowerCase()===unidadParam &&
+          p.activo!==false
+        ) || [null])[0]
+      : null;
+    if(unidadParam && !selectedPropiedadId && unidadParamEncontrada){
+      selectedPropiedadId = unidadParamEncontrada;
     }
     renderPropiedadPicker();
-    renderManualPropiedadSelect();
+
     renderSlots();
   });
 }
@@ -260,20 +263,25 @@ function renderPropiedadPicker(){
     return;
   }
   card.style.display = 'block';
-  if(unidadParam && !unidadParamEncontrada){
+  if(unidadParam && !unidadParamEncontrada && !selectedPropiedadId){
     selectedPropiedadId = null;
     document.getElementById('page-title').textContent = 'Unidad no disponible';
     document.getElementById('page-sub').textContent = 'El enlace de esta unidad no está disponible. Puedes elegir otro espacio activo para reservar una visita.';
   }
-  if(!selectedPropiedadId || !propiedades[selectedPropiedadId]){
-    selectedPropiedadId = activas[0][0];
+  if(!selectedPropiedadId ||
+     !propiedades[selectedPropiedadId] ||
+     propiedades[selectedPropiedadId].activo === false){
+    selectedPropiedadId = null;
   }
   if(unidadParam && unidadParamEncontrada && propiedades[selectedPropiedadId]){
     const up = propiedades[selectedPropiedadId];
     document.getElementById('page-title').textContent = up.nombre || 'ADN Suites & Studios';
     document.getElementById('page-sub').textContent = 'Conoce este espacio y reserva el horario que mejor te acomode para visitarlo.';
   }
-  sel.innerHTML = activas.map(([id,p])=>`<option value="${id}" ${id===selectedPropiedadId?'selected':''}>${escapeHtml(p.nombre)}</option>`).join('');
+  sel.innerHTML =
+    '<option value="">Selecciona el inmueble que deseas visitar</option>' +
+    activas.map(([id,p])=>`<option value="${escapeHtml(id)}" ${id===selectedPropiedadId?'selected':''}>${escapeHtml(p.nombre)}</option>`).join('');
+  sel.value = selectedPropiedadId || '';
   const p = propiedades[selectedPropiedadId];
   document.getElementById('propiedad-direccion-hint').textContent = publicLocationLabel(p);
   renderPropiedadDetalle(p);
@@ -359,13 +367,14 @@ function renderPropiedadDetalle(p){
   descEl.textContent = p.descripcion || '';
 }
 document.getElementById('f-propiedad-publico').addEventListener('change', (e)=>{
-  selectedPropiedadId = e.target.value;
-  const p = propiedades[selectedPropiedadId];
+  selectedPropiedadId = e.target.value || null;
+  selectedSlot = null;
+  const p = selectedPropiedadId ? propiedades[selectedPropiedadId] : null;
   if(p){
     document.getElementById('page-title').textContent = p.nombre || 'ADN Suites & Studios';
     document.getElementById('page-sub').textContent = 'Conoce este espacio y reserva el horario que mejor te acomode para visitarlo.';
   }
-  document.getElementById('propiedad-direccion-hint').textContent = p && p.direccion ? '📍 ' + p.direccion : '';
+  document.getElementById('propiedad-direccion-hint').textContent = publicLocationLabel(p);
   renderPropiedadDetalle(p);
   renderSlots();
 });
@@ -471,6 +480,12 @@ function generateSlotsForDay(date){
 
 function renderSlots(){
   const container = document.getElementById('slots-container');
+  if(!selectedPropiedadId ||
+     !propiedades[selectedPropiedadId] ||
+     propiedades[selectedPropiedadId].activo === false){
+    container.innerHTML = '<div class="empty">Selecciona primero el inmueble que deseas visitar.</div>';
+    return;
+  }
   if(!horario){
     container.innerHTML = `<div class="empty">Cargando disponibilidad…</div>`;
     return;
@@ -516,6 +531,12 @@ function renderSlots(){
    ========================================================= */
 const overlay = document.getElementById('overlay');
 function openBookingModal(dateKey_, timeKey, label){
+  if(!selectedPropiedadId ||
+     !propiedades[selectedPropiedadId] ||
+     propiedades[selectedPropiedadId].activo === false){
+    alert('Selecciona primero un inmueble disponible.');
+    return;
+  }
   selectedSlot = {dateKey: dateKey_, timeKey, label};
   document.getElementById('f-nombre').value = prefillNombre;
   document.getElementById('f-apellido').value = '';
@@ -621,8 +642,8 @@ async function detectarReservaPendienteMismaPersona(telefono, propiedadId){
     .sort((a,b)=>String(a.fecha+a.hora).localeCompare(String(b.fecha+b.hora)))[0] || null;
 }
 
-function folioReserva(citaId){
-  return SynapseReservationReference.fromCitaId(citaId);
+function folioReserva(citaId, existingFolio){
+  return SynapseReservationReference.fromCitaId(citaId, existingFolio);
 }
 
 document.getElementById('btn-confirm-booking').addEventListener('click', async ()=>{
@@ -630,8 +651,13 @@ document.getElementById('btn-confirm-booking').addEventListener('click', async (
   const apellido = document.getElementById('f-apellido').value.trim();
   const telefono = document.getElementById('f-telefono').value.trim();
   const notas = document.getElementById('f-notas').value.trim();
-  const propiedadId = document.getElementById('f-propiedad-id').value || null;
-  const propiedadNombre = document.getElementById('f-propiedad-nombre').value || null;
+  const propiedadId = selectedPropiedadId;
+  const propiedadActual = propiedadId ? propiedades[propiedadId] : null;
+  if(!propiedadActual || propiedadActual.activo === false){
+    alert('Selecciona un inmueble disponible antes de reservar.');
+    return;
+  }
+  const propiedadNombre = propiedadActual.nombre || '';
   if(!nombre || !telefono){ alert('Pon tu nombre y teléfono para poder confirmarte la cita.'); return; }
   if(!selectedSlot) return;
 
@@ -685,11 +711,9 @@ document.getElementById('btn-confirm-booking').addEventListener('click', async (
     await db.ref().update(updates);
 
     const propObj = propiedadId ? propiedades[propiedadId] : null;
-    const mapsLink = mapsLinkFor(propObj);
-    const direccionBlock = (propObj && (propObj.direccion || mapsLink)) ? `
+    const direccionBlock = propObj ? `
       <div class="sub" style="margin:10px 0;text-align:left;">
-        ${propObj.direccion ? '📍 ' + escapeHtml(propObj.direccion) + '<br>' : ''}
-        ${mapsLink ? `<a href="${mapsLink}" target="_blank" style="color:var(--green);">Ver ubicación en Google Maps →</a>` : ''}
+        ${escapeHtml(publicLocationLabel(propObj))}
       </div>` : '';
     document.getElementById('modal-content').innerHTML = `
       <h2>🔗 Conexión creada</h2>

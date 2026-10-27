@@ -6,7 +6,7 @@
     const override=config.properties?.[propertyId];
     const terms=override||profile||{};
     const photos=(Array.isArray(property.fotos)?property.fotos:[]).filter(url=>{try{return new URL(url).protocol==='https:';}catch{return false;}});
-    return {propertyId,name:property.nombre,unitId:property.unitId||null,rent:Number(property.precio),description:property.descripcion||'',photos,
+    return {propertyId,name:property.nombre,unitId:property.unitId||null,rent:Number(property.precio),description:property.descripcion||'',publicDescription:property.descripcionPublica||'',photos,
       included:terms.included||[],excluded:terms.excluded||[],additional:terms.additional||[],pending:terms.pending||[],
       termMonths:terms.termMonths||null,depositMonths:terms.depositMonths||null,
       deposit:terms.depositMonths?Number(property.precio)*terms.depositMonths:null,

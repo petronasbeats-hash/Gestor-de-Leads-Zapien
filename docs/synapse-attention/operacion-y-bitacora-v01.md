@@ -71,6 +71,13 @@ compartida aplicada a los HTML, lector de disponibilidad viva y adaptador de
 bitácora con síntesis diaria. Pruebas de contrato y simulación separadas de la
 validación real de RTDB.
 
+Actualización del candidato tras recibir las fuentes del Mac: captura y
+conversación tienen servicio persistente, autoridad de servidor, enlaces
+temporales e interfaces en `atencion-operador.html` y `atencion.html`. E1–E5
+validan el almacenamiento con RTDB emulado. El registro de citas, los avisos y
+la continuidad contractual siguen sin conexión de producción; véase
+`activacion-captura-v01.md` para distinguir las capacidades y la evidencia.
+
 Para activar: completar la inspección de Auth y Storage, revisar los módulos
 locales actualizados, integrar el gateway, las invitaciones y los eventos en el
 Monitor, pasar las pruebas de concurrencia y regresión y desplegar el candidato

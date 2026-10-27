@@ -52,7 +52,7 @@ function dailyReport(entries,date){
   if(!/^\d{4}-\d{2}-\d{2}$/.test(date))throw Error('INVALID_DAY');
   const day=entries.filter(entry=>entry.businessDate===date);
   const latest=new Map();
-  for(const entry of entries.filter(entry=>entry.businessDate<=date).sort((a,b)=>a.recordedAt.localeCompare(b.recordedAt)))latest.set(entry.conversationId,entry);
+  for(const entry of entries.filter(entry=>entry.businessDate<=date&&entry.nextAction).sort((a,b)=>a.recordedAt.localeCompare(b.recordedAt)))latest.set(entry.conversationId,entry);
   const pending=[...latest.values()].filter(entry=>entry.nextAction?.status==='pending'&&(!entry.nextAction.dueDate||entry.nextAction.dueDate<=date)).map(entry=>({conversationId:entry.conversationId,folio:entry.folio,source:entry.source,action:entry.nextAction.description,openQuestions:entry.openQuestions}));
   const topicEvidence=new Map();
   for(const entry of day)for(const topic of entry.topics){if(!topicEvidence.has(topic))topicEvidence.set(topic,new Map());topicEvidence.get(topic).set(entry.conversationId,entry.id);}

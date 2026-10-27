@@ -565,12 +565,12 @@
   </div>
 </div>
 
+<script src="shared/reservation-reference.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-storage-compat.js"></script>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
-<script src="shared/reservation-reference.js"></script>
 
 <script>
 const firebaseConfig = {
@@ -1299,6 +1299,22 @@ document.getElementById('import-file').addEventListener('change', (e)=>{
 const DAY_KEYS = ["dom","lun","mar","mie","jue","vie","sab"];
 const DAY_LABELS = {dom:"Domingo",lun:"Lunes",mar:"Martes",mie:"Miércoles",jue:"Jueves",vie:"Viernes",sab:"Sábado"};
 const ESTADOS_CITA = { hold:'HOLD temporal', pendiente:'Pendiente', confirmada:'Confirmada', realizada:'Realizada', no_asistio:'No asistió', cancelada:'Cancelada' };
+
+const RESULTADOS_VISITA = {
+  interesado: 'Interesado',
+  otra_opcion: 'Quiere otra opción',
+  seguimiento: 'Requiere seguimiento',
+  cerrado: 'Cerró',
+  no_interesado: 'No interesado'
+};
+
+const NEXT_ACTION_POR_RESULTADO = {
+  interesado: 'Dar seguimiento para avanzar',
+  otra_opcion: 'Buscar otra opción / generar match',
+  seguimiento: 'Contactar y dar seguimiento',
+  cerrado: 'Completar cierre y documentación',
+  no_interesado: 'Cerrar seguimiento'
+};
 // NEXT ACTION: cada estado de una cita implica una siguiente acción lógica que Synapse ya entiende,
 // aunque hoy todavía la ejecute una persona (ver /areas/ire-lead-tracker.md — filosofía Synapse Core).
 function registrarTraceCita(citaId, trace){
@@ -1415,6 +1431,30 @@ async function sincronizarLeadPorEstadoCita(cita, nuevoEstado){
   }
 }
 
+// Proyecta el resultado confirmado de una visita hacia el Lead.
+// La cita conserva la evidencia; el Lead recibe sólo la siguiente acción operacional.
+async function sincronizarLeadPorResultadoCita(cita, resultado){
+  if(!cita || !cita.leadId || !resultado) return;
+
+  const nextAction = NEXT_ACTION_POR_RESULTADO[resultado] || '';
+  if(!nextAction) return;
+
+  const snap = await db.ref('leads/'+cita.leadId).once('value');
+  const lead = snap.val();
+  if(!lead) return;
+
+  const propTxt = cita.propiedadNombre ? ` — ${cita.propiedadNombre}` : '';
+  const resultadoTxt = RESULTADOS_VISITA[resultado] || resultado;
+
+  await db.ref('leads/'+cita.leadId).update({
+    proximaAccion: `${nextAction}${propTxt}`,
+    fechaProximaAccion: todayStr()
+  });
+
+  await db.ref('leads/'+cita.leadId+'/bitacora/'+bitacoraKeyCitas())
+    .set(`Resultado de visita: ${resultadoTxt}${propTxt}. Próxima acción: ${nextAction}.`);
+}
+
 /* ---------- Horario semanal ---------- */
 function renderHorarioEditor(cfg){
   const editor = document.getElementById('horario-editor');
@@ -1528,6 +1568,28 @@ function loadAdminData(){
   });
 }
 
+
+/* ---------- Identidad operativa de propiedades ---------- */
+function propiedadNombreOperativo(p){
+  if(!p) return '';
+
+  const propertyName = String(p.propertyName || '').trim();
+  const unitNumber = String(p.unitNumber || '').trim();
+  const unitType = String(p.unitType || '').trim();
+
+  if(propertyName && unitNumber){
+    let tipo = unitType;
+
+    if(unitType.toLowerCase() === 'departamento'){
+      tipo = 'Depto';
+    }
+
+    return `${propertyName} · ${tipo ? tipo + ' ' : ''}${unitNumber}`;
+  }
+
+  return p.nombre || '(sin nombre)';
+}
+
 /* ---------- Propiedad de interés dentro de la ficha del lead ---------- */
 function renderPropiedadLeadSelect(){
   const sel = document.getElementById('f-propiedad-lead');
@@ -1535,7 +1597,7 @@ function renderPropiedadLeadSelect(){
   const prevValue = sel.value;
   const activas = Object.entries(propiedades||{}).filter(([id,p])=>p.activo!==false);
   sel.innerHTML = `<option value="">Sin propiedad asignada</option>` +
-    activas.map(([id,p])=>`<option value="${id}">${propiedadFaltantes(p).length?'⚠ ':''}${escapeHtml(p.nombre||'(sin nombre)')}${p.precio?' · $'+Number(p.precio).toLocaleString('es-MX'):''}</option>`).join('');
+    activas.map(([id,p])=>`<option value="${id}">${propiedadFaltantes(p).length?'⚠ ':''}${escapeHtml(propiedadNombreOperativo(p))}${p.precio?' · $'+Number(p.precio).toLocaleString('es-MX'):''}</option>`).join('');
   if(prevValue && propiedades[prevValue]) sel.value = prevValue;
   renderPropiedadLeadPreview();
 }
@@ -1710,7 +1772,7 @@ function renderReservationRadar(citasObj){
   }));
   list.querySelectorAll('[data-radar-action="convert-hold"]').forEach(btn=>btn.addEventListener('click',()=>{
     const c = arr.find(x=>x.id===btn.dataset.id); if(!c || !confirm('¿El cliente confirmó? Este HOLD se convertirá en reserva registrada.')) return;
-    const folio = SynapseReservationReference.fromCitaId(c.id,c.folio);
+    const folio = SynapseReservationReference.fromCitaId(c.id, c.folio);
     const trace = registrarTraceCita(c.id,{tipo:'estado',anterior:'hold',nuevo:'pendiente',origen:'synapse'});
     const updates={};
     updates['citas/'+c.id+'/estado']='pendiente';
@@ -1810,7 +1872,7 @@ function renderPropiedadesAdmin(obj){
     return `
     <div class="cita-item">
       <div>
-        <b>${escapeHtml(p.nombre)}</b> ${p.activo===false?'<span class="cita-meta">(inactiva)</span>':''}
+        <b>${escapeHtml(propiedadNombreOperativo(p))}</b> ${p.activo===false?'<span class="cita-meta">(inactiva)</span>':''}
         <div class="cita-meta">${escapeHtml(p.direccion||'')}${(p.lat!=null&&p.lng!=null)?' · '+p.lat+', '+p.lng:' · sin coordenadas'}</div>
         <div class="cita-meta">${p.operacion?p.operacion+' · ':''}${p.precio ? '$' + escapeHtml(String(p.precio)) : 'Sin precio'}</div>
         ${faltantes.length ? `<div class="cita-meta" style="color:var(--amber);">⚠ Falta: ${faltantes.join(', ')}</div>` : `<div class="cita-meta" style="color:var(--green);">✓ Ficha completa</div>`}
@@ -2152,12 +2214,21 @@ function renderManualPropiedadSelect(){
   const prevVal = sel.value;
   const activas = Object.entries(propiedades).filter(([id,p])=>p.activo!==false);
   sel.innerHTML = `<option value="">Sin propiedad</option>` +
-    activas.map(([id,p])=>`<option value="${id}">${propiedadFaltantes(p).length?'⚠ ':''}${escapeHtml(p.nombre)}</option>`).join('');
+    activas.map(([id,p])=>{
+      const etiqueta = propiedadNombreOperativo(p) +
+        (p.precio ? ' · $' + Number(p.precio).toLocaleString('es-MX') : '');
+      return `<option value="${id}">${propiedadFaltantes(p).length?'⚠ ':''}${escapeHtml(etiqueta)}</option>`;
+    }).join('');
   if(activas.some(([id])=>id===prevVal)) sel.value = prevVal;
   const holdSel = document.getElementById('h-propiedad');
   if(holdSel){
     const holdPrev = holdSel.value;
-    holdSel.innerHTML = '<option value="">Sin propiedad</option>' + activas.map(([id,p])=>'<option value="'+id+'">'+(propiedadFaltantes(p).length?'⚠ ':'')+escapeHtml(p.nombre)+'</option>').join('');
+    holdSel.innerHTML = '<option value="">Sin propiedad</option>' +
+      activas.map(([id,p])=>{
+        const etiqueta = propiedadNombreOperativo(p) +
+          (p.precio ? ' · $' + Number(p.precio).toLocaleString('es-MX') : '');
+        return '<option value="'+id+'">'+(propiedadFaltantes(p).length?'⚠ ':'')+escapeHtml(etiqueta)+'</option>';
+      }).join('');
     if(activas.some(([id])=>id===holdPrev)) holdSel.value=holdPrev;
   }
 }
@@ -2485,7 +2556,9 @@ function buildContext(cita){
       id: cita.propiedadId || null,
       // Preferimos el nombre VIVO de la propiedad (por si se editó/renombró después);
       // si ya no existe (borrada) o nunca hubo propiedadId, caemos al nombre cacheado en la cita.
-      nombre: (propiedadViva && propiedadViva.nombre) || cita.propiedadNombre || null
+      nombre: propiedadViva
+        ? propiedadNombreOperativo(propiedadViva)
+        : (cita.propiedadNombre || null)
     },
     cita: { id: cita.id || null, fecha: cita.fecha, hora: cita.hora },
     estado: cita.estado || 'pendiente',
@@ -2588,12 +2661,49 @@ function citaSeguimientoItemHtml(c){
           ${c.origen ? `<div class="cita-meta"><b>Origen:</b> ${escapeHtml(c.origen)}</div>` : ''}
           ${c.notas ? `<div class="cita-meta"><b>Solicitud:</b> ${escapeHtml(c.notas)}</div>` : ''}
           <div class="cita-meta" style="color:var(--amber);">→ Siguiente: ${escapeHtml(ctx.nextAction)}</div>
+          ${estadoActual === 'realizada' ? `
+            <div class="cita-meta" style="margin-top:8px;">
+              <b>Resultado de la visita:</b>
+              <select data-action="seg-resultado" data-id="${c.id}" style="margin-left:6px;">
+                <option value="">Pendiente de registrar</option>
+                ${Object.entries(RESULTADOS_VISITA).map(([val,label])=>`<option value="${val}" ${c.resultado===val?'selected':''}>${label}</option>`).join('')}
+              </select>
+            </div>
+          ` : ''}
         </div>
+        <button type="button" class="btn btn-sm" data-action="seg-reprogramar" data-id="${c.id}" style="margin:6px 0;">↻ Reprogramar</button>
         <select class="seg-estado est-${estadoActual}" data-action="seg-estado" data-id="${c.id}">
           ${Object.entries(ESTADOS_CITA).map(([val,label])=>`<option value="${val}" ${val===estadoActual?'selected':''}>${label}</option>`).join('')}
         </select>
       </div>
       ${telefonoValidoParaWhatsApp(ctx.persona.telefono) ? `<div style="margin-top:6px;"><button class="btn btn-sm" data-action="seg-wa" data-id="${c.id}">WhatsApp</button></div>` : ''}
+      <div class="cita-meta" style="margin-top:10px;">
+        <b>Inmueble:</b>
+        <div style="margin-top:6px;">
+          <select data-action="seg-propiedad" data-id="${c.id}" style="width:100%; max-width:100%; min-height:36px;">
+          <option value="">Sin inmueble</option>
+          ${Object.entries(propiedades)
+            .sort((a,b)=>propiedadNombreOperativo(a[1]).localeCompare(propiedadNombreOperativo(b[1])))
+            .map(([pid,p])=>{
+              const etiqueta = [
+                propiedadNombreOperativo(p) || pid,
+                p.precio ? '$' + Number(p.precio).toLocaleString('es-MX') : ''
+              ].filter(Boolean).join(' · ');
+              return `<option value="${pid}" ${c.propiedadId===pid?'selected':''}>${escapeHtml(etiqueta)}</option>`;
+            })
+            .join('')}
+          </select>
+        </div>
+        ${ctx.propiedad.id && propiedades[ctx.propiedad.id] ? `
+          <div style="margin-top:6px; line-height:1.45;">
+            <b>🏠 ${escapeHtml(propiedadNombreOperativo(propiedades[ctx.propiedad.id]))}</b>
+            ${propiedades[ctx.propiedad.id].category ? ` · ${escapeHtml(propiedades[ctx.propiedad.id].category)}` : ''}
+            ${propiedades[ctx.propiedad.id].precio ? ` · $${Number(propiedades[ctx.propiedad.id].precio).toLocaleString('es-MX')}` : ''}
+            ${propiedades[ctx.propiedad.id].direccion ? `<br>📍 ${escapeHtml(propiedades[ctx.propiedad.id].direccion)}` : ''}
+          </div>
+        ` : ''}
+      </div>
+
       <div class="seg-notas">
         ${notas.length ? notas.map(([nid,n])=>`<div class="seg-nota-item">🗒️ ${new Date(n.fecha).toLocaleString('es-MX',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})} — ${escapeHtml(n.texto)}</div>`).join('') : ''}
       </div>
@@ -2606,6 +2716,66 @@ function citaSeguimientoItemHtml(c){
 }
 
 function attachSeguimientoHandlers(container){
+  container.querySelectorAll('[data-action="seg-resultado"]').forEach(sel=>{
+    sel.addEventListener('change', ()=>{
+      const id = sel.dataset.id;
+      const cita = ultimasCitas[id];
+      if(!cita) return;
+
+      const resultadoAnterior = cita.resultado || '';
+      const resultadoNuevo = sel.value;
+      if(!resultadoNuevo || resultadoAnterior === resultadoNuevo) return;
+
+      const nextAction = NEXT_ACTION_POR_RESULTADO[resultadoNuevo] || '';
+      const trace = registrarTraceCita(id, {
+        tipo: 'resultado',
+        resultadoAnterior,
+        resultadoNuevo,
+        origen: 'synapse'
+      });
+
+      const updates = {};
+      updates['citas/'+id+'/resultado'] = resultadoNuevo;
+      updates['citas/'+id+'/nextAction'] = nextAction;
+      updates['citas/'+id+'/historial/'+trace.traceId] = trace.entry;
+
+      sel.disabled = true;
+      db.ref().update(updates)
+        .then(()=>{
+          cita.resultado = resultadoNuevo;
+          cita.nextAction = nextAction;
+          return sincronizarLeadPorResultadoCita(cita, resultadoNuevo)
+            .catch(err=>{
+              console.error('Resultado guardado, pero falló sincronización con Lead:', err);
+              alert('El resultado quedó registrado, pero Synapse no pudo actualizar el Lead.\n\nError: ' + err.message);
+            });
+        })
+        .catch(err=>{
+          sel.value = resultadoAnterior;
+          alert('No se pudo registrar el resultado.\n\nError: ' + err.message);
+        })
+        .finally(()=>{ sel.disabled = false; });
+    });
+  });
+
+  container.querySelectorAll('[data-action="seg-reprogramar"]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const cita = ultimasCitas[btn.dataset.id];
+      if (!cita) {
+        alert('La cita ya no está disponible.');
+        return;
+      }
+      if (!window.SynapseReprogramarV1) {
+        alert('El módulo de reprogramación no está disponible.');
+        return;
+      }
+      window.SynapseReprogramarV1.abrir({
+        ...cita,
+        id: btn.dataset.id
+      });
+    });
+  });
+
   container.querySelectorAll('[data-action="seg-estado"]').forEach(sel=>{
     sel.addEventListener('change', ()=>{
       const id = sel.dataset.id;
@@ -2624,6 +2794,61 @@ function attachSeguimientoHandlers(container){
           return sincronizarLeadPorEstadoCita(cita, estadoNuevo);
         })
         .catch(err=> alert('No se pudo actualizar el estado.\n\nError: ' + err.message));
+    });
+  });
+
+  container.querySelectorAll('[data-action="seg-propiedad"]').forEach(sel=>{
+    sel.addEventListener('change', ()=>{
+      const id = sel.dataset.id;
+      const cita = ultimasCitas[id];
+      if(!cita) return;
+
+      const propiedadIdAnterior = cita.propiedadId || null;
+      const propiedadNombreAnterior = cita.propiedadNombre || '';
+      const propiedadIdNuevo = sel.value || null;
+      const propiedadNueva = propiedadIdNuevo ? propiedades[propiedadIdNuevo] : null;
+      const propiedadNombreNuevo = propiedadNueva ? (propiedadNueva.nombre || '') : '';
+
+      if(propiedadIdAnterior === propiedadIdNuevo) return;
+
+      const ok = confirm(
+        '¿Cambiar inmueble de esta cita?\n\n' +
+        'Anterior: ' + (propiedadNombreAnterior || 'Sin inmueble') + '\n' +
+        'Nuevo: ' + (propiedadNombreNuevo || 'Sin inmueble') + '\n\n' +
+        'Se conservarán cliente, fecha, hora y estado.'
+      );
+
+      if(!ok){
+        sel.value = propiedadIdAnterior || '';
+        return;
+      }
+
+      const trace = registrarTraceCita(id, {
+        tipo: 'propiedad',
+        anterior: propiedadNombreAnterior || null,
+        nuevo: propiedadNombreNuevo || null,
+        origen: 'synapse'
+      });
+
+      const updates = {};
+      updates['citas/'+id+'/propiedadId'] = propiedadIdNuevo;
+      updates['citas/'+id+'/propiedadNombre'] = propiedadNombreNuevo || null;
+      updates['citas/'+id+'/historial/'+trace.traceId] = trace.entry;
+
+      sel.disabled = true;
+
+      db.ref().update(updates)
+        .then(()=>{
+          cita.propiedadId = propiedadIdNuevo;
+          cita.propiedadNombre = propiedadNombreNuevo || null;
+        })
+        .catch(err=>{
+          sel.value = propiedadIdAnterior || '';
+          alert('No se pudo cambiar el inmueble.\n\nError: ' + err.message);
+        })
+        .finally(()=>{
+          sel.disabled = false;
+        });
     });
   });
 
@@ -2877,5 +3102,6 @@ function addCitaToGoogleCalendar(c){
   });
 }
 </script>
+<script src="assets/js/reprogramar-ui.v1.js"></script>
 </body>
 </html>
