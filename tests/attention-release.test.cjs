@@ -40,6 +40,11 @@ test('release exige sitio explícito y dependencias existentes; no reemplaza sal
     for(const route of ['/directorio','/radar','/operaciones'])assert.ok(config.hosting.rewrites.some(r=>r.source===route&&r.destination==='/workspace.html'));
     for(const route of ['/inmuebles','/configuracion','/agenda/horarios'])assert.ok(config.hosting.rewrites.some(r=>r.source===route&&r.destination==='/administracion.html'));
     for(const file of ['navigation.js','navigation.css','admin-navigation.js'])assert.equal(fs.existsSync(path.join(result.output,'public/web/shell',file)),true);
+    for(const file of ['experience.js','experience.css','terms.js'])assert.equal(fs.existsSync(path.join(result.output,'public/web/reservar',file)),true);
+    assert.equal(fs.existsSync(path.join(result.output,'public/shared/lease-continuity.js')),true);
+    const publicTerms=fs.readFileSync(path.join(result.output,'public/web/reservar/terms.js'),'utf8');
+    assert.equal(publicTerms.includes('Resident Guide'),false);assert.equal(publicTerms.includes('"source"'),false);
+    assert.match(fs.readFileSync(path.join(result.output,'public/reservar.html'),'utf8'),/\/web\/reservar\/experience\.css\?v=[a-f0-9]{16}/);
     for(const file of ['index.html','atencion-operador.html','administracion.html'])assert.match(fs.readFileSync(path.join(result.output,'public',file),'utf8'),/\/web\/shell\/navigation\.js\?v=[a-f0-9]{16}/);
     assert.ok(config.hosting.rewrites.some(r=>r.source==='/administracion'&&r.destination==='/administracion.html'));
     assert.ok(config.hosting.rewrites.some(r=>r.source==='/agenda'&&r.destination==='/workspace.html'));

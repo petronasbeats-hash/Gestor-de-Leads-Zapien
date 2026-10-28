@@ -40,7 +40,7 @@ function build(options) {
     const entry={path:relative,sha256:createHash('sha256').update(content).digest('hex')},existing=files.findIndex(file=>file.path===relative);if(existing<0)files.push(entry);else files[existing]=entry;
   }
   function copy(source, relative) {if (fs.lstatSync(source).isSymbolicLink()) throw Error('SYMLINK_NOT_ALLOWED'); write(relative, fs.readFileSync(source));}
-  for (const item of ['agenda.html', 'reservar.html', 'atencion.html', 'atencion-operador.html', 'workspace.html', 'shared/workspace-model.js', 'shared/workspace-store.js', 'web/workspace/workspace.js', 'web/workspace/workspace.css', 'web/shell/navigation.js', 'web/shell/navigation.css', 'web/shell/admin-navigation.js', 'shared/reservation-reference.js', 'shared/attention-quick-replies.js', 'shared/attention-alerts.js', 'web/attention/attention.js', 'web/attention/attention.css']) copy(path.join(root, item), 'public/' + item);
+  for (const item of ['agenda.html', 'reservar.html', 'atencion.html', 'atencion-operador.html', 'workspace.html', 'shared/workspace-model.js', 'shared/workspace-store.js', 'web/workspace/workspace.js', 'web/workspace/workspace.css', 'web/shell/navigation.js', 'web/shell/navigation.css', 'web/shell/admin-navigation.js', 'web/reservar/experience.css', 'web/reservar/experience.js', 'shared/lease-continuity.js', 'shared/reservation-reference.js', 'shared/attention-quick-replies.js', 'shared/attention-alerts.js', 'web/attention/attention.js', 'web/attention/attention.css']) copy(path.join(root, item), 'public/' + item);
   copy(path.join(root, 'workspace.html'), 'public/index.html');
   copy(path.join(root, 'index.html'), 'public/administracion.html');
   copy(path.join(root, 'shared/workspace-radar.js'), 'public/shared/workspace-radar.js');
@@ -57,6 +57,9 @@ function build(options) {
   assets(path.join(legacy, 'assets'));
   copy(path.join(root, 'shared/public-slot-claim.js'), 'public/shared/public-slot-claim.js');
   copy(path.join(root, 'assets/audio/synapse-nexo-v1.wav'), 'public/assets/audio/synapse-nexo-v1.wav');
+  const publicTerms=JSON.parse(fs.readFileSync(path.join(root,'lab/attention/fixtures/lease-config.json'),'utf8'));
+  for(const term of [...(publicTerms.profiles||[]),...Object.values(publicTerms.properties||{})])delete term.source;
+  write('public/web/reservar/terms.js','window.SYNAPSE_PUBLIC_TERMS = '+JSON.stringify(publicTerms)+';\n');
   write('public/web/attention/config.js', 'window.SYNAPSE_ATTENTION_CONFIG = ' + JSON.stringify({firebase, reservationOrigin}) + ';\n');
   for (const item of ['index.cjs', 'package.json', 'package-lock.json']) copy(path.join(root, 'attention-functions', item), 'functions/' + item);
   for (const item of ['attention-store.cjs', 'attention-service.cjs', 'attention-firebase-authority.cjs', 'attention-http.cjs', 'attention-journal.cjs', 'live-availability-reader.cjs']) copy(path.join(root, 'server', item), 'functions/server/' + item);
