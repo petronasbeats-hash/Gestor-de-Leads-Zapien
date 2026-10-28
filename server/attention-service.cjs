@@ -39,7 +39,7 @@ function publicSheet(sheet) {
   return result;
 }
 
-function createAttentionService({store, readAvailability, leaseConfig = {}, now = () => new Date(), randomToken = () => randomBytes(32).toString('base64url'), invitationBaseUrl}) {
+function createAttentionService({store, readAvailability, leaseConfig = {}, now = () => new Date(), readAgendaEvent, randomToken = () => randomBytes(32).toString('base64url'), invitationBaseUrl}) {
   if (!store || typeof readAvailability !== 'function') throw Error('DEPENDENCIES_REQUIRED');
   async function readSnapshot() {
     const snapshot = await readAvailability();
@@ -123,6 +123,27 @@ function createAttentionService({store, readAvailability, leaseConfig = {}, now 
       return {conversation: current, sheet: lease.propertySheet(current.context.currentPropertyId, snapshot.properties[current.context.currentPropertyId], leaseConfig),
         observedAt: snapshot.observedAt, messages: Object.values(state.messages?.[conversationId] || {}),
         journal: Object.values(state.journal || {}).filter(item => item.conversationId === conversationId)};
+    },
+    async recordVisit(principal, input) {
+      agent(principal); fields(input, ['requestId', 'conversationId', 'eventId']);
+      const eventId = id(input.eventId), requestId = id(input.requestId);
+      const current = conversation(await store.read(principal.organizationId), input.conversationId);
+      permitted(principal, current.context.currentPropertyId);
+      if (typeof readAgendaEvent !== 'function') throw Error('BOOKING_NOT_AVAILABLE');
+      const visit = await readAgendaEvent(eventId);
+      if (!visit || visit.attentionRef?.organizationId !== principal.organizationId || visit.attentionRef?.conversationId !== current.id || visit.attentionRef?.agentUid !== principal.uid || visit.tipoEvento !== 'visita' || visit.propiedadId !== current.context.currentPropertyId || !visit.folio || !visit.participantes?.length) throw Error('BOOKING_REFERENCE_CONFLICT');
+      permitted(principal, visit.propiedadId);
+      if (visit._agenda?.sync !== 'ready' || visit.estado !== 'confirmada') throw Error('BOOKING_NOT_READY');
+      return store.apply(principal.organizationId, requestId, principal.uid, {operation: 'record_visit', input}, state => {
+        const target = conversation(state, input.conversationId);
+        permitted(principal, target.context.currentPropertyId);
+        if (target.context.currentPropertyId !== visit.propiedadId) throw Error('BOOKING_REFERENCE_CONFLICT');
+        if (target.visit?.eventId === eventId) return {state, receipt: {eventId, folio: target.visit.folio}};
+        target.visit = {eventId, contactId: visit.participantes[0], folio: visit.folio, propertyId: visit.propiedadId}; target.version++;
+        event(state, principal, requestId, target, 'reservation_registered', 'Visita registrada en Agenda. Folio ' + visit.folio + ' · ' + visit.fecha + ' · ' + visit.hora + ' a ' + visit.horaFin + '.',
+          {folio: visit.folio, nextAction: {description: 'Preparar visita · ' + visit.folio + ' · ' + visit.hora, dueDate: visit.fecha, status: 'pending'}});
+        return {state, receipt: {eventId, folio: visit.folio}};
+      });
     },
     async changeInterest(principal, input) {
       agent(principal); fields(input, ['requestId', 'conversationId', 'propertyId', 'expectedVersion']);

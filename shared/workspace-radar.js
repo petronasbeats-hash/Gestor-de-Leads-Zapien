@@ -13,7 +13,7 @@
       if(!M.active(e))continue;
       const started=day&&(day<today||day===today&&e.hora&&e.hora<=time);
       const provisional=e.estado==='hold',task=e.tipoEvento==='tarea';
-      add({id:'event:'+e.id,kind:'event',eventId:e.id,title,action:provisional?'Revisar apartado':task?'Registrar seguimiento':started?'Registrar resultado':e.estado==='confirmada'?'Preparar compromiso':'Confirmar compromiso',detail:provisional?'Apartado provisional; revisa su vigencia.':M.eventKinds[e.tipoEvento]||'Cita registrada',date:day,time:e.hora||'',nextState:!task&&!provisional&&!started&&e.estado!=='confirmada'?'confirmada':null});
+      add({id:'event:'+e.id,kind:'event',eventId:e.id,title,action:provisional?'Revisar apartado':task?'Completar tarea':started?'Registrar resultado':e.estado==='confirmada'?'Preparar compromiso':'Confirmar compromiso',detail:provisional?'Apartado provisional; revisa su vigencia.':M.eventKinds[e.tipoEvento]||'Cita registrada',date:day,time:e.hora||'',nextState:!provisional&&((task&&day&&day<=today)||started)?'realizada':!task&&!provisional&&!started&&e.estado!=='confirmada'?'confirmada':null});
     }
     for(const c of M.contacts(leads)){
       const action=typeof c.raw.proximaAccion==='string'?c.raw.proximaAccion.trim():'';

@@ -31,6 +31,9 @@ test('release exige sitio explícito y dependencias existentes; no reemplaza sal
     assert.equal(fs.existsSync(path.join(result.output, 'functions/server/attention-service.cjs')), true);
     assert.equal(fs.existsSync(path.join(result.output, 'public/atencion-operador.html')), true);
     assert.equal(fs.existsSync(path.join(result.output, 'public/shared/attention-alerts.js')), true);
+    for(const file of ['shared/visit-availability.js','shared/attention-booking.js','web/attention/booking.js'])assert.equal(fs.existsSync(path.join(result.output,'public',file)),true);
+    for(const file of ['atencion-operador.html','reservar.html'])assert.match(fs.readFileSync(path.join(result.output,'public',file),'utf8'),/shared\/visit-availability\.js\?v=[a-f0-9]{16}/);
+    assert.equal(JSON.parse(fs.readFileSync(path.join(result.output,'release-manifest.json'))).capabilities.operatorVisitRegistration,true);
     assert.equal(fs.existsSync(path.join(result.output, 'functions/shared/attention-alerts.js')), true);
     assert.deepEqual(fs.readFileSync(path.join(result.output, 'public/assets/audio/synapse-nexo-v1.wav')),fs.readFileSync(path.join(__dirname,'../assets/audio/synapse-nexo-v1.wav')));
     for(const file of ['workspace.html','shared/workspace-model.js','shared/workspace-store.js','web/workspace/workspace.js','web/workspace/workspace.css'])assert.equal(unversion(fs.readFileSync(path.join(result.output,'public',file))),fs.readFileSync(path.join(__dirname,'..',file),'utf8'));

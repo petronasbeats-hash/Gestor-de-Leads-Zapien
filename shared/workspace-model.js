@@ -36,6 +36,16 @@
     row._synapse={...row._synapse,fuenteOriginal:old?._synapse?.fuenteOriginal??old?.fuente??fuente,canalOriginal:old?._synapse?.canalOriginal??old?._synapse?.canal??canal,categorias:cats,canal,especialidad};stamp(row,ctx,old?'Se actualizaron los datos del contacto. Clasificación: '+cats.map(c=>categories[c]).join(', ')+'.':'Se registró el contacto: '+cats.map(c=>categories[c]).join(', ')+'.');state[key]=row;
     return{state,receipt:receipt(row,ctx,{id:key,version:row._synapse.version})};
   }
+  function completeFollowup(state,input,ctx){
+    const key=id(input.id),row=state[key];if(!row)throw Error('CONTACT_NOT_FOUND');const previous=replay(row,ctx);if(previous)return{state,receipt:previous};
+    const action=typeof row.proximaAccion==='string'?row.proximaAccion.trim():'';
+    if((row._synapse?.version||0)!==input.expectedVersion||action!==input.expectedAction||String(row.fechaProximaAccion||'')!==input.expectedDate)throw Error('VERSION_CONFLICT');
+    if(!action)throw Error('FOLLOWUP_NOT_FOUND');if(!['realizada','cancelada'].includes(input.resolution))throw Error('FOLLOWUP_RESOLUTION_REQUIRED');
+    const result=text(input.result,2000,true),entry={action,dueDate:input.expectedDate,resolution:input.resolution,result,at:ctx.now,uid:ctx.uid};
+    row._synapse={...row._synapse,followupHistory:{...row._synapse?.followupHistory,[ctx.requestId]:entry}};row.proximaAccion='';row.fechaProximaAccion='';
+    stamp(row,ctx,'Seguimiento '+(input.resolution==='realizada'?'completado':'cancelado')+': '+action+'. Resultado: '+result);
+    return{state,receipt:receipt(row,ctx,{id:key,version:row._synapse.version,resolution:input.resolution})};
+  }
   function saveOperation(state,input,ctx){
     const owner=id(input.ownerContactId),key=id(input.id),row=state[owner];if(!row)throw Error('CONTACT_NOT_FOUND');const previous=replay(row,ctx);if(previous)return{state,receipt:previous};
     const old=row._synapse?.operaciones?.[key];if(old?(old.version||0)!==input.expectedVersion:input.expectedVersion!==0)throw Error('VERSION_CONFLICT');
@@ -80,7 +90,8 @@
     const participantes=[...new Set(input.participantes||[])].map(id);if(participantes.length>30)throw Error('PARTICIPANT_INVALID');if(['firma_escritura','firma_arrendamiento'].includes(tipoEvento)&&!participantes.length&&!text(input.otrosParticipantes,1000))throw Error('PARTICIPANT_REQUIRED');const propertyId=input.propiedadId?id(input.propiedadId):'';
     if(tipoEvento==='visita'&&(!propertyId||!participantes.length))throw Error('VISIT_CONTEXT_REQUIRED');
     const op=input.operationRef?{ownerContactId:id(input.operationRef.ownerContactId),id:id(input.operationRef.id)}:null;
-    return{id:key,tipoEvento,titulo,nombre:titulo,telefono:'',fecha,hora,horaFin,duracionMin:horaFin?minutes(horaFin)-minutes(hora):0,bloqueaDisponibilidad:bloquea,bufferAntesMin:before,bufferDespuesMin:after,participantes,otrosParticipantes:text(input.otrosParticipantes,1000),propiedadId:propertyId||null,lugar:text(input.lugar,1000),notas:text(input.notas,6000),motivo:text(input.motivo,2000),operationRef:op,estado,timeZone:'America/Mexico_City',origen:'synapse-agenda',manual:true,version:Number(input.expectedVersion||0)+1,updatedAt:ctx.now,updatedBy:ctx.uid,folio:text(input.folio,80)||'AGD-'+key.replace(/[^a-z0-9]/gi,'').toUpperCase().slice(-12)};
+    const attentionRef=input.attentionRef?{organizationId:id(input.attentionRef.organizationId),conversationId:id(input.attentionRef.conversationId),agentUid:id(input.attentionRef.agentUid),source:text(input.attentionRef.source,100),entryChannel:text(input.attentionRef.entryChannel,80),originalPropertyId:id(input.attentionRef.originalPropertyId)}:null;
+    return{...(attentionRef?{attentionRef}:{}),id:key,tipoEvento,titulo,nombre:titulo,telefono:'',fecha,hora,horaFin,duracionMin:horaFin?minutes(horaFin)-minutes(hora):0,bloqueaDisponibilidad:bloquea,bufferAntesMin:before,bufferDespuesMin:after,participantes,otrosParticipantes:text(input.otrosParticipantes,1000),propiedadId:propertyId||null,lugar:text(input.lugar,1000),notas:text(input.notas,6000),motivo:text(input.motivo,2000),resultado:text(input.resultado,2000),operationRef:op,estado,timeZone:'America/Mexico_City',origen:'synapse-agenda',manual:true,version:Number(input.expectedVersion||0)+1,updatedAt:ctx.now,updatedBy:ctx.uid,folio:text(input.folio,80)||'AGD-'+key.replace(/[^a-z0-9]/gi,'').toUpperCase().slice(-12)};
   }
   function range(e,duration=30){if(!e?.fecha||!e.hora||!active(e)||e.bloqueaDisponibilidad===false)return null;try{const start=minutes(e.hora),end=e.horaFin?minutes(e.horaFin):start+(e.duracionMin||duration);return{date:e.fecha,start:start-(e.bufferAntesMin||0),end:end+(e.bufferDespuesMin||0)};}catch{return null;}}
   function overlap(a,b){return a&&b&&a.date===b.date&&a.start<b.end&&b.start<a.end;}
@@ -89,5 +100,5 @@
   function candidateBlocked(occupied,date,start,end){return Object.entries(occupied||{}).some(([key,value])=>!!value&&overlap({date,start,end},publicRange(key,value,end-start)));}
   function slotKeys(event,horario){const r=range(event,horario?.duracionMin||30);if(!r)return[];const day=['dom','lun','mar','mie','jue','vie','sab'][new Date(event.fecha+'T12:00:00Z').getUTCDay()],cfg=horario?.[day],dur=Number(horario?.duracionMin)||30,keys=new Set([event.fecha+'_'+event.hora]);if(cfg?.activo){for(const span of cfg.rangos||[{inicio:cfg.inicio,fin:cfg.fin}]){if(!span.inicio||!span.fin)continue;for(let n=minutes(span.inicio),end=minutes(span.fin);n+dur<=end;n+=dur)if(overlap(r,{date:r.date,start:n,end:n+dur}))keys.add(r.date+'_'+time(n));}}return[...keys];}
   function calendarDate(now=new Date()){return new Intl.DateTimeFormat('sv-SE',{timeZone:'America/Mexico_City',year:'numeric',month:'2-digit',day:'2-digit'}).format(now);}
-  return Object.freeze({categories,roles,eventKinds,statuses,fields,pipelines,checkLabels,id,text,phone,clone,contact,contacts,duplicates,operations,relatedOperations,saveContact,saveOperation,advanceOperation,pipeline,minutes,time,validDate,eventInput,range,overlap,publicRange,publicConflict,candidateBlocked,slotKeys,active,calendarDate});
+  return Object.freeze({categories,roles,eventKinds,statuses,fields,pipelines,checkLabels,id,text,phone,clone,contact,contacts,duplicates,operations,relatedOperations,saveContact,completeFollowup,saveOperation,advanceOperation,pipeline,minutes,time,validDate,eventInput,range,overlap,publicRange,publicConflict,candidateBlocked,slotKeys,active,calendarDate});
 });

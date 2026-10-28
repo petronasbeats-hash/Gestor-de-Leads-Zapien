@@ -20,6 +20,7 @@ exports.attentionApi = onRequest({region: 'us-central1', minInstances: 0, maxIns
     handler = createAttentionHttp({
       authority: createFirebaseAuthority({auth: getAuth(app), db}),
       service: createAttentionService({store: createAttentionStore(db), leaseConfig, invitationBaseUrl: origin.value(),
+        readAgendaEvent: async eventId => (await db.ref('citas/' + eventId).get()).val(),
         readAvailability: createLiveAvailabilityReader({readValue: async path => (await db.ref(path).get()).val()})})
     });
   }

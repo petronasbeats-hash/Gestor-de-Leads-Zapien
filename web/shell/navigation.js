@@ -47,7 +47,7 @@
   // Never write drafts to localStorage. Keep the native leave-page protection
   // for the advisor's unsent response or unfinished journal summary.
   const hasDraft = () => document.body.dataset.role === 'agent'
-    && ['message', 'summary'].some(id => document.getElementById(id)?.value.trim());
+    && (['message', 'summary'].some(id => document.getElementById(id)?.value.trim()) || document.getElementById('visit-form')?.dataset.dirty === 'true');
   window.addEventListener('beforeunload', event => {
     if (hasDraft()) {event.preventDefault(); event.returnValue = '';}
   });

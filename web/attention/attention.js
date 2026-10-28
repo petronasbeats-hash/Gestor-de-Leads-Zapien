@@ -7,6 +7,7 @@
   const conversationDrafts = new Map();
   const inboxButtons = new Map();
   let quickReplies = [], activeOrganization = '';
+  let visitUI;
   let auth, active, catalog = [], busy = false, confirmation, verifier, guestSecret, guestJoined = false;
   const alerts = window.SynapseAlerts, pageTitle = document.title;
   const sound = alerts?.createSound(window,()=>updateSoundButton());
@@ -39,7 +40,7 @@
       if ($(name + '-dialog').open) $(name + '-status').textContent = error ? message : '';
     }
   }
-  const operatorPanels = ['conversation', 'property', 'contact', 'journal'];
+  const operatorPanels = ['conversation', 'property', 'visit', 'contact', 'journal'];
   function selectPanel(name) {
     operatorPanels.forEach(panel => {
       $('panel-' + panel).hidden = panel !== name;
@@ -47,6 +48,7 @@
       $('tab-' + panel).tabIndex = panel === name ? 0 : -1;
     });
     markVisibleMessagesRead();
+    if(name==='visit'&&visitUI)run(()=>visitUI.load());
   }
   function storage() {try{return localStorage;}catch{return null;}}
   function setNoticeScope(scope) {
@@ -305,6 +307,7 @@
     active = next; activeOrganization = $('organization').value;
     inboxButtons.forEach((button, id) => {button.classList.toggle('selected', id === conversationId); button.setAttribute('aria-pressed', String(id === conversationId));});
     const current = active.conversation;
+    visitUI?.select({organizationId:activeOrganization,conversationId:current.id,propertyId:current.context.currentPropertyId,originalPropertyId:current.context.originalPropertyId,source:current.context.source,entryChannel:current.context.entryChannel,name:[current.context.displayName,current.context.surname].filter(Boolean).join(' '),phone:current.context.phone});
     $('detail').hidden = false; $('customer-title').textContent = [current.context.displayName, current.context.surname].filter(Boolean).join(' ') || 'Nombre pendiente';
     $('empty-detail').hidden = true; document.body.classList.remove('show-inbox');
     $('property-context').textContent = active.sheet.name + ' · ' + new Intl.NumberFormat('es-MX', {style: 'currency', currency: 'MXN', maximumFractionDigits: 0}).format(active.sheet.rent) + ' / mes';
@@ -397,6 +400,7 @@
       $('login').hidden = Boolean(user); $('logout').hidden = !user; $('workspace').hidden = !user;
       if (!user) {
         stopPolling();
+        visitUI?.reset();
         active = null; activeOrganization = ''; catalog = []; quickReplies = []; pending.clear(); conversationDrafts.clear(); inboxButtons.clear();
         document.body.classList.remove('operator-ready', 'show-inbox');
         for (const name of ['capture', 'report']) if ($(name + '-dialog').open) closeDialog(name);
@@ -493,6 +497,12 @@
     const appName = role === 'agent' ? '[DEFAULT]' : 'synapse-attention-customer';
     const app = firebase.apps.find(item => item.name === appName) || (role === 'agent' ? firebase.initializeApp(config.firebase) : firebase.initializeApp(config.firebase, appName));
     auth = app.auth();
+    if(role==='agent'&&window.SynapseAttentionVisitUI&&typeof app.database==='function')visitUI=window.SynapseAttentionVisitUI.mount({db:app.database(),auth,run,
+      validate:async context=>{const latest=await agentApi('inspect',{conversationId:context.conversationId});if(latest.conversation.context.currentPropertyId!==context.propertyId)throw Error('PROPERTY_SCOPE_CHANGED');},
+      hasRecord:event=>active?.journal?.some(entry=>entry.kind==='reservation_registered'&&entry.folio===event.folio),
+      record:async(context,event)=>{await agentApi('visit',{requestId:'journal_'+event.id,conversationId:context.conversationId,eventId:event.id});await inspect(context.conversationId);},
+      prepare:text=>{if($('message').value.trim()){status('Ya hay un borrador en conversación. Cópialo o envíalo antes de preparar la confirmación.',true);return;}$('message').value=text;selectPanel('conversation');$('message').focus();status('Confirmación preparada. Revísala y pulsa Enviar en Synapse cuando corresponda.');}
+    });
   }
   setupMessageNotices();
   if (role === 'agent') {initializeAuth(); setupAgent();} else run(setupCustomer);

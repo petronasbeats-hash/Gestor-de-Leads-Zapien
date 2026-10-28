@@ -1,5 +1,5 @@
 'use strict';
-const knownErrors = new Set(['INVALID_IDENTIFIER', 'INVALID_FIELDS', 'INVALID_TEXT', 'PHONE_REQUIRED', 'PHONE_INVALID', 'NAME_REQUIRED', 'SOURCE_REQUIRED', 'ENTRY_CHANNEL_REQUIRED', 'PROPERTY_NOT_PUBLISHED', 'PROPERTY_FORBIDDEN', 'AUTHENTICATION_REQUIRED', 'ORGANIZATION_FORBIDDEN', 'AGENT_REQUIRED', 'CONVERSATION_NOT_FOUND', 'VERSION_CONFLICT', 'COMMAND_ID_CONFLICT', 'INVITATION_INVALID', 'INVITATION_REISSUE_REQUIRED', 'CUSTOMER_VERIFICATION_REQUIRED', 'CONDITIONS_NOT_CONFIGURED', 'AVAILABILITY_UNAVAILABLE', 'GUEST_ACCESS_REQUIRED', 'GUEST_LINK_IN_USE']);
+const knownErrors = new Set(['INVALID_IDENTIFIER', 'INVALID_FIELDS', 'INVALID_TEXT', 'PHONE_REQUIRED', 'PHONE_INVALID', 'NAME_REQUIRED', 'SOURCE_REQUIRED', 'ENTRY_CHANNEL_REQUIRED', 'PROPERTY_NOT_PUBLISHED', 'PROPERTY_FORBIDDEN', 'AUTHENTICATION_REQUIRED', 'ORGANIZATION_FORBIDDEN', 'AGENT_REQUIRED', 'CONVERSATION_NOT_FOUND', 'VERSION_CONFLICT', 'COMMAND_ID_CONFLICT', 'INVITATION_INVALID', 'INVITATION_REISSUE_REQUIRED', 'CUSTOMER_VERIFICATION_REQUIRED', 'CONDITIONS_NOT_CONFIGURED', 'AVAILABILITY_UNAVAILABLE', 'GUEST_ACCESS_REQUIRED', 'GUEST_LINK_IN_USE', 'BOOKING_NOT_AVAILABLE', 'BOOKING_REFERENCE_CONFLICT', 'BOOKING_NOT_READY']);
 function createAttentionHttp({service, authority}) {
   return async function attentionHttp(req, res) {
     const reply = (status, payload) => {
@@ -10,7 +10,7 @@ function createAttentionHttp({service, authority}) {
       res.end(JSON.stringify(payload));
     };
     const path = new URL(req.url, 'https://localhost').pathname.replace(/^\/attention-api(?=\/)/, '');
-    if (req.method === 'GET' && path === '/health') return reply(200, {service: 'synapse-attention', intake: true, guestConversation: true, messageAlerts: true, hypeProfiles: false, booking: false, reminders: false});
+    if (req.method === 'GET' && path === '/health') return reply(200, {service: 'synapse-attention', intake: true, guestConversation: true, messageAlerts: true, operatorVisitRegistration: true, hypeProfiles: false, booking: false, reminders: false});
     if (req.method === 'GET' && path === '/agent/session') {
       try { return reply(200, await authority.session(req.headers.authorization)); }
       catch { return reply(401, {error: 'AUTHENTICATION_REQUIRED'}); }
@@ -53,6 +53,7 @@ function createAttentionHttp({service, authority}) {
         '/agent/inspect': (principal, input) => { if (Object.keys(input).some(key => key !== 'conversationId')) throw Error('INVALID_FIELDS'); return service.inspect(principal, input.conversationId); },
         '/agent/capture': service.capture,
         '/agent/interest': service.changeInterest,
+        '/agent/visit': service.recordVisit,
         '/agent/contact': service.updateContact,
         '/agent/summary': service.summarize,
         '/agent/invite': service.invite,

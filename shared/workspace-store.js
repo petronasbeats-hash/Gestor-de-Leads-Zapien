@@ -19,7 +19,7 @@
       },undefined,false);
       session();if(failure)throw failure;if(!result.committed)throw Error('TRANSACTION_NOT_COMMITTED');if(empty&&!allowEmpty&&result.snapshot.val()===null)throw Error('CONTACT_NOT_FOUND');return value;
     }
-    async function contactCommand(kind,input){const ctx=await context(kind,input);return tx('leads',state=>{const r=kind==='contact'?M.saveContact(state,input,ctx):kind==='operation'?M.saveOperation(state,input,ctx):M.advanceOperation(state,input,ctx,events);return{state:r.state,value:r.receipt};},{allowEmpty:kind==='contact'&&input.expectedVersion===0});}
+    async function contactCommand(kind,input){const ctx=await context(kind,input);return tx('leads',state=>{const r=kind==='contact'?M.saveContact(state,input,ctx):kind==='operation'?M.saveOperation(state,input,ctx):kind==='followup'?M.completeFollowup(state,input,ctx):M.advanceOperation(state,input,ctx,events);return{state:r.state,value:r.receipt};},{allowEmpty:kind==='contact'&&input.expectedVersion===0});}
     let events=[];
     async function root(){const snap=await db.ref('leads').get();session();return snap.val()||{};}
     function own(v,key){return v&&v.citaId===key;}
@@ -39,7 +39,7 @@
         if(r&&Object.entries(citas).some(([k,v])=>k!==key&&M.overlap(r,M.range(v,horario.duracionMin))))throw Error('SCHEDULE_CONFLICT');
         if(r&&(b.val()?.[event.fecha]||[]).some(t=>M.overlap(r,{date:event.fecha,start:M.minutes(t),end:M.minutes(t)+horario.duracionMin})))throw Error('SCHEDULE_CONFLICT');
       }
-      const keys=M.slotKeys(event,horario),desired=new Set(keys),claim={agenda:true,citaId:key,estado:'ocupado',inicioMin:r?.start||0,finMin:r?.end||0,agendaRequestId:ctx.requestId};let before={},committed=false;
+      const keys=M.slotKeys(event,horario),desired=new Set(keys),claim={agenda:true,citaId:key,...(event.tipoEvento==='visita'&&event.propiedadId?{propiedadId:event.propiedadId}:{}),estado:'ocupado',inicioMin:r?.start||0,finMin:r?.end||0,agendaRequestId:ctx.requestId};let before={},committed=false;
       await tx('citas_publicas',state=>{
         let reviewedLegacy;
         const legacyKey=old&&old.fecha+'_'+old.hora,legacy=legacyKey&&state[legacyKey];
@@ -62,7 +62,7 @@
           const exists=Object.keys(state).length>0;
           if(state._agenda?.lastRequestId===ctx.requestId){if(state._agenda.hash!==ctx.hash)throw Error('COMMAND_CONFLICT');return{state,value:state};}
           if((state.version||0)!==input.expectedVersion||exists!==Boolean(input.existing))throw Error('VERSION_CONFLICT');
-          const data={...state,...event,creado:state.creado||ctx.now,historial:{...state.historial,[ctx.requestId]:{tipo:exists?'agenda_actualizada':'agenda_creada',fecha:ctx.now,actorUid:uid,estado:event.estado,motivo:event.motivo,legacySlotReviewed:input.ackLegacySlot===true,anterior:exists?{fecha:state.fecha||'',hora:state.hora||'',horaFin:state.horaFin||'',estado:state.estado||''}:null}},_agenda:{sync:'pending',lastRequestId:ctx.requestId,hash:ctx.hash,pendingInput:input}};
+          const data={...state,...event,creado:state.creado||ctx.now,historial:{...state.historial,[ctx.requestId]:{tipo:exists?'agenda_actualizada':'agenda_creada',fecha:ctx.now,actorUid:uid,estado:event.estado,motivo:event.motivo,resultado:event.resultado,legacySlotReviewed:input.ackLegacySlot===true,anterior:exists?{fecha:state.fecha||'',hora:state.hora||'',horaFin:state.horaFin||'',estado:state.estado||''}:null}},_agenda:{sync:'pending',lastRequestId:ctx.requestId,hash:ctx.hash,pendingInput:input}};
           return{state:data,value:data};
         },{allowEmpty:!input.existing});
         committed=true;
@@ -90,6 +90,7 @@
         const current=M.phone(input.telefono);let oldPhone='';try{oldPhone=M.phone(old?.telefono||'');}catch{}
         try{if(current)await db.ref('telefonos_index/'+current).transaction(v=>v==null||v===input.id?input.id:undefined,undefined,false);if(oldPhone&&oldPhone!==current)await db.ref('telefonos_index/'+oldPhone).transaction(v=>v===input.id?null:undefined,undefined,false);}catch{return{...result,indexPending:true};}return result;
       }),
+      completeFollowup:input=>serial(()=>contactCommand('followup',input)),
       saveOperation:input=>serial(()=>contactCommand('operation',input)),
       advance:input=>serial(async()=>{events=Object.entries((await db.ref('citas').get()).val()||{}).map(([id,e])=>({id,...e}));session();return contactCommand('advance',input);}),
       saveEvent:input=>serial(()=>saveEventInternal(input)),
