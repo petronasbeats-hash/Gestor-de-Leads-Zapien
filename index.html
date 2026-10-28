@@ -203,8 +203,8 @@
   .cal-dot.est-no_asistio,.cal-dot.est-cancelada{background:var(--red);}
   .cal-more{font-size:10px;color:var(--muted);margin-top:2px;}
 </style>
-</head>
-<body>
+<link rel="stylesheet" href="/web/shell/navigation.css"><script src="/web/shell/navigation.js" defer></script><script src="/web/shell/admin-navigation.js" defer></script></head>
+<body class="synapse-app" data-surface="admin"><div id="synapse-shell"></div>
 
 <div class="login-wrap" id="login-wrap">
   <div class="login-box">
@@ -230,8 +230,8 @@
 <div class="app" id="app-root" style="display:none;">
   <header>
     <div class="eyebrow"><span class="dot"></span>SYNAPSE CORE · IRÉ INMOBILIARIA · TEHUACÁN, PUE.</div>
-    <h1>Synapse Core</h1>
-    <div class="sub">Pipeline de 9 etapas, con checklist de calidad y bitácora por lead.</div>
+    <h1 id="admin-module-title">Configuración</h1>
+    <div class="sub" id="admin-module-description">Herramientas de administración de Synapse.</div>
     <div id="sync-status" class="mono">
       <span id="sync-status-text">conectando…</span>
       <button class="btn btn-sm" id="btn-logout">Cerrar sesión</button>
@@ -246,6 +246,11 @@
     </div>
   </header>
 
+  <section id="configuration-home" hidden>
+    <h2>Tu espacio de trabajo</h2><p>Las tareas del día están en Radar. Aquí encuentras las herramientas de administración.</p>
+    <div class="settings-grid"><a href="/agenda/horarios"><strong>Horarios y bloqueos</strong><small>Configura cuándo se pueden reservar visitas y bloquea los periodos ocupados.</small></a><a href="/inmuebles"><strong>Catálogo de inmuebles</strong><small>Gestiona fichas, fotografías, precios y publicaciones.</small></a><a href="/reservar" target="_blank" rel="noopener noreferrer"><strong>Vista del cliente ↗</strong><small>Revisa el catálogo público y el proceso de reserva.</small></a></div>
+    <details class="settings-secondary"><summary>Herramientas anteriores y respaldo</summary><p>Consulta el panel anterior para exportar o importar respaldos y revisar registros históricos. El Directorio y Agenda son los accesos de operación diaria.</p><a href="/administracion?legacy=1">Abrir panel anterior</a></details>
+  </section>
   <div id="leads-view">
     <div class="dash" id="dash"></div>
 
@@ -341,9 +346,9 @@
     <div class="tab-panel" data-tab-panel="propiedades">
       <div class="card">
         <h2 class="mono" style="font-size:14px;color:var(--green);margin:0 0 12px;">Propiedades</h2>
-        <div class="sub" style="margin-bottom:12px;">Administra las propiedades disponibles que aparecen en Agenda/Reservar. Las unidades ADN ya heredan su ubicación validada; no necesitas volver a capturar coordenadas al editar fotos.</div>
-        <div id="propiedades-list"></div>
-        <div id="adn-intake-card" style="margin:12px 0;padding:12px;border:1px solid var(--green);border-radius:8px;background:var(--green-dim);">
+        <div class="sub" style="margin-bottom:12px;">Administra las fichas y publicaciones del catálogo de Reservar. Las unidades ADN ya heredan su ubicación validada; no necesitas volver a capturar coordenadas al editar fotos.</div>
+        <div class="property-workbench"><div class="property-catalog"><div id="propiedades-list"></div>
+        <details class="settings-secondary"><summary>Herramienta de importación ADN</summary><div id="adn-intake-card" style="margin:12px 0;padding:12px;border:1px solid var(--green);border-radius:8px;background:var(--green-dim);">
           <div class="mono" style="font-size:12px;color:var(--green);font-weight:700;">ADN SUITES & STUDIOS · ALTA ASISTIDA</div>
           <div class="sub" style="margin:6px 0 10px;">Lote inicial de 9 unidades publicadas en Facebook. La importación no sobrescribe ni duplica unidades ADN existentes.</div>
           <button class="btn btn-primary btn-sm" id="btn-adn-intake-preview">Revisar lote ADN</button>
@@ -351,6 +356,7 @@
           <div id="adn-intake-status" class="cita-meta" style="margin-top:8px;"></div>
         </div>
         
+        </details></div><details id="property-editor" class="settings-secondary"><summary id="property-editor-title">＋ Agregar inmueble</summary>
         <div class="row2" style="grid-template-columns:1.4fr 1fr 1fr;margin-top:10px;">
           <input type="text" id="p-nombre" placeholder="Nombre / dirección corta">
           <input type="text" id="p-lat" placeholder="Latitud (ej. 18.4625)">
@@ -406,7 +412,7 @@
         <div id="p-edit-banner" class="cita-meta" style="display:none;color:var(--amber);margin-top:8px;">✏️ Editando propiedad existente — se actualizará el mismo registro, no se creará una nueva.</div>
         <button class="btn btn-sm" id="btn-apply-adn-photo-meta" style="margin-top:8px;display:none;">✨ Aplicar descripciones ADN</button>
         <button class="btn btn-primary btn-sm" id="btn-add-propiedad" style="margin-top:8px;">+ Agregar propiedad</button>
-        <button class="btn btn-sm" id="btn-cancel-edit-prop" style="margin-top:8px;margin-left:8px;display:none;">Cancelar edición</button>
+        <button class="btn btn-sm" id="btn-cancel-edit-prop" style="margin-top:8px;margin-left:8px;display:none;">Cancelar edición</button></details></div>
       </div>
     </div>
 
@@ -2087,6 +2093,8 @@ function syncAdnPhotoMetaButton(){
 
 
 function cargarPropiedadEnFormulario(p){
+  document.getElementById('property-editor').open = true;
+  document.getElementById('property-editor-title').textContent = 'Editar ficha del inmueble';
   propEditingSnapshot = p;
   document.getElementById('p-edit-id').value = p.id;
   document.getElementById('p-nombre').value = p.nombre || '';
@@ -2125,6 +2133,7 @@ function cargarPropiedadEnFormulario(p){
 }
 
 function resetPropiedadForm(){
+  document.getElementById('property-editor-title').textContent = '＋ Agregar inmueble';
   propEditingSnapshot = null;
   document.getElementById('p-edit-id').value = '';
   document.getElementById('p-nombre').value = '';

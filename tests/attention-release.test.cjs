@@ -38,6 +38,9 @@ test('release exige sitio explícito y dependencias existentes; no reemplaza sal
     assert.equal(unversion(fs.readFileSync(path.join(result.output,'public/index.html'))),fs.readFileSync(path.join(__dirname,'../workspace.html'),'utf8'));
     assert.equal(unversion(fs.readFileSync(path.join(result.output,'public/administracion.html'))),fs.readFileSync(path.join(__dirname,'../index.html'),'utf8'));
     for(const route of ['/directorio','/radar','/operaciones'])assert.ok(config.hosting.rewrites.some(r=>r.source===route&&r.destination==='/workspace.html'));
+    for(const route of ['/inmuebles','/configuracion','/agenda/horarios'])assert.ok(config.hosting.rewrites.some(r=>r.source===route&&r.destination==='/administracion.html'));
+    for(const file of ['navigation.js','navigation.css','admin-navigation.js'])assert.equal(fs.existsSync(path.join(result.output,'public/web/shell',file)),true);
+    for(const file of ['index.html','atencion-operador.html','administracion.html'])assert.match(fs.readFileSync(path.join(result.output,'public',file),'utf8'),/\/web\/shell\/navigation\.js\?v=[a-f0-9]{16}/);
     assert.ok(config.hosting.rewrites.some(r=>r.source==='/administracion'&&r.destination==='/administracion.html'));
     assert.ok(config.hosting.rewrites.some(r=>r.source==='/agenda'&&r.destination==='/workspace.html'));
     assert.equal(JSON.parse(fs.readFileSync(path.join(result.output, 'release-manifest.json'))).capabilities.booking, false);

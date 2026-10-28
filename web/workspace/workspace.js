@@ -15,7 +15,18 @@
   async function run(fn){if(busy)return;busy=true;const at=epoch;document.querySelectorAll('dialog button[type=submit]').forEach(b=>b.disabled=true);try{await fn();}catch(e){if(at===epoch)status(errors[e.code||e.message]||(String(e.code||'').includes('permission')?'Tu cuenta no tiene permiso para completar esta operación.':'No se completó la acción. Conserva los datos y vuelve a intentar.'),true);}finally{busy=false;document.querySelectorAll('dialog button[type=submit]').forEach(b=>b.disabled=false);if(eventDraft&&state.citas[eventDraft.id]?._agenda?.sync==='pending')$('e-save').disabled=true;}}
   function request(key,data){const signature=JSON.stringify(data);const previous=mutationIds.get(key);if(previous?.signature===signature)return{...data,requestId:previous.id};const id=crypto.randomUUID();mutationIds.set(key,{id,signature});return{...data,requestId:id};}
   function options(el,items,selectedValue=''){el.replaceChildren();for(const [value,label]of items){const option=node('option',label);option.value=value;el.append(option);}el.value=selectedValue;}
-  function showView(next){view=next;for(const v of ['radar','contacts','operations','agenda']){$('view-'+v).hidden=v!==next;$('nav-'+v).setAttribute('aria-current',v===next?'page':'false');}render();}
+  const viewRoutes={radar:'/',contacts:'/directorio',operations:'/operaciones',agenda:'/agenda'};
+  const viewTitles={radar:['Radar','Tu siguiente acción, a la vista.'],contacts:['Directorio','Personas, relaciones e historial.'],operations:['Directorio','Operaciones, etapas y siguientes acciones.'],agenda:['Agenda','Visitas, firmas y compromisos.']};
+  function showView(next,navigate=false){
+    if(!viewRoutes[next])return;
+    view=next;for(const v of Object.keys(viewRoutes))$('view-'+v).hidden=v!==next;
+    $('directory-switcher').hidden=!['contacts','operations'].includes(next);
+    $('directory-people').setAttribute('aria-pressed',String(next==='contacts'));$('nav-operations').setAttribute('aria-pressed',String(next==='operations'));
+    $('module-title').textContent=viewTitles[next][0];$('module-description').textContent=viewTitles[next][1];document.title=viewTitles[next][0]+' · Synapse Core';
+    window.SynapseShell?.setSection(next==='operations'?'contacts':next);
+    if(navigate){const url=new URL(location.href);url.pathname=viewRoutes[next];url.search='';if(next==='contacts'&&selected)url.searchParams.set('contact',selected);history.pushState({view:next},'',url);}
+    render();
+  }
   function tags(cats){const span=node('div',undefined,'tags');for(const c of cats)span.append(node('span',M.categories[c]||c,'tag'));return span;}
   function selectContactTab(tab){contactTab=tab;for(const key of ['operations','agenda','journal']){$('contact-tab-'+key).setAttribute('aria-selected',String(key===tab));$('contact-panel-'+key).hidden=key!==tab;}}
   function render(){if(!uid||$('workspace').hidden)return;renderRadar();renderContacts();renderOperations();renderAgenda();if(opDraft?.id&&$('operation-dialog').open)renderPipeline();}
@@ -85,7 +96,9 @@
   }
   async function refreshPrivate(){const at=epoch;const pairs=await Promise.all(['leads','citas','citas_publicas'].map(async p=>[p,(await db.ref(p).get()).val()||{}]));if(at!==epoch)throw Error('AUTHENTICATION_REQUIRED');for(const [key,value]of pairs)state[key==='citas_publicas'?'publicas':key]=value;render();}
   function bind(){
-    for(const v of ['radar','contacts','operations','agenda'])$('nav-'+v).addEventListener('click',()=>showView(v));for(const t of ['operations','agenda','journal'])$('contact-tab-'+t).addEventListener('click',()=>selectContactTab(t));for(const t of ['data','pipeline','history'])$('o-tab-'+t).addEventListener('click',()=>tabOperation(t));
+    for(const v of ['radar','contacts','operations','agenda'])$('nav-'+v).addEventListener('click',event=>{if(event.button>0||event.metaKey||event.ctrlKey||event.shiftKey||event.altKey)return;event.preventDefault();if(document.querySelector('dialog[open]'))return;showView(v,true);});
+    $('directory-people').addEventListener('click',()=>showView('contacts',true));
+    window.addEventListener('popstate',()=>{const target=Object.keys(viewRoutes).find(key=>viewRoutes[key]===location.pathname)||(['/contactos'].includes(location.pathname)?'contacts':'radar');showView(target);});for(const t of ['operations','agenda','journal'])$('contact-tab-'+t).addEventListener('click',()=>selectContactTab(t));for(const t of ['data','pipeline','history'])$('o-tab-'+t).addEventListener('click',()=>tabOperation(t));
     for(const [prefix,keys,select]of [['contact',['operations','agenda','journal'],selectContactTab],['o',['data','pipeline','history'],tabOperation]])for(const key of keys){const button=$(prefix+'-tab-'+key);button.setAttribute('aria-controls',prefix==='contact'?'contact-panel-'+key:'o-panel-'+key);button.addEventListener('keydown',event=>{let next;if(event.key==='ArrowRight')next=(keys.indexOf(key)+1)%keys.length;else if(event.key==='ArrowLeft')next=(keys.indexOf(key)+keys.length-1)%keys.length;else if(event.key==='Home')next=0;else if(event.key==='End')next=keys.length-1;else return;event.preventDefault();select(keys[next]);$(prefix+'-tab-'+keys[next]).focus();});}
     for(const button of document.querySelectorAll('[data-close]'))button.addEventListener('click',()=>$(button.dataset.close).close());
     $('radar-more').addEventListener('click',()=>{radarLimit+=8;renderRadar();});$('radar-new-event').addEventListener('click',()=>openEvent());$('search').addEventListener('input',renderContacts);$('category-filter').addEventListener('change',renderContacts);$('operation-filter').addEventListener('change',renderOperations);$('new-contact').addEventListener('click',()=>openContact());$('edit-contact').addEventListener('click',()=>openContact(selected));$('new-operation').addEventListener('click',()=>openOperation());$('contact-new-operation').addEventListener('click',()=>openOperation());$('new-event').addEventListener('click',()=>openEvent());$('contact-new-event').addEventListener('click',()=>openEvent());
