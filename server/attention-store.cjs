@@ -17,12 +17,22 @@ const fingerprint = value => hash(JSON.stringify(canonical(value)));
 // root. No client receives this root or a database credential.
 function createAttentionStore(db) {
   if (!db || typeof db.ref !== 'function') throw Error('DATABASE_REQUIRED');
+  // The SDK can surface an empty local view while a same-path transaction is
+  // being aborted/replayed. Keep reads out of that transient window. Remote
+  // transactions still arbitrate concurrent instances; this is not a cloud lock.
+  const queues = new Map();
+  function serial(organizationId, action) {
+    const key=id(organizationId), previous=queues.get(key)||Promise.resolve();
+    const current=previous.catch(()=>{}).then(action);queues.set(key,current);
+    return current.finally(()=>{if(queues.get(key)===current)queues.delete(key);});
+  }
   return {
     async read(organizationId) {
-      return (await db.ref('atencion_v1/orgs/' + id(organizationId)).get()).val() || {};
+      return serial(organizationId,async()=>(await db.ref('atencion_v1/orgs/' + id(organizationId)).get()).val() || {});
     },
     async apply(organizationId, requestId, actorUid, payload, reduce) {
       id(organizationId); id(requestId); id(actorUid);
+      return serial(organizationId, async () => {
       const signature = fingerprint({actorUid, payload});
       const reference = db.ref('atencion_v1/orgs/' + organizationId);
       // RTDB may first invoke a transaction with null before loading remote data.
@@ -52,6 +62,7 @@ function createAttentionStore(db) {
         if (!result.committed) throw Error('TRANSACTION_NOT_COMMITTED');
       }
       throw Error('TRANSACTION_NOT_COMMITTED');
+      });
     },
     async locateInvitation(tokenHash) {
       if (!/^[a-f0-9]{64}$/.test(tokenHash)) throw Error('INVITATION_INVALID');

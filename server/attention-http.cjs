@@ -10,7 +10,7 @@ function createAttentionHttp({service, authority}) {
       res.end(JSON.stringify(payload));
     };
     const path = new URL(req.url, 'https://localhost').pathname.replace(/^\/attention-api(?=\/)/, '');
-    if (req.method === 'GET' && path === '/health') return reply(200, {service: 'synapse-attention', intake: true, guestConversation: true, hypeProfiles: false, booking: false, reminders: false});
+    if (req.method === 'GET' && path === '/health') return reply(200, {service: 'synapse-attention', intake: true, guestConversation: true, messageAlerts: true, hypeProfiles: false, booking: false, reminders: false});
     if (req.method === 'GET' && path === '/agent/session') {
       try { return reply(200, await authority.session(req.headers.authorization)); }
       catch { return reply(401, {error: 'AUTHENTICATION_REQUIRED'}); }

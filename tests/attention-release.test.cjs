@@ -28,6 +28,8 @@ test('release exige sitio explícito y dependencias existentes; no reemplaza sal
     assert.equal(fs.existsSync(path.join(result.output, 'public/assets/firebase-debug.log')), false);
     assert.equal(fs.existsSync(path.join(result.output, 'functions/server/attention-service.cjs')), true);
     assert.equal(fs.existsSync(path.join(result.output, 'public/atencion-operador.html')), true);
+    assert.equal(fs.existsSync(path.join(result.output, 'public/shared/attention-alerts.js')), true);
+    assert.equal(fs.existsSync(path.join(result.output, 'functions/shared/attention-alerts.js')), true);
     assert.equal(JSON.parse(fs.readFileSync(path.join(result.output, 'release-manifest.json'))).capabilities.booking, false);
     assert.match(fs.readFileSync(path.join(result.output, 'functions/.env.gestor-leads-zapien'), 'utf8'), /ATTENTION_PUBLIC_ORIGIN=https:\/\/synapse-core.web.app\n/);
     assert.throws(() => build(options), /OUTPUT_ALREADY_EXISTS/);

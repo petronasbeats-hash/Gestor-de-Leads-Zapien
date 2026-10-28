@@ -4,6 +4,7 @@ const {randomBytes} = require('node:crypto');
 const continuity = require('../lab/attention/continuity-contract.js');
 const {prepareEntry, dailyReport} = require('./attention-journal.cjs');
 const lease = require('../shared/lease-continuity.js');
+const alerts = require('../shared/attention-alerts.js');
 const {id, hash} = require('./attention-store.cjs');
 
 function text(value, max, required = false) {
@@ -110,7 +111,8 @@ function createAttentionService({store, readAvailability, leaseConfig = {}, now 
     async list(principal) {
       agent(principal);
       const state = await store.read(principal.organizationId);
-      return Object.values(state.conversations || {}).filter(item => principal.propertyIds.includes(item.context.currentPropertyId));
+      return Object.values(state.conversations || {}).filter(item => principal.propertyIds.includes(item.context.currentPropertyId))
+        .map(item => ({...item, inbox: alerts.messageStats(Object.values(state.messages?.[item.id] || {}), ['customer','guest'])}));
     },
     async inspect(principal, conversationId) {
       agent(principal);

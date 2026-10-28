@@ -1,0 +1,4 @@
+'use strict';
+function uiClock(){let next=0;const timers=new Map();return {setTimeout(fn,delay){const id=++next;timers.set(id,{fn,delay});return id;},clearTimeout(id){timers.delete(id);},get size(){return timers.size;},async tick(){const entry=timers.entries().next().value;if(!entry)throw Error('NO_POLL_SCHEDULED');timers.delete(entry[0]);await entry[1].fn();return entry[1].delay;}};}
+function audioHost(){const state={contexts:0,starts:0};class AudioContext{constructor(){state.contexts++;this.state='suspended';this.currentTime=0;}async resume(){this.state='running';}createGain(){return{gain:{setValueAtTime(){},exponentialRampToValueAtTime(){}},connect(){}};}createOscillator(){return{frequency:{setValueAtTime(){}},connect(){},start(){state.starts++;},stop(){}};}}return {state,AudioContext};}
+module.exports={uiClock,audioHost};

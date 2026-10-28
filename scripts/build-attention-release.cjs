@@ -40,7 +40,7 @@ function build(options) {
     files.push({path: relative, sha256: createHash('sha256').update(content).digest('hex')});
   }
   function copy(source, relative) {if (fs.lstatSync(source).isSymbolicLink()) throw Error('SYMLINK_NOT_ALLOWED'); write(relative, fs.readFileSync(source));}
-  for (const item of ['index.html', 'agenda.html', 'reservar.html', 'atencion.html', 'atencion-operador.html', 'shared/reservation-reference.js', 'shared/attention-quick-replies.js', 'web/attention/attention.js', 'web/attention/attention.css']) copy(path.join(root, item), 'public/' + item);
+  for (const item of ['index.html', 'agenda.html', 'reservar.html', 'atencion.html', 'atencion-operador.html', 'shared/reservation-reference.js', 'shared/attention-quick-replies.js', 'shared/attention-alerts.js', 'web/attention/attention.js', 'web/attention/attention.css']) copy(path.join(root, item), 'public/' + item);
   for (const item of ['404.html', 'leia.html']) copy(path.join(legacy, item), 'public/' + item);
   function assets(directory) {
     for (const entry of fs.readdirSync(directory, {withFileTypes: true})) {
@@ -56,6 +56,7 @@ function build(options) {
   for (const item of ['index.cjs', 'package.json', 'package-lock.json']) copy(path.join(root, 'attention-functions', item), 'functions/' + item);
   for (const item of ['attention-store.cjs', 'attention-service.cjs', 'attention-firebase-authority.cjs', 'attention-http.cjs', 'attention-journal.cjs', 'live-availability-reader.cjs']) copy(path.join(root, 'server', item), 'functions/server/' + item);
   copy(path.join(root, 'shared/lease-continuity.js'), 'functions/shared/lease-continuity.js');
+  copy(path.join(root, 'shared/attention-alerts.js'), 'functions/shared/attention-alerts.js');
   copy(path.join(root, 'lab/attention/continuity-contract.js'), 'functions/lab/attention/continuity-contract.js');
   copy(path.join(root, 'lab/attention/fixtures/lease-config.json'), 'functions/config/lease.json');
   write('functions/.env.' + firebase.projectId, 'ATTENTION_PUBLIC_ORIGIN=' + attentionOrigin + '\nATTENTION_DATABASE_URL=' + firebase.databaseURL + '\n');
@@ -65,7 +66,7 @@ function build(options) {
     {source: '/atencion', destination: '/atencion.html'},
     {source: '/reservar', destination: '/reservar.html'},
     {source: '/leia', destination: '/leia.html'}]}}, null, 2) + '\n');
-  write('release-manifest.json', JSON.stringify({site, projectId: firebase.projectId, attentionOrigin, reservationOrigin, capabilities: {intake: true, conversation: true, guestConversation: true, hypeProfiles: false, booking: false, automaticReminders: false, leasePreparation: false}, files}, null, 2) + '\n');
+  write('release-manifest.json', JSON.stringify({site, projectId: firebase.projectId, attentionOrigin, reservationOrigin, capabilities: {intake: true, conversation: true, guestConversation: true, messageAlerts: true, hypeProfiles: false, booking: false, automaticReminders: false, leasePreparation: false}, files}, null, 2) + '\n');
   return {output, site, projectId: firebase.projectId, attentionOrigin, reservationOrigin, files: files.length};
 }
 if (require.main === module) {try {console.log(JSON.stringify(build(args(process.argv.slice(2))), null, 2));} catch (error) {console.error(error.message); process.exitCode = 1;}}

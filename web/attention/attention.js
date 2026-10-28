@@ -8,6 +8,9 @@
   const inboxButtons = new Map();
   let quickReplies = [], activeOrganization = '';
   let auth, active, catalog = [], busy = false, confirmation, verifier, guestSecret, guestJoined = false;
+  const alerts = window.SynapseAlerts, pageTitle = document.title;
+  const sound = alerts?.createSound(window,()=>updateSoundButton());
+  let readTracker, noticeScope = '', inboxRows = [], pollTimer, pollBusy = false, pollEpoch = 0, polling = false;
   const token = role === 'customer' ? location.hash.slice(1) : '';
   const sourceNames = {marketplace_facebook: 'Marketplace Facebook', facebook: 'Facebook', whatsapp: 'WhatsApp', casa_login: 'Casa Login', hype_synapse_experience: 'HYPE by Synapse Experience', directa: 'Directa'};
   const errors = {
@@ -41,6 +44,137 @@
       $('tab-' + panel).setAttribute('aria-selected', String(panel === name));
       $('tab-' + panel).tabIndex = panel === name ? 0 : -1;
     });
+    markVisibleMessagesRead();
+  }
+  function storage() {try{return localStorage;}catch{return null;}}
+  function setNoticeScope(scope) {
+    if(!alerts || noticeScope===scope)return;
+    pollEpoch++;noticeScope=scope;inboxRows=[];
+    readTracker=alerts.createTracker(storage(),'synapse.attention.read.v1:'+scope);
+  }
+  function updateSoundButton() {
+    if(!alerts)return;
+    $('sound-toggle').textContent=sound.enabled?'Sonido Synapse activado':'Activar sonido Synapse';
+    $('sound-toggle').setAttribute('aria-pressed',String(sound.enabled));
+    $('sound-toggle').title=sound.enabled?'Pulsa para silenciar los avisos':'Activa y escucha la firma sonora de Synapse';
+  }
+  function playMessageSound() {if(sound?.enabled)sound.play();updateSoundButton();}
+  function renderMessageIndicators() {
+    if(!readTracker)return;
+    let total=0;
+    for(const row of inboxRows){
+      const count=readTracker.unread(row.id);total+=count;
+      if(role==='agent'){
+        const button=inboxButtons.get(row.id);if(!button)continue;
+        button.classList.toggle('unread',count>0);
+        button.setAttribute('aria-label',(row.context.displayName||'Nombre pendiente')+(count?' · '+count+' mensajes sin leer':''));
+        const badge=button._unreadBadge;
+        if(badge){badge.hidden=!count;badge.textContent=count>99?'99+':String(count);}
+      }
+    }
+    $('unread-summary').textContent=total?total+(total===1?' mensaje nuevo':' mensajes nuevos'):'Sin mensajes nuevos';
+    $('unread-summary').classList.toggle('has-unread',total>0);
+    document.title=(total?'('+total+') ':'')+pageTitle;
+    if(role==='agent'){
+      $('next-unread').hidden=!total;
+      $('toggle-list').textContent='Atenciones'+(total?' · '+total:'');
+      const activeUnread=active?.conversation?readTracker.unread(active.conversation.id):0;
+      $('tab-conversation').textContent='Conversación'+(activeUnread?' · '+activeUnread:'');
+    }
+  }
+  function markVisibleMessagesRead() {
+    if(!readTracker||!active||document.visibilityState==='hidden'||(document.hasFocus&&!document.hasFocus()))return;
+    if(role==='agent'&&($('detail').hidden||$('panel-conversation').hidden||document.body.classList.contains('show-inbox')||$('capture-dialog').open||$('report-dialog').open))return;
+    if(role==='customer'&&$('customer-chat').hidden)return;
+    const thread=$('messages');
+    if(typeof thread.clientHeight==='number'&&(thread.clientHeight===0||thread.scrollHeight-thread.scrollTop-thread.clientHeight>60))return;
+    if(thread.getBoundingClientRect){const rect=thread.getBoundingClientRect();if(rect.bottom<=0||rect.top>=window.innerHeight)return;}
+    const roles=role==='agent'?['customer','guest']:['agent'];
+    const id=role==='agent'?active.conversation.id:active.conversationId;
+    if(!id)return;
+    readTracker.read(id,alerts.messageStats(active.messages||[],roles).count);renderMessageIndicators();
+  }
+  function observeCustomerMessages(data) {
+    if(!readTracker||!data.conversationId)return;
+    const stats=alerts.messageStats(data.messages,['agent']);
+    const result=readTracker.observe(data.conversationId,stats);
+    inboxRows=[{id:data.conversationId,inbox:stats}];
+    if(result.fresh)playMessageSound();
+    markVisibleMessagesRead();renderMessageIndicators();
+  }
+  function renderInbox(items) {
+    if(readTracker){let fresh=0;for(const item of items)fresh+=readTracker.observe(item.id,item.inbox).fresh;if(fresh)playMessageSound();}
+    const focused=[...inboxButtons].find(([,button])=>button===document.activeElement)?.[0];
+    inboxRows=items;
+    $('conversations').replaceChildren();inboxButtons.clear();
+    items.sort((a,b)=>(readTracker?.unread(b.id)||0)-(readTracker?.unread(a.id)||0)||String(b.inbox?.lastAt||b.createdAt).localeCompare(String(a.inbox?.lastAt||a.createdAt))).forEach(item=>{
+      const button=node('button',(item.context.displayName||'Nombre pendiente')+' · '+(sourceNames[item.context.source]||item.context.source),'conversation'+(active?.conversation.id===item.id?' selected':''));
+      button.setAttribute('aria-pressed',String(active?.conversation.id===item.id));
+      const badge=node('span','','unread-badge');badge.hidden=true;button.append(badge);button._unreadBadge=badge;
+      inboxButtons.set(item.id,button);button.addEventListener('click',()=>run(()=>inspect(item.id)));$('conversations').append(button);
+    });
+    if(!items.length)$('conversations').append(node('p','Todavía no hay atenciones registradas.','muted'));
+    renderMessageIndicators();
+    if(focused)inboxButtons.get(focused)?.focus();
+  }
+  function queuePoll(delay) {
+    if(typeof setTimeout!=='function'||!polling)return;
+    clearTimeout(pollTimer);pollTimer=setTimeout(pollMessages,delay??(document.visibilityState==='hidden'?15000:5000));
+  }
+  async function pollMessages() {
+    if(!polling)return;
+    if(pollBusy||busy){queuePoll();return;}
+    if(role==='agent'&&(!auth?.currentUser||$('workspace').hidden)){queuePoll();return;}
+    if(role==='customer'&&(!active?.conversationId||(guestSecret&&!guestJoined))){queuePoll();return;}
+    const epoch=pollEpoch,scope=noticeScope,organization=role==='agent'?$('organization').value:null;
+    pollBusy=true;
+    try{
+      if(role==='agent'){
+        const items=await agentApi('list');
+        if(epoch!==pollEpoch||scope!==noticeScope||organization!==$('organization').value||busy)return;
+        const previousCount=active?.messages?alerts.messageStats(active.messages,['customer','guest']).count:0;
+        renderInbox(items);
+        const selected=items.find(item=>item.id===active?.conversation.id);
+        if(active&&!selected){
+          conversationDrafts.delete(activeOrganization+'/'+active.conversation.id);active=null;activeOrganization='';
+          $('detail').hidden=true;$('empty-detail').hidden=false;$('messages').replaceChildren();$('share-text').value='';
+        }
+        if(selected&&selected.context.currentPropertyId!==active?.sheet.propertyId){
+          status('El inmueble de esta atención cambió. Pulsa Actualizar para revisar su ficha.');
+        }else if(selected?.inbox?.count>previousCount){
+          const conversationId=selected.id,next=await agentApi('inspect',{conversationId});
+          if(epoch!==pollEpoch||scope!==noticeScope||busy||active?.conversation.id!==conversationId)return;
+          active.messages=next.messages;active.journal=next.journal;renderMessages(next.messages);
+          if(JSON.stringify(next.conversation.context)===JSON.stringify(active.conversation.context)&&next.conversation.invitation?.tokenHash===active.conversation.invitation?.tokenHash)active.conversation=next.conversation;
+          markVisibleMessagesRead();
+        }
+      }else{
+        const data=guestSecret?await api('/guest/view',{token,secret:guestSecret},false):await api('/customer/view',{token});
+        if(epoch!==pollEpoch||scope!==noticeScope||busy)return;
+        active.messages=data.messages;renderMessages(data.messages);observeCustomerMessages(data);
+      }
+      if(epoch===pollEpoch)$('inbox-sync').textContent='Mensajes al día · '+new Date().toLocaleTimeString('es-MX',{timeZone:'America/Mexico_City'});
+    }catch(error){
+      if(epoch===pollEpoch){const terminal=/INVITATION_INVALID|GUEST_ACCESS_REQUIRED|AUTHENTICATION_REQUIRED|FORBIDDEN|PROPERTY_NOT_PUBLISHED/.test(error.message);$('inbox-sync').textContent=terminal?(errors[error.message]||'Revisa tu acceso para recibir mensajes.'):'Sin conexión con mensajes. Reintentando…';if(terminal)polling=false;}
+    }finally{pollBusy=false;queuePoll();}
+  }
+  function startPolling(){if(!alerts)return;polling=true;queuePoll();}
+  function stopPolling(){polling=false;pollEpoch++;if(typeof clearTimeout==='function')clearTimeout(pollTimer);readTracker=null;noticeScope='';inboxRows=[];sound?.mute();if(alerts){document.title=pageTitle;updateSoundButton();$('unread-summary').textContent='Sin mensajes nuevos';$('unread-summary').classList.remove('has-unread');}}
+  function setupMessageNotices(){
+    if(!alerts)return;
+    $('sound-toggle').addEventListener('click',async()=>{
+      if($('sound-toggle').disabled)return;$('sound-toggle').disabled=true;
+      const epoch=pollEpoch;
+      try{if(sound.enabled)sound.mute();else await sound.enable();if(epoch!==pollEpoch)sound.mute();}catch{status('No se pudo activar el sonido. Revisa el volumen y vuelve a pulsar Activar sonido.',true);}
+      finally{$('sound-toggle').disabled=false;updateSoundButton();}
+    });
+    if(role==='agent')$('next-unread').addEventListener('click',()=>run(async()=>{const row=inboxRows.find(item=>readTracker?.unread(item.id));if(row)await inspect(row.id);}));
+    $('messages').addEventListener('scroll',markVisibleMessagesRead);
+    document.addEventListener?.('visibilitychange',()=>{markVisibleMessagesRead();queuePoll(0);});
+    window.addEventListener?.('focus',()=>{markVisibleMessagesRead();queuePoll(0);});
+    window.addEventListener?.('online',()=>queuePoll(0));
+    window.addEventListener?.('scroll',markVisibleMessagesRead,{passive:true});
+    updateSoundButton();
   }
   function closeDialog(name) { $(name + '-dialog').close(); }
   const draftFields = ['message', 'summary', 'next-action', 'due-date', 'reply-preset'];
@@ -111,20 +245,17 @@
     $('reserve-link').href = url.toString(); $('reserve-link').hidden = false;
   }
   function renderMessages(messages) {
-    const root = $('messages'); root.replaceChildren();
+    const root = $('messages'),previousTop=root.scrollTop||0;
+    const follow=!root.children.length||typeof root.scrollHeight!=='number'||root.scrollHeight-previousTop-root.clientHeight<60;
+    root.replaceChildren();
     messages.sort((a, b) => a.recordedAt.localeCompare(b.recordedAt)).forEach(message => {
       const item = node('div', '', 'message ' + message.actorRole);
       item.append(node('small', (message.actorRole === 'agent' ? 'Asesor' : message.actorRole === 'guest' ? 'Cliente invitado' : 'Cliente') + ' · ' + new Date(message.recordedAt).toLocaleString('es-MX', {timeZone: 'America/Mexico_City'})), node('div', message.text)); root.append(item);
     });
+    root.scrollTop=follow?root.scrollHeight:previousTop;
   }
   async function list() {
-    const items = await agentApi('list'); $('conversations').replaceChildren(); inboxButtons.clear();
-    items.sort((a, b) => b.createdAt.localeCompare(a.createdAt)).forEach(item => {
-      const button = node('button', (item.context.displayName || 'Nombre pendiente') + ' · ' + (sourceNames[item.context.source] || item.context.source), 'conversation' + (active?.conversation.id === item.id ? ' selected' : ''));
-      button.setAttribute('aria-pressed', String(active?.conversation.id === item.id)); inboxButtons.set(item.id, button);
-      button.addEventListener('click', () => run(() => inspect(item.id))); $('conversations').append(button);
-    });
-    if (!items.length) $('conversations').append(node('p', 'Todavía no hay atenciones registradas.', 'muted'));
+    const items = await agentApi('list');renderInbox(items);
   }
   async function inspect(conversationId) {
     const next = await agentApi('inspect', {conversationId});
@@ -156,6 +287,7 @@
     $('reply-context').textContent = 'Respuesta para ' + active.sheet.name + '. Revísala y edítala antes de enviar.';
     if (changing) {restoreDraft(); selectPanel('conversation');}
     else if (previousProperty !== active.sheet.propertyId && wasPrepared) $('message').value = quickReplies.find(item => item.id === $('reply-preset').value)?.text || '';
+    markVisibleMessagesRead();
   }
   async function refresh() {
     const result = await agentApi('catalog'); catalog = result.properties;
@@ -191,7 +323,7 @@
     $('email-login').addEventListener('submit', event => {event.preventDefault(); run(() => auth.signInWithEmailAndPassword($('email').value.trim(), $('password').value));});
     $('google').addEventListener('click', () => run(() => auth.signInWithPopup(new firebase.auth.GoogleAuthProvider())));
     $('logout').addEventListener('click', () => run(() => auth.signOut()));
-    $('organization').addEventListener('change', () => run(async () => {saveDraft(); active = null; activeOrganization = ''; quickReplies = []; $('detail').hidden = true; $('empty-detail').hidden = false; $('share-text').value = ''; document.body.classList.add('show-inbox'); await refresh();}));
+    $('organization').addEventListener('change', () => run(async () => {saveDraft();setNoticeScope(auth.currentUser.uid+'/'+$('organization').value); active = null; activeOrganization = ''; quickReplies = []; $('detail').hidden = true; $('empty-detail').hidden = false; $('share-text').value = ''; document.body.classList.add('show-inbox'); await refresh();startPolling();}));
     $('refresh').addEventListener('click', () => run(refresh));
     $('capture').addEventListener('submit', event => {event.preventDefault(); run(async () => {
       const result = await command('/agent/capture', {displayName: $('display-name').value, surname: $('surname').value, phone: $('phone').value, source: $('source').value, entryChannel: $('entry-channel').value, propertyId: $('property').value, question: $('question').value});
@@ -228,6 +360,7 @@
     auth.onAuthStateChanged(user => {
       $('login').hidden = Boolean(user); $('logout').hidden = !user; $('workspace').hidden = !user;
       if (!user) {
+        stopPolling();
         active = null; activeOrganization = ''; catalog = []; quickReplies = []; pending.clear(); conversationDrafts.clear(); inboxButtons.clear();
         document.body.classList.remove('operator-ready', 'show-inbox');
         for (const name of ['capture', 'report']) if ($(name + '-dialog').open) closeDialog(name);
@@ -241,7 +374,7 @@
           const session = await api('/agent/session'); options($('organization'), session.organizations);
           if (!session.organizations.length) {$('workspace').hidden = true; status('Tu cuenta aún no tiene una organización autorizada para Atención.', true); return;}
           document.body.classList.add('operator-ready'); if (!active) document.body.classList.add('show-inbox');
-          await refresh(); status('Sesión activa. Puedes capturar una atención.');
+          setNoticeScope(user.uid+'/'+$('organization').value);await refresh();startPolling(); status('Sesión activa. Puedes capturar una atención.');
         } catch (error) {status(errors[error.message] || 'No se pudo cargar la sesión de Atención.', true);}
       })();
     });
@@ -261,6 +394,7 @@
     } else data = await api('/customer/view', {token});
     active = data;
     renderSheet(data.sheet); renderMessages(data.messages); $('verification').hidden = true; $('customer-chat').hidden = false;
+    observeCustomerMessages(data);startPolling();
     $('access-state').textContent = guestSecret ? 'Invitado · sin registro. Tu identidad no está verificada. Continúa desde este navegador.' : 'Acceso con teléfono verificado.';
     const root = $('shared-conditions'); root.replaceChildren();
     if (data.conditions) {
@@ -272,6 +406,7 @@
   }
   async function setupCustomer() {
     const data = await api('/invitation/preview', {token}, false); renderSheet(data.sheet);
+    if(alerts){const digest=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(token));setNoticeScope('customer/'+Array.from(new Uint8Array(digest),byte=>byte.toString(16).padStart(2,'0')).join(''));}
     $('refresh-customer').addEventListener('click', () => run(refreshCustomer));
     $('message-form').addEventListener('submit', event => {event.preventDefault(); run(async () => {
       if (guestSecret) {
@@ -321,5 +456,6 @@
     const app = firebase.apps.find(item => item.name === appName) || (role === 'agent' ? firebase.initializeApp(config.firebase) : firebase.initializeApp(config.firebase, appName));
     auth = app.auth();
   }
+  setupMessageNotices();
   if (role === 'agent') {initializeAuth(); setupAgent();} else run(setupCustomer);
 })();

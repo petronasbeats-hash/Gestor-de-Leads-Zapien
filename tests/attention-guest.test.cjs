@@ -120,21 +120,24 @@ test('guest HTTP needs no Auth provider but enforces link, browser secret and fi
   assert.equal((await http(handler, '/agent/capture', {organizationId: 'org-demo'})).statusCode, 401);
 });
 class Element {
-  constructor() {this.children = []; this.handlers = {}; this.value = ''; this.hidden = false; this.disabled = false; this.classList = {toggle() {}};}
+  constructor() {this.children = []; this.handlers = {}; this.attrs={};this.value = ''; this.hidden = false; this.disabled = false; this.classList = {toggle() {},remove(){}};}
   append(...nodes) {this.children.push(...nodes);} replaceChildren(...nodes) {this.children = nodes;}
   addEventListener(name, callback) {this.handlers[name] = callback;}
+  setAttribute(name,value){this.attrs[name]=value;}
 }
 test('actual customer script opens, sends and restores guest session without Firebase, phone or captcha', async () => {
   const f = await fixture(); const storage = new Map();
   const handler = createAttentionHttp({service: f.service, authority: {}});
   async function page() {
+    const clock=require('./helpers/attention-ui-clock.cjs').uiClock(),audio=require('./helpers/attention-ui-clock.cjs').audioHost(),events={};
     const ids = [...fs.readFileSync(require.resolve('../atencion.html'), 'utf8').matchAll(/id="([^"]+)"/g)].map(m => m[1]);
     const elements = Object.fromEntries(ids.map(id => [id, new Element()]));
-    const context = {document: {body: {dataset: {role: 'customer'}}, getElementById: id => {assert.ok(elements[id], id); return elements[id];}, querySelectorAll: () => [], createElement: () => new Element()},
-      window: {SYNAPSE_ATTENTION_CONFIG: {firebase: {}, reservationOrigin: 'https://example.test'}}, location: {hash: '#' + f.token}, crypto: webcrypto, TextEncoder, Uint8Array, URL, Intl, Date,
+    const context = {document: {title:'Synapse Customer',visibilityState:'visible',hasFocus:()=>true,addEventListener:(name,fn)=>{events[name]=fn;},body: {dataset: {role: 'customer'}}, getElementById: id => {assert.ok(elements[id], id); return elements[id];}, querySelectorAll: () => [], createElement: () => new Element()},
+      window: {SynapseAlerts:require('../shared/attention-alerts.js'),AudioContext:audio.AudioContext,addEventListener:(name,fn)=>{events[name]=fn;},SYNAPSE_ATTENTION_CONFIG: {firebase: {}, reservationOrigin: 'https://example.test'}},setTimeout:clock.setTimeout,clearTimeout:clock.clearTimeout, location: {hash: '#' + f.token}, crypto: webcrypto, TextEncoder, Uint8Array, URL, Intl, Date,
       btoa: value => Buffer.from(value, 'binary').toString('base64'), localStorage: {getItem: key => storage.get(key) || null, setItem: (key, value) => storage.set(key, value)},
       fetch: async (url, request) => {const r = await http(handler, url.replace('/attention-api', ''), JSON.parse(request.body)); return {ok: r.statusCode === 200, json: async () => r.body};}};
     vm.runInNewContext(fs.readFileSync(require.resolve('../web/attention/attention.js'), 'utf8'), context);
+    elements._clock=clock;elements._audio=audio.state;elements._document=context.document;elements._events=events;
     for (let i = 0; i < 200; i++) {if (elements['access-state'].textContent?.includes('Invitado')) return elements; await new Promise(resolve => setTimeout(resolve, 5));}
     assert.fail('Customer page did not open guest session: ' + elements.status.textContent);
   }
@@ -142,6 +145,13 @@ test('actual customer script opens, sends and restores guest session without Fir
   assert.equal(Object.values((await f.store.read('org-demo')).journal).filter(e => e.kind === 'guest_connected').length, 0);
   first.message.value = 'Sin SMS, desde la interfaz real'; first['message-form'].handlers.submit({preventDefault() {}});
   for (let i = 0; i < 200; i++) {if ((await f.store.read('org-demo')).messages[f.conversationId] && Object.values((await f.store.read('org-demo')).messages[f.conversationId]).some(m => m.text === first.message.value || m.text === 'Sin SMS, desde la interfaz real')) break; await new Promise(resolve => setTimeout(resolve, 5));}
-  const reloaded = await page(); assert.equal(reloaded.messages.children.length, 1); assert.equal(storage.size, 1);
+  const reloaded = await page(); assert.equal(reloaded.messages.children.length, 1); assert.equal(storage.size, 2);
   assert.equal(Object.values((await f.store.read('org-demo')).journal).filter(e => e.kind === 'guest_connected').length, 1);
+  await reloaded['sound-toggle'].handlers.click();assert.equal(reloaded._audio.starts,6);
+  const current=(await f.service.inspect(f.principal,f.conversationId)).conversation;
+  await f.service.sendMessage(f.principal,{requestId:'automatic-advisor-reply',conversationId:f.conversationId,threadId:current.invitation.threadId,text:'Respuesta automática visible, enviada por el asesor'});
+  reloaded._document.visibilityState='hidden';reloaded.message.value='Customer unsent draft';
+  await reloaded._clock.tick();assert.equal(reloaded.messages.children.length,2);assert.equal(reloaded['unread-summary'].textContent,'1 mensaje nuevo');assert.equal(reloaded._audio.starts,12);assert.equal(reloaded.message.value,'Customer unsent draft');
+  await reloaded._clock.tick();assert.equal(reloaded._audio.starts,12);
+  reloaded._document.visibilityState='visible';reloaded._events.focus();assert.equal(reloaded['unread-summary'].textContent,'Sin mensajes nuevos');
 });
