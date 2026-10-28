@@ -21,8 +21,12 @@ test('release exige sitio explícito y dependencias existentes; no reemplaza sal
     fs.writeFileSync(path.join(legacy, 'assets/firebase-debug.log'), 'must not publish');
     const result = build(options);
     assert.equal(result.site, 'synapse-core');
+    for(const file of ['public/territorio.html','public/shared/territory-model.js','public/web/territory/territory.js','public/web/territory/local-drafts.js','public/web/territory/territory.css','functions/server/territory-service.cjs','functions/shared/territory-model.js'])assert.equal(fs.existsSync(path.join(result.output,file)),true);
     const config = JSON.parse(fs.readFileSync(path.join(result.output, 'firebase.json')));
     assert.equal(config.database, undefined);
+    assert.ok(config.hosting.rewrites.some(r=>r.source==='/territorio'&&r.destination==='/territorio.html'));
+    const capabilities=JSON.parse(fs.readFileSync(path.join(result.output,'release-manifest.json'))).capabilities;assert.equal(capabilities.territory,true);assert.equal(capabilities.territoryPrivatePhotos,false);
+    assert.match(fs.readFileSync(path.join(result.output,'public/territorio.html'),'utf8'),/territory\.js\?v=[a-f0-9]{16}/);
     assert.equal(config.hosting.public, 'public');
     assert.equal(config.hosting.site, 'synapse-core');
     assert.ok(config.hosting.headers.some(rule=>rule.headers.some(header=>header.key==='Cache-Control'&&header.value.includes('must-revalidate'))));

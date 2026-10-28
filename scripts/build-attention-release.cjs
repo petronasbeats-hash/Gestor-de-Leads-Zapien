@@ -40,7 +40,7 @@ function build(options) {
     const entry={path:relative,sha256:createHash('sha256').update(content).digest('hex')},existing=files.findIndex(file=>file.path===relative);if(existing<0)files.push(entry);else files[existing]=entry;
   }
   function copy(source, relative) {if (fs.lstatSync(source).isSymbolicLink()) throw Error('SYMLINK_NOT_ALLOWED'); write(relative, fs.readFileSync(source));}
-  for (const item of ['agenda.html', 'reservar.html', 'atencion.html', 'atencion-operador.html', 'workspace.html', 'shared/property-inventory.js', 'shared/workspace-model.js', 'shared/workspace-store.js', 'shared/visit-availability.js', 'shared/weekly-hours.js', 'web/agenda/weekly-hours.js', 'web/agenda/weekly-hours.css', 'shared/attention-booking.js', 'web/attention/booking.js', 'web/workspace/workspace.js', 'web/workspace/workspace.css', 'web/shell/navigation.js', 'web/shell/navigation.css', 'web/shell/admin-navigation.js', 'web/reservar/experience.css', 'web/reservar/experience.js', 'web/theme/theme-engine.js', 'web/theme/theme.css', 'shared/lease-continuity.js', 'shared/reservation-reference.js', 'shared/attention-quick-replies.js', 'shared/attention-alerts.js', 'web/attention/attention.js', 'web/attention/attention.css']) copy(path.join(root, item), 'public/' + item);
+  for (const item of ['territorio.html', 'shared/territory-model.js', 'web/territory/local-drafts.js', 'web/territory/territory.js', 'web/territory/territory.css', 'agenda.html', 'reservar.html', 'atencion.html', 'atencion-operador.html', 'workspace.html', 'shared/property-inventory.js', 'shared/workspace-model.js', 'shared/workspace-store.js', 'shared/visit-availability.js', 'shared/weekly-hours.js', 'web/agenda/weekly-hours.js', 'web/agenda/weekly-hours.css', 'shared/attention-booking.js', 'web/attention/booking.js', 'web/workspace/workspace.js', 'web/workspace/workspace.css', 'web/shell/navigation.js', 'web/shell/navigation.css', 'web/shell/admin-navigation.js', 'web/reservar/experience.css', 'web/reservar/experience.js', 'web/theme/theme-engine.js', 'web/theme/theme.css', 'shared/lease-continuity.js', 'shared/reservation-reference.js', 'shared/attention-quick-replies.js', 'shared/attention-alerts.js', 'web/attention/attention.js', 'web/attention/attention.css']) copy(path.join(root, item), 'public/' + item);
   copy(path.join(root, 'workspace.html'), 'public/index.html');
   copy(path.join(root, 'index.html'), 'public/administracion.html');
   copy(path.join(root, 'shared/workspace-radar.js'), 'public/shared/workspace-radar.js');
@@ -62,9 +62,10 @@ function build(options) {
   write('public/web/reservar/terms.js','window.SYNAPSE_PUBLIC_TERMS = '+JSON.stringify(publicTerms)+';\n');
   write('public/web/attention/config.js', 'window.SYNAPSE_ATTENTION_CONFIG = ' + JSON.stringify({firebase, reservationOrigin}) + ';\n');
   for (const item of ['index.cjs', 'package.json', 'package-lock.json']) copy(path.join(root, 'attention-functions', item), 'functions/' + item);
-  for (const item of ['attention-store.cjs', 'attention-service.cjs', 'attention-firebase-authority.cjs', 'attention-http.cjs', 'attention-journal.cjs', 'live-availability-reader.cjs']) copy(path.join(root, 'server', item), 'functions/server/' + item);
+  for (const item of ['territory-service.cjs', 'attention-store.cjs', 'attention-service.cjs', 'attention-firebase-authority.cjs', 'attention-http.cjs', 'attention-journal.cjs', 'live-availability-reader.cjs']) copy(path.join(root, 'server', item), 'functions/server/' + item);
   copy(path.join(root, 'shared/lease-continuity.js'), 'functions/shared/lease-continuity.js');
   copy(path.join(root, 'shared/attention-alerts.js'), 'functions/shared/attention-alerts.js');
+  copy(path.join(root, 'shared/territory-model.js'), 'functions/shared/territory-model.js');
   copy(path.join(root, 'lab/attention/continuity-contract.js'), 'functions/lab/attention/continuity-contract.js');
   copy(path.join(root, 'lab/attention/fixtures/lease-config.json'), 'functions/config/lease.json');
   write('functions/.env.' + firebase.projectId, 'ATTENTION_PUBLIC_ORIGIN=' + attentionOrigin + '\nATTENTION_DATABASE_URL=' + firebase.databaseURL + '\n');
@@ -88,6 +89,7 @@ function build(options) {
     {source: '/attention-api/**', function: {functionId: 'attentionApi', region: 'us-central1'}},
     {source: '/atencion-operador', destination: '/atencion-operador.html'},
     {source: '/atencion', destination: '/atencion.html'},
+    {source: '/territorio', destination: '/territorio.html'},
     {source: '/contactos', destination: '/workspace.html'},
     {source: '/directorio', destination: '/workspace.html'},
     {source: '/radar', destination: '/workspace.html'},
@@ -99,7 +101,7 @@ function build(options) {
     {source: '/agenda', destination: '/workspace.html'},
     {source: '/reservar', destination: '/reservar.html'},
     {source: '/leia', destination: '/leia.html'}]}}, null, 2) + '\n');
-  write('release-manifest.json', JSON.stringify({site, projectId: firebase.projectId, attentionOrigin, reservationOrigin, capabilities: {intake: true, conversation: true, guestConversation: true, messageAlerts: true, contacts: true, directory: true, actionRadar: true, themeEngine: true, operatorVisitRegistration: true, operations: true, actionPipelines: true, internalAgenda: true, hypeProfiles: false, booking: false, automaticReminders: false, leasePreparation: false}, files}, null, 2) + '\n');
+  write('release-manifest.json', JSON.stringify({site, projectId: firebase.projectId, attentionOrigin, reservationOrigin, capabilities: {territory: true, territoryOfflineDrafts: true, territoryPrivatePhotos: false, intake: true, conversation: true, guestConversation: true, messageAlerts: true, contacts: true, directory: true, actionRadar: true, themeEngine: true, operatorVisitRegistration: true, operations: true, actionPipelines: true, internalAgenda: true, hypeProfiles: false, booking: false, automaticReminders: false, leasePreparation: false}, files}, null, 2) + '\n');
   return {output, site, projectId: firebase.projectId, attentionOrigin, reservationOrigin, files: files.length};
 }
 if (require.main === module) {try {console.log(JSON.stringify(build(args(process.argv.slice(2))), null, 2));} catch (error) {console.error(error.message); process.exitCode = 1;}}

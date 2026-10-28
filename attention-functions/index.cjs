@@ -9,6 +9,7 @@ const {createAttentionService} = require('./server/attention-service.cjs');
 const {createFirebaseAuthority} = require('./server/attention-firebase-authority.cjs');
 const {createAttentionHttp} = require('./server/attention-http.cjs');
 const {createLiveAvailabilityReader} = require('./server/live-availability-reader.cjs');
+const {createTerritoryService} = require('./server/territory-service.cjs');
 const leaseConfig = require('./config/lease.json');
 const origin = defineString('ATTENTION_PUBLIC_ORIGIN');
 const databaseUrl = defineString('ATTENTION_DATABASE_URL');
@@ -18,6 +19,7 @@ exports.attentionApi = onRequest({region: 'us-central1', minInstances: 0, maxIns
     const app = getApps()[0] || initializeApp({databaseURL: databaseUrl.value()});
     const db = getDatabase(app);
     handler = createAttentionHttp({
+      territoryService: createTerritoryService({db}),
       authority: createFirebaseAuthority({auth: getAuth(app), db}),
       service: createAttentionService({store: createAttentionStore(db), leaseConfig, invitationBaseUrl: origin.value(),
         readAgendaEvent: async eventId => (await db.ref('citas/' + eventId).get()).val(),
