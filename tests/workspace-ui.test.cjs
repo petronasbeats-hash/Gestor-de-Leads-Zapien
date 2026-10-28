@@ -41,6 +41,6 @@ test('unified navigation preserves selected contact, nests operations and follow
 test('theme changes preserve unfinished forms and Radar overview opens filters without creating data',async t=>{
  const f=await fixture(t,{route:'/'}),before=JSON.stringify(f.db.data);assert.equal(f.el('radar-overview').querySelectorAll('button').length,4);
  f.el('radar-overview').querySelector('[data-priority=undated]').click();assert.equal(f.el('radar-filters').querySelector('[aria-pressed=true]').textContent.startsWith('Sin fecha'),true);
- f.click('nav-contacts');f.click('new-contact');f.set('c-name','BORRADOR_PRIVADO');f.w.SynapseTheme.setPreference('dark');assert.equal(f.el('c-name').value,'BORRADOR_PRIVADO');assert.equal(f.el('contact-dialog').open,true);f.w.SynapseTheme.setPreference('light');assert.equal(JSON.stringify(f.db.data),before);
+ f.click('nav-contacts');f.click('new-contact');f.set('c-name','BORRADOR_PRIVADO');f.w.SynapseTheme.setPreference('dark');f.w.SynapseTheme.setPalette('green');assert.equal(f.el('c-name').value,'BORRADOR_PRIVADO');assert.equal(f.el('contact-dialog').open,true);f.w.SynapseTheme.setPreference('light');assert.equal(JSON.stringify(f.db.data),before);
  f.el('contact-dialog').close();f.click('logout');await until(()=>f.el('workspace').hidden);assert.equal(f.el('radar-overview').children.length,0);assert.equal(f.el('contact-count').textContent,'');
 });
