@@ -43,6 +43,9 @@ adquirido: la asociación se construye con su uso consistente.
 - El refresco automático no reinicia el editor, contacto, resumen ni enlace
   compartible. Cerrar sesión detiene consultas y sonido y restaura el título.
   Respuestas tardías se descartan después de cambiar de organización o sesión.
+- Si el asesor cambia el inmueble o comparte condiciones, la vista del cliente
+  actualiza ese contexto sin borrar su mensaje pendiente; un cambio de inmueble
+  se anuncia para que revise la ficha antes de continuar.
 
 ## Servidor y límites
 

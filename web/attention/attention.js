@@ -151,7 +151,11 @@
       }else{
         const data=guestSecret?await api('/guest/view',{token,secret:guestSecret},false):await api('/customer/view',{token});
         if(epoch!==pollEpoch||scope!==noticeScope||busy)return;
-        active.messages=data.messages;renderMessages(data.messages);observeCustomerMessages(data);
+        const propertyChanged=active.sheet.propertyId!==data.sheet.propertyId;
+        if(JSON.stringify(active.sheet)!==JSON.stringify(data.sheet))renderSheet(data.sheet);
+        if(JSON.stringify(active.conditions)!==JSON.stringify(data.conditions))renderCustomerConditions(data.conditions);
+        active=data;renderMessages(data.messages);observeCustomerMessages(data);
+        if(propertyChanged)status('Tu asesor actualizó el inmueble de interés. Revisa la ficha antes de continuar.');
       }
       if(epoch===pollEpoch)$('inbox-sync').textContent='Mensajes al día · '+new Date().toLocaleTimeString('es-MX',{timeZone:'America/Mexico_City'});
     }catch(error){
@@ -379,6 +383,13 @@
       })();
     });
   }
+  function renderCustomerConditions(conditions) {
+    const root=$('shared-conditions');root.replaceChildren();
+    if(!conditions)return;
+    root.append(node('h3','Requisitos y condiciones compartidos'));
+    root.append(node('p','Plazo: '+conditions.termMonths+' meses · Depósito: $'+conditions.deposit+' MXN'));
+    const list=node('ul','','list');conditions.requirements.forEach(item=>list.append(node('li',item.label)));root.append(list);
+  }
   async function refreshCustomer() {
     let data;
     if (guestSecret) {
@@ -396,12 +407,7 @@
     renderSheet(data.sheet); renderMessages(data.messages); $('verification').hidden = true; $('customer-chat').hidden = false;
     observeCustomerMessages(data);startPolling();
     $('access-state').textContent = guestSecret ? 'Invitado · sin registro. Tu identidad no está verificada. Continúa desde este navegador.' : 'Acceso con teléfono verificado.';
-    const root = $('shared-conditions'); root.replaceChildren();
-    if (data.conditions) {
-      const conditions = data.conditions; root.append(node('h3', 'Requisitos y condiciones compartidos'));
-      root.append(node('p', 'Plazo: ' + conditions.termMonths + ' meses · Depósito: $' + conditions.deposit + ' MXN'));
-      const list = node('ul', '', 'list'); conditions.requirements.forEach(item => list.append(node('li', item.label))); root.append(list);
-    }
+    renderCustomerConditions(data.conditions);
     return true;
   }
   async function setupCustomer() {

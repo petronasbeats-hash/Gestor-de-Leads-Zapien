@@ -154,4 +154,8 @@ test('actual customer script opens, sends and restores guest session without Fir
   await reloaded._clock.tick();assert.equal(reloaded.messages.children.length,2);assert.equal(reloaded['unread-summary'].textContent,'1 mensaje nuevo');assert.equal(reloaded._audio.starts,12);assert.equal(reloaded.message.value,'Customer unsent draft');
   await reloaded._clock.tick();assert.equal(reloaded._audio.starts,12);
   reloaded._document.visibilityState='visible';reloaded._events.focus();assert.equal(reloaded['unread-summary'].textContent,'Sin mensajes nuevos');
+  const beforeChange=(await f.service.inspect(f.principal,f.conversationId)).conversation;
+  await f.service.changeInterest(f.principal,{requestId:'automatic-property-change',conversationId:f.conversationId,propertyId:'norte',expectedVersion:beforeChange.version});
+  await reloaded._clock.tick();const currentSheet=(await f.service.inspect(f.principal,f.conversationId)).sheet;
+  assert.equal(reloaded.sheet.children[0].textContent,currentSheet.name);assert.equal(reloaded.message.value,'Customer unsent draft');
 });
