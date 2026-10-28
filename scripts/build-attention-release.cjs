@@ -40,7 +40,7 @@ function build(options) {
     const entry={path:relative,sha256:createHash('sha256').update(content).digest('hex')},existing=files.findIndex(file=>file.path===relative);if(existing<0)files.push(entry);else files[existing]=entry;
   }
   function copy(source, relative) {if (fs.lstatSync(source).isSymbolicLink()) throw Error('SYMLINK_NOT_ALLOWED'); write(relative, fs.readFileSync(source));}
-  for (const item of ['agenda.html', 'reservar.html', 'atencion.html', 'atencion-operador.html', 'workspace.html', 'shared/workspace-model.js', 'shared/workspace-store.js', 'web/workspace/workspace.js', 'web/workspace/workspace.css', 'web/shell/navigation.js', 'web/shell/navigation.css', 'web/shell/admin-navigation.js', 'web/reservar/experience.css', 'web/reservar/experience.js', 'shared/lease-continuity.js', 'shared/reservation-reference.js', 'shared/attention-quick-replies.js', 'shared/attention-alerts.js', 'web/attention/attention.js', 'web/attention/attention.css']) copy(path.join(root, item), 'public/' + item);
+  for (const item of ['agenda.html', 'reservar.html', 'atencion.html', 'atencion-operador.html', 'workspace.html', 'shared/workspace-model.js', 'shared/workspace-store.js', 'web/workspace/workspace.js', 'web/workspace/workspace.css', 'web/shell/navigation.js', 'web/shell/navigation.css', 'web/shell/admin-navigation.js', 'web/reservar/experience.css', 'web/reservar/experience.js', 'web/theme/theme-engine.js', 'web/theme/theme.css', 'shared/lease-continuity.js', 'shared/reservation-reference.js', 'shared/attention-quick-replies.js', 'shared/attention-alerts.js', 'web/attention/attention.js', 'web/attention/attention.css']) copy(path.join(root, item), 'public/' + item);
   copy(path.join(root, 'workspace.html'), 'public/index.html');
   copy(path.join(root, 'index.html'), 'public/administracion.html');
   copy(path.join(root, 'shared/workspace-radar.js'), 'public/shared/workspace-radar.js');
@@ -99,7 +99,7 @@ function build(options) {
     {source: '/agenda', destination: '/workspace.html'},
     {source: '/reservar', destination: '/reservar.html'},
     {source: '/leia', destination: '/leia.html'}]}}, null, 2) + '\n');
-  write('release-manifest.json', JSON.stringify({site, projectId: firebase.projectId, attentionOrigin, reservationOrigin, capabilities: {intake: true, conversation: true, guestConversation: true, messageAlerts: true, contacts: true, directory: true, actionRadar: true, operations: true, actionPipelines: true, internalAgenda: true, hypeProfiles: false, booking: false, automaticReminders: false, leasePreparation: false}, files}, null, 2) + '\n');
+  write('release-manifest.json', JSON.stringify({site, projectId: firebase.projectId, attentionOrigin, reservationOrigin, capabilities: {intake: true, conversation: true, guestConversation: true, messageAlerts: true, contacts: true, directory: true, actionRadar: true, themeEngine: true, operations: true, actionPipelines: true, internalAgenda: true, hypeProfiles: false, booking: false, automaticReminders: false, leasePreparation: false}, files}, null, 2) + '\n');
   return {output, site, projectId: firebase.projectId, attentionOrigin, reservationOrigin, files: files.length};
 }
 if (require.main === module) {try {console.log(JSON.stringify(build(args(process.argv.slice(2))), null, 2));} catch (error) {console.error(error.message); process.exitCode = 1;}}

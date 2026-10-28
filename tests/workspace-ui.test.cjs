@@ -7,7 +7,7 @@ async function fixture(t,options={}){
   const db=database({leads:options.leads||{seller:{nombre:'Persona vendedora',telefono:'2381111111',tipo:'Vendedor',etapa:'negociacion',bitacora:{old:'Registro conservado'},unknown:{preserve:true}},buyer:{nombre:'Persona compradora',telefono:'2382222222',tipo:'Comprador',etapa:'ganado',bitacora:{}}},citas:options.citas||{},citas_publicas:{},disponibilidad:{horarios:{duracionMin:30,jue:{activo:true,rangos:[{inicio:'09:00',fin:'20:00'}]}},bloqueos:{}},propiedades:{property:{nombre:'Inmueble de prueba',activo:true}}});
   let callback;const auth={currentUser:{uid:'owner'},onAuthStateChanged(fn){callback=fn;queueMicrotask(()=>fn(this.currentUser));},async signOut(){this.currentUser=null;callback(null);},async signInWithEmailAndPassword(){this.currentUser={uid:'owner'};callback(this.currentUser);}};
   w.SYNAPSE_ATTENTION_CONFIG={firebase:{projectId:'demo-only'}};w.firebase={apps:[],initializeApp(){const app={name:'[DEFAULT]',auth:()=>auth,database:()=>db};this.apps.push(app);return app;}};Object.defineProperty(w,'crypto',{value:webcrypto});w.TextEncoder=TextEncoder;w.HTMLElement.prototype.scrollIntoView=function(){};w.HTMLDialogElement.prototype.showModal=function(){this.open=true;};w.HTMLDialogElement.prototype.close=function(){this.open=false;};const confirmations=[],clipboard=[];w.confirm=message=>{confirmations.push(message);return false;};Object.defineProperty(w.navigator,'clipboard',{value:{async writeText(text){clipboard.push(text);}}});
-  for(const file of ['web/shell/navigation.js','shared/workspace-model.js','shared/workspace-store.js','shared/workspace-radar.js','web/workspace/workspace.js'])w.eval(fs.readFileSync(path.join(root,file),'utf8'));
+  for(const file of ['web/theme/theme-engine.js','web/shell/navigation.js','shared/workspace-model.js','shared/workspace-store.js','shared/workspace-radar.js','web/workspace/workspace.js'])w.eval(fs.readFileSync(path.join(root,file),'utf8'));
   await until(()=>!d.getElementById('workspace').hidden);t.after(()=>w.close());
   const el=id=>d.getElementById(id),set=(id,value)=>{const input=el(id);if(input.type==='checkbox')input.checked=value;else input.value=value;input.dispatchEvent(new w.Event('input',{bubbles:true}));input.dispatchEvent(new w.Event('change',{bubbles:true}));},click=id=>el(id).click(),submit=id=>el(id).dispatchEvent(new w.Event('submit',{bubbles:true,cancelable:true}));
   return{w,d,db,auth,el,set,click,submit,confirmations,clipboard};
@@ -37,4 +37,10 @@ test('unified navigation preserves selected contact, nests operations and follow
  f.w.history.back();await until(()=>f.w.location.pathname==='/operaciones'&&!f.el('view-operations').hidden);
  f.click('directory-people');assert.equal(f.el('contact-name').textContent,name);assert.equal(JSON.stringify(f.db.data),before);
  f.click('new-contact');f.click('nav-radar');assert.equal(f.el('contact-dialog').open,true);assert.equal(f.el('view-contacts').hidden,false);
+});
+test('theme changes preserve unfinished forms and Radar overview opens filters without creating data',async t=>{
+ const f=await fixture(t,{route:'/'}),before=JSON.stringify(f.db.data);assert.equal(f.el('radar-overview').querySelectorAll('button').length,4);
+ f.el('radar-overview').querySelector('[data-priority=undated]').click();assert.equal(f.el('radar-filters').querySelector('[aria-pressed=true]').textContent.startsWith('Sin fecha'),true);
+ f.click('nav-contacts');f.click('new-contact');f.set('c-name','BORRADOR_PRIVADO');f.w.SynapseTheme.setPreference('dark');assert.equal(f.el('c-name').value,'BORRADOR_PRIVADO');assert.equal(f.el('contact-dialog').open,true);f.w.SynapseTheme.setPreference('light');assert.equal(JSON.stringify(f.db.data),before);
+ f.el('contact-dialog').close();f.click('logout');await until(()=>f.el('workspace').hidden);assert.equal(f.el('radar-overview').children.length,0);assert.equal(f.el('contact-count').textContent,'');
 });
