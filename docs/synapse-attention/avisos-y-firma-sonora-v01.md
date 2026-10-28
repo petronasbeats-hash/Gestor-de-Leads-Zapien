@@ -7,11 +7,25 @@ el número de pendientes en el título de la pestaña. Ver mensajes nuevos abre
 la primera atención con pendientes. El cliente tiene el mismo contador y la
 misma firma sonora cuando responde el asesor.
 
-Ambos activan el botón Activar sonido Synapse. Al pulsarlo se escucha una muestra;
-el mismo botón permite silenciar. No se solicita permiso de notificaciones del
-sistema. El navegador necesita una interacción para habilitar audio, por lo que
-al volver a abrir o recargar la página se activa de nuevo. Volumen o silencio del
-dispositivo también afectan al aviso.
+El cliente tiene el sonido habilitado por defecto. Su primer clic, toque o
+tecla compatible en la página crea/reanuda el contexto de audio y carga Nexo,
+sin pedir que pulse un botón adicional y sin reproducir una muestra al tocar
+cualquier control. La primera respuesta nueva del asesor dispara el aviso.
+No se usa una interacción simulada ni se intenta eludir el bloqueo de autoplay.
+El control Silenciar sonido permite desactivarlo y recuerda esa decisión en
+este navegador mediante un valor enabled/muted, sin datos del cliente ni token.
+Si vuelve a activarlo con el botón, escucha una muestra. Si falla la carga,
+se reintenta con la siguiente interacción compatible y siguen los avisos visuales.
+
+El asesor conserva el botón Activar sonido Synapse y la muestra al activarlo.
+No se solicita permiso de notificaciones del sistema. Al volver a abrir o
+recargar la página, el navegador puede exigir una interacción de nuevo; en el
+cliente se resuelve al usar la página, salvo que haya elegido silenciar.
+Volumen o silencio del dispositivo también afectan al aviso.
+
+Referencias de comportamiento del navegador:
+https://developer.chrome.com/blog/autoplay/ y
+https://developer.mozilla.org/en-US/docs/Web/Security/Defenses/User_activation .
 
 La firma elegida por el usuario el 27 de octubre de 2026 es **Synapse Nexo v1**:
 dos toques cálidos y un cierre redondo, con una pausa antes de la última nota.
@@ -70,13 +84,16 @@ siguen siendo un límite documentado; no se declara una infraestructura de push.
 
 ## Validación y publicación
 
-54 pruebas pasan: metadatos y aislamiento, marcadores, firma y silencio, scripts
+57 pruebas pasan: metadatos y aislamiento, marcadores, firma y silencio, scripts
 reales de cliente y asesor, recepción automática, duplicados, borradores,
 pestañas y cierre de sesión; además de las regresiones de acceso, invitado,
 operación, release y continuidad de arrendamiento. La prueba de audio verifica
 que se reproduce el PCM completo elegido, que se carga/decodifica una vez por
 página y que una descarga fallida admite reintento. Incluye cancelación si se
-silencia antes de terminar la descarga. El release conserva los bytes del WAV.
+silencia antes de terminar la descarga. Se prueba el estado predeterminado del
+cliente, ausencia de audio antes de interacción real, descarte de eventos
+sintéticos/teclas incompatibles, primera respuesta automática, preferencia de
+silencio tras recarga y reintento de carga. El release conserva los bytes del WAV.
 
 E1–E9 pasan en RTDB Emulator con Node 22.14.0. La nueva prueba realiza ocho
 reintentos concurrentes de un mensaje y exige una sola recepción, sin cuerpos
@@ -97,5 +114,7 @@ sitio principal sigue usando https://synapse-core.web.app.
 La comprobación visual local en navegador quedó bloqueada por la política de
 protocolos del navegador remoto. No se buscó una vía para eludirla; la prueba
 visual publicada y la escucha en los dispositivos reales quedan pendientes.
-La firma Nexo queda preparada para publicación. La versión anterior publicada
-conserva Conexión v1 hasta completar ese despliegue.
+La firma Nexo del commit 2b0ab30 fue desplegada y verificada en el sitio principal,
+con WAV idéntico a la muestra elegida. La activación predeterminada del cliente
+queda preparada para un nuevo despliegue de Hosting. Hasta completarlo, la
+versión publicada mantiene la activación manual para ambas vistas.

@@ -10,6 +10,8 @@
   let auth, active, catalog = [], busy = false, confirmation, verifier, guestSecret, guestJoined = false;
   const alerts = window.SynapseAlerts, pageTitle = document.title;
   const sound = alerts?.createSound(window,()=>updateSoundButton());
+  const customerSoundPreference = 'synapse.attention.customerSound.v1';
+  let customerSoundWanted = role === 'customer', customerSoundBusy = false, customerSoundError = false, customerSoundStopped = false;
   let readTracker, noticeScope = '', inboxRows = [], pollTimer, pollBusy = false, pollEpoch = 0, polling = false;
   const token = role === 'customer' ? location.hash.slice(1) : '';
   const sourceNames = {marketplace_facebook: 'Marketplace Facebook', facebook: 'Facebook', whatsapp: 'WhatsApp', casa_login: 'Casa Login', hype_synapse_experience: 'HYPE by Synapse Experience', directa: 'Directa'};
@@ -54,11 +56,26 @@
   }
   function updateSoundButton() {
     if(!alerts)return;
+    if(role==='customer'){
+      $('sound-toggle').textContent=customerSoundWanted?'Silenciar sonido':'Activar sonido Synapse';
+      $('sound-toggle').setAttribute('aria-pressed',String(customerSoundWanted));
+      $('sound-toggle').title=customerSoundWanted?'Silencia los avisos de Nexo':'Activa y escucha Nexo, la firma sonora de Synapse';
+      $('sound-hint').textContent=!customerSoundWanted?'Sonido silenciado. Los avisos visuales siguen activos.':sound.enabled?'Escucharás Nexo cuando tu asesor te responda.':customerSoundError?'El sonido está pendiente. Se reintentará al tocar o escribir aquí.':'Sonido habilitado. Se activará al tocar o escribir aquí.';
+      return;
+    }
     $('sound-toggle').textContent=sound.enabled?'Sonido Synapse activado':'Activar sonido Synapse';
     $('sound-toggle').setAttribute('aria-pressed',String(sound.enabled));
     $('sound-toggle').title=sound.enabled?'Pulsa para silenciar los avisos':'Activa y escucha Nexo, la firma sonora de Synapse';
   }
   function playMessageSound() {if(sound?.enabled)sound.play();updateSoundButton();}
+  function saveCustomerSoundPreference(){try{storage()?.setItem(customerSoundPreference,customerSoundWanted?'enabled':'muted');}catch{}}
+  async function activateCustomerSound(preview=false){
+    if(!customerSoundWanted||customerSoundStopped||customerSoundBusy||sound.enabled)return;
+    customerSoundBusy=true;customerSoundError=false;
+    try{await sound.enable({preview});if(!customerSoundWanted||customerSoundStopped)sound.mute();}
+    catch{if(customerSoundWanted&&!customerSoundStopped)customerSoundError=true;}
+    finally{customerSoundBusy=false;updateSoundButton();}
+  }
   function renderMessageIndicators() {
     if(!readTracker)return;
     let total=0;
@@ -163,10 +180,25 @@
     }finally{pollBusy=false;queuePoll();}
   }
   function startPolling(){if(!alerts)return;polling=true;queuePoll();}
-  function stopPolling(){polling=false;pollEpoch++;if(typeof clearTimeout==='function')clearTimeout(pollTimer);readTracker=null;noticeScope='';inboxRows=[];sound?.mute();if(alerts){document.title=pageTitle;updateSoundButton();$('unread-summary').textContent='Sin mensajes nuevos';$('unread-summary').classList.remove('has-unread');}}
+  function stopPolling(){polling=false;pollEpoch++;customerSoundStopped=true;if(typeof clearTimeout==='function')clearTimeout(pollTimer);readTracker=null;noticeScope='';inboxRows=[];sound?.mute();if(alerts){document.title=pageTitle;updateSoundButton();$('unread-summary').textContent='Sin mensajes nuevos';$('unread-summary').classList.remove('has-unread');}}
   function setupMessageNotices(){
     if(!alerts)return;
+    if(role==='customer'){
+      try{customerSoundWanted=storage()?.getItem(customerSoundPreference)!=='muted';}catch{}
+      const unlock=event=>{
+        if(event.isTrusted!==true||event.target===$('sound-toggle')||$('sound-toggle').contains?.(event.target))return;
+        if(event.type==='keydown'&&(event.ctrlKey||event.metaKey||event.altKey||['Escape','Control','Meta','Alt','Shift','CapsLock','NumLock','PrintScreen'].includes(event.key)))return;
+        return activateCustomerSound();
+      };
+      document.addEventListener?.('click',unlock,{capture:true,passive:true});
+      document.addEventListener?.('keydown',unlock,{capture:true,passive:true});
+    }
     $('sound-toggle').addEventListener('click',async()=>{
+      if(role==='customer'){
+        customerSoundWanted=!customerSoundWanted;saveCustomerSoundPreference();
+        if(!customerSoundWanted)sound.mute();else await activateCustomerSound(true);
+        updateSoundButton();return;
+      }
       if($('sound-toggle').disabled)return;$('sound-toggle').disabled=true;
       const epoch=pollEpoch;
       try{if(sound.enabled)sound.mute();else await sound.enable();if(epoch!==pollEpoch)sound.mute();}catch{status('No se pudo activar el sonido. Revisa el volumen y vuelve a pulsar Activar sonido.',true);}

@@ -40,6 +40,11 @@ test('Nexo download failures can retry and logout cancels pending activation',as
   const canceled=createSound(delayed),activation=canceled.enable();await Promise.resolve();await Promise.resolve();
   canceled.mute();release();assert.equal(await activation,false);assert.equal(canceled.enabled,false);assert.equal(delayed.state.starts,0);
 });
+test('customer gesture unlocks Nexo silently until an incoming message',async()=>{
+  const host=audioHost(),sound=createSound(host);
+  await sound.enable({preview:false});assert.equal(sound.enabled,true);assert.equal(host.state.starts,0);
+  assert.equal(sound.play(),true);assert.equal(host.state.starts,1);assert.equal(host.state.fetches,1);
+});
 test('inbox counts stay within authorized property scope and expose no message body',async()=>{
   const {memoryDb}=require('./helpers/attention-memory-db.cjs'),{createAttentionStore}=require('../server/attention-store.cjs'),{createAttentionService}=require('../server/attention-service.cjs');
   const db=memoryDb(),store=createAttentionStore(db);

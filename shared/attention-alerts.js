@@ -54,7 +54,7 @@
       }catch{enabled=false;return false;}
     }
     return {
-      async enable(){
+      async enable({preview=true}={}){
         const Audio=host.AudioContext||host.webkitAudioContext;
         if(!Audio||typeof host.fetch!=='function')throw Error('AUDIO_UNAVAILABLE');
         const attempt=++activation;
@@ -62,7 +62,7 @@
         await context.resume();if(attempt!==activation)return false;
         await load();if(attempt!==activation)return false;
         enabled=context.state==='running';if(!enabled)throw Error('AUDIO_BLOCKED');
-        if(!play())throw Error('AUDIO_UNAVAILABLE');return true;
+        if(preview&&!play())throw Error('AUDIO_UNAVAILABLE');return true;
       },
       mute(){enabled=false;activation++;for(const source of sources){try{source.stop();}catch{}}},
       play,
