@@ -13,14 +13,23 @@ sistema. El navegador necesita una interacción para habilitar audio, por lo que
 al volver a abrir o recargar la página se activa de nuevo. Volumen o silencio del
 dispositivo también afectan al aviso.
 
-La firma Synapse Conexión v1 es una sucesión propia de tres notas ascendentes:
-D5 (587.33 Hz), A5 (880 Hz), E6 (1318.51 Hz), con entradas a 0, 0.16 y 0.34 s.
-Las notas duran 0.15, 0.17 y 0.40 s. Cada una combina seno fundamental y segundo
-armónico suave, ataque de 8 ms y caída exponencial. Se sintetiza localmente con
-Web Audio; no depende de descargar un archivo ni de un servicio de audio.
-La muestra de escucha conserva estas frecuencias y envolventes y añade silencio
-al final: 0.84 s. No se afirma exclusividad registral ni reconocimiento de marca
-adquirido: la asociación se construye con su uso consistente.
+La firma elegida por el usuario el 27 de octubre de 2026 es **Synapse Nexo v1**:
+dos toques cálidos y un cierre redondo, con una pausa antes de la última nota.
+Sus frecuencias base son C♯5 (554.37 Hz), G♯5 (830.61 Hz) y F♯5 (739.99 Hz),
+con entradas a 0.025, 0.145 y 0.395 s; duración total de 0.98 s. Los primeros
+toques combinan modos de resonancia de madera y el cierre añade una modulación
+suave al inicio. Tiene colas cortas, nivel moderado y margen antes del recorte.
+
+Ambas vistas reproducen el mismo archivo PCM mono de 44.1 kHz y 16 bits:
+`assets/audio/synapse-nexo-v1.wav`. Sus bytes coinciden exactamente con la muestra
+Nexo elegida, sin reconstruirla con otro sintetizador. Se descarga al activar el
+sonido, se decodifica con Web Audio y se conserva en memoria durante la página;
+los avisos siguientes reutilizan ese audio. Si falla la descarga se puede
+reintentar y los avisos visuales siguen disponibles. Silenciar o cerrar sesión
+cancela una activación pendiente y detiene el audio en curso. El archivo se sirve
+desde el mismo sitio, sin servicios de audio externos. Sustituye Conexión v1.
+No se afirma exclusividad registral ni reconocimiento de marca adquirido:
+la asociación se construye con su uso consistente.
 
 ## Recepción y lectura
 
@@ -61,10 +70,13 @@ siguen siendo un límite documentado; no se declara una infraestructura de push.
 
 ## Validación y publicación
 
-53 pruebas pasan: metadatos y aislamiento, marcadores, firma y silencio, scripts
+54 pruebas pasan: metadatos y aislamiento, marcadores, firma y silencio, scripts
 reales de cliente y asesor, recepción automática, duplicados, borradores,
 pestañas y cierre de sesión; además de las regresiones de acceso, invitado,
-operación, release y continuidad de arrendamiento.
+operación, release y continuidad de arrendamiento. La prueba de audio verifica
+que se reproduce el PCM completo elegido, que se carga/decodifica una vez por
+página y que una descarga fallida admite reintento. Incluye cancelación si se
+silencia antes de terminar la descarga. El release conserva los bytes del WAV.
 
 E1–E9 pasan en RTDB Emulator con Node 22.14.0. La nueva prueba realiza ocho
 reintentos concurrentes de un mensaje y exige una sola recepción, sin cuerpos
@@ -75,12 +87,15 @@ y transacciones de una misma organización dentro de cada instancia; otras
 organizaciones siguen independientes y las transacciones remotas conservan la
 autoridad entre instancias. Una regresión adicional verifica ese orden.
 
-El paquete contiene el módulo compartido tanto en Hosting como en Functions y
-exige publicar ambos. El recibo de health añade messageAlerts:true. El entorno
-del sitio principal sigue usando https://synapse-core.web.app.
+La versión de avisos 840d64e fue desplegada en Hosting y Functions y verificada
+por HTTP 200, igualdad de archivos y health con messageAlerts:true. Este cambio
+de firma solo exige publicar Hosting: el servidor mantiene el contrato de
+metadatos ya desplegado. El builder incluye el WAV como dependencia explícita,
+incluso si no existe en los estáticos originales de la Mac. El entorno del
+sitio principal sigue usando https://synapse-core.web.app.
 
 La comprobación visual local en navegador quedó bloqueada por la política de
 protocolos del navegador remoto. No se buscó una vía para eludirla; la prueba
 visual publicada y la escucha en los dispositivos reales quedan pendientes.
-La actualización está preparada para el despliegue del operador, sin declarar
-que la versión anterior publicada ya incluye los avisos.
+La firma Nexo queda preparada para publicación. La versión anterior publicada
+conserva Conexión v1 hasta completar ese despliegue.

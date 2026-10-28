@@ -55,7 +55,7 @@ async function fixture(){
   elements.source.value='marketplace_facebook';elements['entry-channel'].value='messenger';elements.question.value='¿Sigue disponible?';elements.capture.onReset=()=>{for(const key of ['display-name','surname','phone'])elements[key].value='';};
   const body=new Element('body');body.dataset={role:'agent'};const requests=[];
   const auth={currentUser:{uid:'agent-test',getIdToken:async()=>'test-token'},onAuthStateChanged(callback){this.callback=callback;queueMicrotask(()=>callback(this.currentUser));},async signOut(){this.currentUser=null;this.callback(null);}};
-  const context={document:{title:'Synapse Test',visibilityState:'visible',focused:true,hasFocus(){return this.focused;},addEventListener:(name,fn)=>{events[name]=fn;},body,getElementById:id=>{assert.ok(elements[id],id);return elements[id];},querySelectorAll:()=>all.filter(el=>['button','select'].includes(el.tag)),createElement:tag=>{const el=new Element(tag);all.push(el);return el;}},window:{addEventListener:(name,fn)=>{events[name]=fn;},AudioContext:audio.AudioContext,SYNAPSE_ATTENTION_CONFIG:{firebase:{},reservationOrigin:'https://example.test'},SynapseQuickReplies:replies,SynapseAlerts:alerts},localStorage:{getItem:key=>storage.get(key)||null,setItem:(key,value)=>storage.set(key,value)},setTimeout:clock.setTimeout,clearTimeout:clock.clearTimeout,firebase:{apps:[],initializeApp:()=>({auth:()=>auth})},location:{hash:''},crypto:webcrypto,URL,Intl,Date,fetch:async(url,request)=>{requests.push({url,body:request.body&&JSON.parse(request.body)});const req=Readable.from([]);req.method=request.method;req.url=url;req.headers={'content-type':'application/json',authorization:request.headers.Authorization};req.rawBody=Buffer.from(request.body||'');const res={setHeader(){},end(raw){this.body=JSON.parse(raw);}};await handler(req,res);return{ok:res.statusCode===200,json:async()=>res.body};}};
+  const context={document:{title:'Synapse Test',visibilityState:'visible',focused:true,hasFocus(){return this.focused;},addEventListener:(name,fn)=>{events[name]=fn;},body,getElementById:id=>{assert.ok(elements[id],id);return elements[id];},querySelectorAll:()=>all.filter(el=>['button','select'].includes(el.tag)),createElement:tag=>{const el=new Element(tag);all.push(el);return el;}},window:{addEventListener:(name,fn)=>{events[name]=fn;},AudioContext:audio.AudioContext,fetch:audio.fetch,SYNAPSE_ATTENTION_CONFIG:{firebase:{},reservationOrigin:'https://example.test'},SynapseQuickReplies:replies,SynapseAlerts:alerts},localStorage:{getItem:key=>storage.get(key)||null,setItem:(key,value)=>storage.set(key,value)},setTimeout:clock.setTimeout,clearTimeout:clock.clearTimeout,firebase:{apps:[],initializeApp:()=>({auth:()=>auth})},location:{hash:''},crypto:webcrypto,URL,Intl,Date,fetch:async(url,request)=>{requests.push({url,body:request.body&&JSON.parse(request.body)});const req=Readable.from([]);req.method=request.method;req.url=url;req.headers={'content-type':'application/json',authorization:request.headers.Authorization};req.rawBody=Buffer.from(request.body||'');const res={setHeader(){},end(raw){this.body=JSON.parse(raw);}};await handler(req,res);return{ok:res.statusCode===200,json:async()=>res.body};}};
   vm.runInNewContext(fs.readFileSync(require.resolve('../web/attention/attention.js'),'utf8'),context);
   await until(()=>elements.status.textContent?.includes('Sesión activa'));
   async function open(name){const button=elements.conversations.children.find(el=>el.textContent.startsWith(name));assert.ok(button);button.fire('click');await until(()=>elements['customer-title'].textContent===name&&!elements.refresh.disabled);}
@@ -102,16 +102,16 @@ async function guestWriter(f,conversationId){
 test('automatic advisor notices count incoming messages, play once and preserve all unsent fields',async()=>{
   const f=await fixture(),e=f.elements;await f.open('Client A');
   e.message.value='Unsent answer';e['contact-name'].value='Unsent contact edit';e.summary.value='Unsent private journal';
-  assert.equal(f.audio.contexts,0);await e['sound-toggle'].fire('click');assert.equal(f.audio.starts,6);
+  assert.equal(f.audio.contexts,0);await e['sound-toggle'].fire('click');assert.equal(f.audio.starts,1);
   const write=await guestWriter(f,'case-b');await write('incoming-1','New client question');
-  await f.clock.tick();assert.equal(e['unread-summary'].textContent,'1 mensaje nuevo');assert.equal(f.audio.starts,12);assert.match(f.document.title,/^\(1\)/);
+  await f.clock.tick();assert.equal(e['unread-summary'].textContent,'1 mensaje nuevo');assert.equal(f.audio.starts,2);assert.match(f.document.title,/^\(1\)/);
   assert.equal(e.message.value,'Unsent answer');assert.equal(e['contact-name'].value,'Unsent contact edit');assert.equal(e.summary.value,'Unsent private journal');
-  await write('incoming-1','New client question');await f.clock.tick();assert.equal(f.audio.starts,12);assert.equal(e['unread-summary'].textContent,'1 mensaje nuevo');
+  await write('incoming-1','New client question');await f.clock.tick();assert.equal(f.audio.starts,2);assert.equal(e['unread-summary'].textContent,'1 mensaje nuevo');
   e['next-unread'].fire('click');await until(()=>e['customer-title'].textContent==='Client B'&&!e.refresh.disabled);
   assert.equal(e['unread-summary'].textContent,'Sin mensajes nuevos');assert.equal(e.messages.children.length,1);
   await f.open('Client A');assert.equal(e.message.value,'Unsent answer');
   await e['sound-toggle'].fire('click');await write('incoming-2','Muted client question');await f.clock.tick();
-  assert.equal(f.audio.starts,12);assert.equal(e['unread-summary'].textContent,'1 mensaje nuevo');
+  assert.equal(f.audio.starts,2);assert.equal(e['unread-summary'].textContent,'1 mensaje nuevo');
   assert.ok([...f.storage.values()].every(value=>!value.includes('Client')&&!value.includes('question')));
 });
 test('a background response is unread until the visible conversation is read; logout stops polling and sound',async()=>{
@@ -120,6 +120,6 @@ test('a background response is unread until the visible conversation is read; lo
   await write('background-1','Background reply');await f.clock.tick();
   assert.equal(e['unread-summary'].textContent,'1 mensaje nuevo');assert.equal(e.message.value,'Still typing');assert.equal(e.messages.children.length,1);
   f.document.visibilityState='visible';f.events.focus();assert.equal(e['unread-summary'].textContent,'Sin mensajes nuevos');
-  await f.clock.tick();assert.equal(f.audio.starts,12);
+  await f.clock.tick();assert.equal(f.audio.starts,2);
   e.logout.fire('click');await until(()=>e.workspace.hidden);assert.equal(f.clock.size,0);assert.equal(f.document.title,'Synapse Test');assert.equal(e['sound-toggle'].attrs['aria-pressed'],'false');
 });

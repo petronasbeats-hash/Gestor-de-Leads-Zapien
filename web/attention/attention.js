@@ -56,7 +56,7 @@
     if(!alerts)return;
     $('sound-toggle').textContent=sound.enabled?'Sonido Synapse activado':'Activar sonido Synapse';
     $('sound-toggle').setAttribute('aria-pressed',String(sound.enabled));
-    $('sound-toggle').title=sound.enabled?'Pulsa para silenciar los avisos':'Activa y escucha la firma sonora de Synapse';
+    $('sound-toggle').title=sound.enabled?'Pulsa para silenciar los avisos':'Activa y escucha Nexo, la firma sonora de Synapse';
   }
   function playMessageSound() {if(sound?.enabled)sound.play();updateSoundButton();}
   function renderMessageIndicators() {

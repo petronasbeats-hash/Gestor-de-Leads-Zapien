@@ -1,7 +1,7 @@
 'use strict';
 const {test}=require('node:test');
 const assert=require('node:assert/strict');
-const {messageStats,createTracker,createSound,signature}=require('../shared/attention-alerts.js');
+const {messageStats,createTracker,createSound,signatureAsset}=require('../shared/attention-alerts.js');
 const {audioHost}=require('./helpers/attention-ui-clock.cjs');
 test('incoming metadata distinguishes advisor/client roles and never carries message text',()=>{
   const messages=[{id:'a',actorRole:'guest',text:'private',recordedAt:'2026-10-27T12:00:00Z'},{id:'b',actorRole:'agent',text:'protected',recordedAt:'2026-10-27T12:01:00Z'},{id:'c',actorRole:'customer',text:'private 2',recordedAt:'2026-10-27T12:02:00Z'}];
@@ -22,9 +22,23 @@ test('device read markers survive reload, isolate accounts, ignore retries and d
 });
 test('Synapse signature only plays after explicit activation; muting suppresses the same motif',async()=>{
   const host=audioHost(),sound=createSound(host);assert.equal(sound.play(),false);assert.equal(host.state.contexts,0);
-  await sound.enable();assert.equal(host.state.starts,signature.length*2);assert.equal(sound.enabled,true);
-  sound.play();assert.equal(host.state.starts,signature.length*4);sound.mute();assert.equal(sound.play(),false);assert.equal(host.state.starts,signature.length*4);
+  assert.equal(host.state.fetches,0);
+  await sound.enable();assert.equal(host.state.starts,1);assert.equal(sound.enabled,true);
+  assert.equal(host.state.played[0].duration,.98);
+  assert.deepEqual(host.state.played[0].bytes,require('node:fs').readFileSync(require.resolve('../assets/audio/synapse-nexo-v1.wav')));
+  sound.play();assert.equal(host.state.starts,2);sound.mute();assert.equal(sound.play(),false);assert.equal(host.state.starts,2);assert.equal(host.state.stops,2);
+  await sound.enable();assert.equal(host.state.fetches,1);assert.equal(host.state.decodes,1);assert.equal(host.state.starts,3);
   await assert.rejects(createSound({}).enable(),/AUDIO_UNAVAILABLE/);
+});
+test('Nexo download failures can retry and logout cancels pending activation',async()=>{
+  const host=audioHost();const fetch=host.fetch;let fail=true;
+  host.fetch=async url=>{assert.equal(url,signatureAsset);if(fail){fail=false;return{ok:false};}return fetch();};
+  const sound=createSound(host);await assert.rejects(sound.enable(),/AUDIO_UNAVAILABLE/);assert.equal(sound.enabled,false);assert.equal(host.state.starts,0);
+  await sound.enable();assert.equal(host.state.starts,1);
+  const delayed=audioHost();const original=delayed.fetch;let release;
+  delayed.fetch=async()=>{await new Promise(resolve=>{release=resolve;});return original();};
+  const canceled=createSound(delayed),activation=canceled.enable();await Promise.resolve();await Promise.resolve();
+  canceled.mute();release();assert.equal(await activation,false);assert.equal(canceled.enabled,false);assert.equal(delayed.state.starts,0);
 });
 test('inbox counts stay within authorized property scope and expose no message body',async()=>{
   const {memoryDb}=require('./helpers/attention-memory-db.cjs'),{createAttentionStore}=require('../server/attention-store.cjs'),{createAttentionService}=require('../server/attention-service.cjs');

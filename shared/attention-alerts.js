@@ -1,7 +1,8 @@
 /* Synapse message signature and device-local read markers. No message content is stored. */
 (function(root,factory){const api=factory();if(typeof module==='object'&&module.exports)module.exports=api;else root.SynapseAlerts=api;})(typeof globalThis==='undefined'?this:globalThis,function(){
   'use strict';
-  const signature = Object.freeze([[587.33,0,.15],[880,.16,.17],[1318.51,.34,.40]].map(Object.freeze));
+  const signature = Object.freeze([[554.37,.025,.24],[830.61,.145,.24],[739.99,.395,.50]].map(Object.freeze));
+  const signatureAsset = '/assets/audio/synapse-nexo-v1.wav';
   function messageStats(messages, incomingRoles) {
     const rows=[...messages].sort((a,b)=>String(a.recordedAt).localeCompare(String(b.recordedAt))||String(a.id).localeCompare(String(b.id)));
     let count=0,lastId='',lastAt='',lastReply='';
@@ -30,26 +31,43 @@
     };
   }
   function createSound(host,onChange=()=>{}) {
-    let context,enabled=false;
+    let context,buffer,loading,enabled=false,activation=0;
+    const sources=new Set();
+    async function load(){
+      if(buffer)return buffer;
+      if(!loading)loading=(async()=>{
+        const response=await host.fetch(signatureAsset,{cache:'force-cache'});
+        if(!response.ok)throw Error('AUDIO_UNAVAILABLE');
+        const decoded=await context.decodeAudioData(await response.arrayBuffer());
+        buffer=decoded;return decoded;
+      })().catch(error=>{loading=null;throw error;});
+      return loading;
+    }
     function play(){
-      if(!enabled||context?.state!=='running')return false;
+      if(!enabled||!buffer||context?.state!=='running')return false;
       try{
-        const base=context.currentTime+.015;
-        for(const [frequency,offset,duration]of signature)for(const [multiple,volume]of [[1,.13],[2,.016]]){
-          const oscillator=context.createOscillator(),gain=context.createGain(),start=base+offset;
-          oscillator.type='sine';oscillator.frequency.setValueAtTime(frequency*multiple,start);
-          gain.gain.setValueAtTime(.0001,start);gain.gain.exponentialRampToValueAtTime(volume,start+.008);gain.gain.exponentialRampToValueAtTime(.0001,start+duration);
-          oscillator.connect(gain);gain.connect(context.destination);oscillator.start(start);oscillator.stop(start+duration+.01);
-        }
+        const source=context.createBufferSource();source.buffer=buffer;
+        source.connect(context.destination);sources.add(source);
+        source.onended=()=>{sources.delete(source);source.disconnect();};
+        source.start(context.currentTime+.015);
         return true;
       }catch{enabled=false;return false;}
     }
     return {
-      async enable(){const Audio=host.AudioContext||host.webkitAudioContext;if(!Audio)throw Error('AUDIO_UNAVAILABLE');if(!context){context=new Audio();context.onstatechange=onChange;}await context.resume();enabled=context.state==='running';if(!enabled)throw Error('AUDIO_BLOCKED');play();},
-      mute(){enabled=false;},
+      async enable(){
+        const Audio=host.AudioContext||host.webkitAudioContext;
+        if(!Audio||typeof host.fetch!=='function')throw Error('AUDIO_UNAVAILABLE');
+        const attempt=++activation;
+        if(!context){context=new Audio();context.onstatechange=onChange;}
+        await context.resume();if(attempt!==activation)return false;
+        await load();if(attempt!==activation)return false;
+        enabled=context.state==='running';if(!enabled)throw Error('AUDIO_BLOCKED');
+        if(!play())throw Error('AUDIO_UNAVAILABLE');return true;
+      },
+      mute(){enabled=false;activation++;for(const source of sources){try{source.stop();}catch{}}},
       play,
       get enabled(){return enabled&&context?.state==='running';}
     };
   }
-  return Object.freeze({signature,messageStats,createTracker,createSound});
+  return Object.freeze({signature,signatureAsset,messageStats,createTracker,createSound});
 });

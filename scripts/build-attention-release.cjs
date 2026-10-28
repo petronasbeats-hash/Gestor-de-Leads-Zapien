@@ -52,6 +52,7 @@ function build(options) {
     }
   }
   assets(path.join(legacy, 'assets'));
+  copy(path.join(root, 'assets/audio/synapse-nexo-v1.wav'), 'public/assets/audio/synapse-nexo-v1.wav');
   write('public/web/attention/config.js', 'window.SYNAPSE_ATTENTION_CONFIG = ' + JSON.stringify({firebase, reservationOrigin}) + ';\n');
   for (const item of ['index.cjs', 'package.json', 'package-lock.json']) copy(path.join(root, 'attention-functions', item), 'functions/' + item);
   for (const item of ['attention-store.cjs', 'attention-service.cjs', 'attention-firebase-authority.cjs', 'attention-http.cjs', 'attention-journal.cjs', 'live-availability-reader.cjs']) copy(path.join(root, 'server', item), 'functions/server/' + item);
