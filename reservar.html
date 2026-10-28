@@ -163,6 +163,8 @@
 </div>
 
 <script src="shared/reservation-reference.js"></script>
+<script src="/shared/workspace-model.js"></script>
+<script src="/shared/public-slot-claim.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
@@ -433,7 +435,7 @@ function generateSlotsForDay(date){
       const hora = k.split('_')[1];
       const [h,m] = hora.split(':').map(Number);
       const propId = (v && typeof v === 'object') ? v.propiedadId : null;
-      return { startMin: h*60+m, endMin: h*60+m+dur, propId };
+      return { startMin: Number.isFinite(v?.inicioMin)?v.inicioMin:h*60+m, endMin: Number.isFinite(v?.finMin)?v.finMin:h*60+m+dur, propId };
     });
 
   const propiedadElegida = selectedPropiedadId ? propiedades[selectedPropiedadId] : null;
@@ -450,7 +452,7 @@ function generateSlotsForDay(date){
       const slotDate = new Date(date); slotDate.setHours(h,m,0,0);
       const isPast = slotDate <= now;
       const isBlocked = blocked.includes(timeLabel);
-      const isTaken = ocupados[`${dKey}_${timeLabel}`];
+      const isTaken = ocupados[`${dKey}_${timeLabel}`] || !window.SynapseWorkspace || SynapseWorkspace.candidateBlocked(ocupados, dKey, startMin, startMin + dur);
 
       let isBlockedByTravel = false;
       if(propiedadElegida){
@@ -683,19 +685,26 @@ document.getElementById('btn-confirm-booking').addEventListener('click', async (
   const slotFlagKey = `${selectedSlot.dateKey}_${selectedSlot.timeKey}`;
   const btn = document.getElementById('btn-confirm-booking');
   btn.disabled = true; btn.textContent = 'Agendando…';
+  let claimedReference, claimedId, bookingReceipt;
 
   try{
+    // Re-check the four live public sources immediately before registration.
+    const latest = await Promise.all(['propiedades','disponibilidad/horarios','disponibilidad/bloqueos','citas_publicas'].map(path=>db.ref(path).get()));
+    propiedades = latest[0].val() || {}; horario = latest[1].val(); bloqueos = latest[2].val() || {}; ocupados = latest[3].val() || {};
+    const wantedDate = new Date(selectedSlot.dateKey+'T12:00:00');
+    if(!horario || !propiedades[propiedadId] || propiedades[propiedadId].activo===false || !generateSlotsForDay(wantedDate).includes(selectedSlot.timeKey)) throw Error('SLOT_NOT_AVAILABLE');
     // 1. crear/actualizar el lead PRIMERO — si esto falla, no se toca el horario todavía
     const nombreCompleto = apellido ? `${nombre} ${apellido}` : nombre;
     const leadIdFinal = await upsertLeadParaCita({nombre, apellido, telefono, notas, propiedadId, propiedadNombre});
 
-    // 2. marcar el horario ocupado Y guardar la cita como UNA sola operación atómica:
-    // o se guardan las dos juntas, o no se guarda ninguna — así no puede quedar
-    // un horario "fantasma" ocupado sin que exista su cita.
+    // Claim the slot conditionally: never overwrite an Agenda event or another reservation.
+    // The subsequent private write may fail; release only our own claim in that case.
     const citaId = db.ref('citas').push().key;
     const folio = folioReserva(citaId);
+    const slotReference = db.ref('citas_publicas/'+slotFlagKey);
+    await SynapsePublicSlot.claim(slotReference,{propiedadId: propiedadId || null,citaId,folio});
+    claimedReference = slotReference; claimedId = citaId;
     const updates = {};
-    updates['citas_publicas/'+slotFlagKey] = { propiedadId: propiedadId || null, citaId, folio };
     updates['citas/'+citaId] = {
       folio,
       nombre: nombreCompleto, telefono, notas,
@@ -709,6 +718,7 @@ document.getElementById('btn-confirm-booking').addEventListener('click', async (
       creado: new Date().toISOString()
     };
     await db.ref().update(updates);
+    bookingReceipt = {folio,citaId};
 
     const propObj = propiedadId ? propiedades[propiedadId] : null;
     const direccionBlock = propObj ? `
@@ -723,8 +733,10 @@ document.getElementById('btn-confirm-booking').addEventListener('click', async (
       <button class="btn btn-primary" onclick="location.reload()">Listo</button>
     `;
   }catch(err){
+    if(bookingReceipt){alert('Tu reserva quedó registrada. Folio: '+bookingReceipt.folio+'. Conserva esta referencia.');btn.disabled=true;btn.textContent='Reserva registrada';return;}
+    if(claimedReference){try{await SynapsePublicSlot.release(claimedReference,claimedId);}catch{ /* Remain unavailable until the advisor reviews the incomplete claim. */ }}
     console.error(err);
-    alert('Ese horario ya no está disponible, elige otro.');
+    alert(err.message === 'SLOT_NOT_AVAILABLE' ? 'Ese horario ya no está disponible, elige otro.' : 'No se pudo completar la reserva. Vuelve a intentar o escríbenos para revisar el horario.');
     btn.disabled = false; btn.textContent = 'Confirmar cita';
     overlay.classList.remove('open');
   }

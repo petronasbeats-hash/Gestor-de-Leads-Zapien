@@ -1,7 +1,8 @@
 # Contactos y formularios de venta/renta
 
-Estado: definición de flujo para implementación; no modifica el formulario publicado.
-Fecha: 27 de octubre de 2026. Complementa agenda-unificada-flujo-v01.md.
+Estado: primera implementación preparada en esta rama; pendiente de publicar y validar
+con las reglas reales del proyecto. Fecha: 27 de octubre de 2026 (México).
+Complementa agenda-unificada-flujo-v01.md y contactos-agenda-operacion-v01.md.
 Los ejemplos de este documento son genéricos y no contienen datos de clientes.
 
 ## Ficha única de persona
@@ -90,17 +91,22 @@ vigente de invalidación de enlace; no se declara resuelta en este documento.
 
 ## Compatibilidad y límites actuales
 
-El panel publicado aún utiliza leads, con una operación/rol y una contraparte
-por ficha. Sus notas permiten conservar información adicional temporalmente,
-pero no constituyen un modelo estructurado de múltiples operaciones.
-La implementación debe preservar identificadores, teléfono, bitácora, citas,
-propiedades y relaciones existentes, con revisión antes de migrar o fusionar.
-Los clientes cerrados deben poder vincularse a eventos; el selector manual
-vigente excluye Cerrado Ganado y necesita adaptación.
+La nueva pantalla `/contactos` conserva los registros privados existentes de
+`leads`, incluyendo identificadores, citas, notas y bitácora. Añade clasificaciones
+y operaciones en `_synapse`; las contrapartes tienen referencias a la misma
+operación. La edición del formulario anterior conserva esta estructura. Los
+clientes cerrados siguen disponibles en el selector manual de citas.
 
-La nueva persistencia requiere autorización privada y una estrategia de
-compatibilidad. No se publican fichas personales, operaciones ni documentos
-en el catálogo. Cambiar etiquetas visuales no basta para completar este flujo.
+Las operaciones tienen etapas específicas por tipo y acciones verificables. Una
+firma programada no satisface la etapa: debe registrarse como realizada, con
+participantes correctos y sincronización completa. Una entrada histórica a una
+fase avanzada exige motivo sin inventar evidencias de etapas anteriores.
+
+Esta versión usa los permisos del administrador existente; no añade acceso
+multiagente ni modifica reglas. El comprobador de publicación se detiene ante
+permisos insuficientes o esquemas desconocidos. No hay migraciones, fusiones,
+validación de identidad ni acreditación jurídica de los roles. Los archivos
+sensibles, autorizaciones y documentos de contrato siguen fuera de este alcance.
 
 ## Ejemplo y criterios de aceptación
 

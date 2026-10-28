@@ -1,7 +1,9 @@
 # Synapse Agenda: registro de todos los compromisos
 
-Estado: flujo definido para implementación. Este documento no despliega una
-agenda nueva ni registra eventos reales. Fecha: 27 de octubre de 2026.
+Estado: primera implementación preparada en esta rama; publicación y reglas reales
+pendientes de validar. Fecha: 27 de octubre de 2026 (México). La captura de eventos
+reales sigue siendo una acción explícita del operador. El diseño siguiente incluye
+metas posteriores; el alcance efectivo se delimita más abajo.
 
 ## Objetivo
 
@@ -88,18 +90,39 @@ una recarga, reintento o cambio de canal no vuelve a crearlo.
 
 ## Situación vigente y alcance de implementación
 
-El panel publicado en Admin → Citas → Citas dispone de Apartado temporal (HOLD)
-y Cita manual. HOLD no exige teléfono ni crea un prospecto, pero solo protege
-la clave de fecha/hora elegida: no implementa duración de evento general.
-Cita manual exige nombre/teléfono y crea un prospecto si no se vincula uno; por
-eso no debe usarse como formulario general de eventos internos.
+La ruta `/agenda` sirve el calendario interno (día/semana/mes) con un formulario
+único para eventos, duración, participantes, estado, lugar, notas y márgenes.
+Los accesos de cambio de estado, cancelación y reprogramación del panel anterior
+abren el mismo registro en esta pantalla. `/agenda.html` se conserva como página
+pública antigua por compatibilidad; la ruta interna nueva es `/agenda`.
 
-La ampliación requiere formulario Nuevo evento, persistencia privada con
-autorización y auditoría, intervalos de ocupación compartidos con Reservar y
-vistas del calendario. También requiere tratar los registros legados sin
-duplicarlos ni exponer información privada. No basta con añadir un título al
-formulario actual. La API de Atención conserva booking:false y reminders:false
-hasta implementar y validar las capacidades correspondientes.
+Los eventos privados se conservan en `citas`. La ocupación se proyecta por todo el
+intervalo y las claves públicas semanales que cruza. El portal `/reservar` relee
+sus cuatro fuentes y reclama su clave mediante transacción condicional. Los
+formularios manuales de visita/HOLD también reclaman el intervalo completo.
+La capacidad sigue siendo global, sin asignación paralela por agente.
+
+Los cambios mantienen identificador e historial. Una sincronización incompleta
+queda visible y conserva la ocupación hasta reintentar desde el mismo evento.
+Los bloqueos legados sin `citaId` requieren revisión explícita del registro
+original. Solo pueden vincularse si coincide el inmueble y no hay otra cita
+activa que cruce ese bloqueo; la revisión queda en el historial. El estado provisional nuevo permanece deshabilitado hasta
+implementar su vencimiento operativo; los HOLD anteriores siguen siendo visibles.
+Los eventos con hora deben terminar dentro del mismo día. No se inventa duración
+de firmas o reuniones. Las tareas sin hora no bloquean.
+
+No se envían confirmaciones, invitaciones o recordatorios automáticamente. El
+operador puede copiar el resumen con folio. La API de Atención conserva
+`booking:false` y `reminders:false`: esta versión no reserva desde el chat ni
+implementa un trabajador de recordatorios. Los nombres de participantes libres
+no crean fichas ni acreditan identidad. No se han añadido responsables múltiples,
+alternativas de horario sugeridas ni validación documental.
+
+Solo se publica el sitio `synapse-core`. Otros sitios, navegadores con código
+antiguo o escrituras directas no participan necesariamente en este protocolo.
+La garantía global frente a todos esos escritores requeriría un gateway y reglas
+validadas en producción. Ver contactos-agenda-operacion-v01.md para activación,
+pruebas y límites de consistencia.
 
 ## Criterios de aceptación
 
@@ -113,4 +136,4 @@ hasta implementar y validar las capacidades correspondientes.
 - Un reintento devuelve el mismo evento; no duplica citas ni confirmaciones.
 - Los participantes y motivos de reuniones internas no aparecen públicamente.
 - Crear un evento no envía mensajes ni invitaciones sin una acción explícita.
-- Los apartados se identifican como provisionales y su caducidad es verificable.
+- Meta posterior: los apartados nuevos tendrán caducidad verificable; su alta está deshabilitada en la nueva Agenda hasta implementarla.

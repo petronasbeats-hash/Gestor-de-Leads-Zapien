@@ -237,7 +237,9 @@
       <button class="btn btn-sm" id="btn-logout">Cerrar sesión</button>
     </div>
     <div class="view-tabs">
-      <button class="view-tab active" id="view-tab-leads">📋 Leads</button>
+      <a class="view-tab" href="/contactos" style="text-decoration:none;">👤 Contactos</a>
+      <a class="view-tab" href="/agenda" style="text-decoration:none;">🗓️ Agenda</a>
+      <button class="view-tab active" id="view-tab-leads">📋 Pipeline anterior</button>
       <button class="view-tab" id="view-tab-citas">📅 Citas</button>
       <a class="view-tab" href="/atencion-operador" style="text-decoration:none;">💬 Atención</a>
     </div>
@@ -567,6 +569,8 @@
 </div>
 
 <script src="shared/reservation-reference.js"></script>
+<script src="/shared/workspace-model.js"></script>
+<script src="/shared/public-slot-claim.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
@@ -889,12 +893,19 @@ function backfillIndiceTelefonos(){
 }
 
 function saveLead(id, data){
-  return db.ref('leads/'+id).set(data).then(()=>{
+  return db.ref('leads/'+id).transaction(current=>{
+    if(!current)return data;
+    const merged={...current,...data,bitacora:{...current.bitacora,...data.bitacora}};
+    if(current._synapse)merged._synapse={...current._synapse,version:(current._synapse.version||0)+1,updatedAt:new Date().toISOString()};
+    return merged;
+  },undefined,false).then(()=>{
     const tn = normalizarTelefono(data.telefono);
     if(tn) db.ref('telefonos_index/'+tn).set(id).catch(()=>{});
   });
 }
 function deleteLeadRemote(id){
+  const metadata=leads[id]?._synapse;
+  if(Object.keys(metadata?.operaciones||{}).length||Object.keys(metadata?.operationRefs||{}).length)return Promise.reject(Error('CONTACT_HAS_OPERATIONS'));
   const tel = leads[id] && leads[id].telefono;
   const relId = leads[id] && leads[id].leadRelacionadoId;
   return db.ref('leads/'+id).remove().then(()=>{
@@ -922,8 +933,9 @@ function isOverdue(lead){
   return lead.fechaProximaAccion < todayStr();
 }
 
+function isCommercialContact(contact){return !contact._synapse?.categorias||contact._synapse.categorias.some(c=>c==='prospecto'||c==='cliente');}
 function renderDash(){
-  const all = Object.values(leads);
+  const all = Object.values(leads).filter(isCommercialContact);
   const activos = all.filter(l=>l.etapa!=='ganado' && l.etapa!=='perdido').length;
   const vencidos = all.filter(isOverdue).length;
   const now = new Date();
@@ -972,6 +984,7 @@ function renderList(){
 
   let arr = Object.entries(leads).map(([id,l])=>({id,...l}));
   arr = arr.filter(l=>{
+    if(!isCommercialContact(l)) return false;
     if(search && !(`${l.nombre||''} ${l.telefono||''}`.toLowerCase().includes(search))) return false;
     if(filterEtapa && l.etapa !== filterEtapa) return false;
     if(filterOperacion && (l.operacion||'Compra') !== filterOperacion) return false;
@@ -1224,6 +1237,8 @@ document.getElementById('btn-save').addEventListener('click', ()=>{
 
 document.getElementById('btn-delete').addEventListener('click', ()=>{
   if(!currentLeadId) return;
+  const metadata=leads[currentLeadId]?._synapse;
+  if(Object.keys(metadata?.operaciones||{}).length||Object.keys(metadata?.operationRefs||{}).length){alert('Este contacto está vinculado a operaciones. Conserva su ficha y gestiona sus relaciones desde Contactos.');return;}
   if(confirm('¿Eliminar este lead? Esta acción no se puede deshacer. Si está perdido, mejor déjalo archivado en vez de borrarlo.')){
     deleteLeadRemote(currentLeadId).then(closeModal);
   }
@@ -1771,27 +1786,8 @@ function renderReservationRadar(citasObj){
   list.querySelectorAll('[data-radar-action="wa"]').forEach(btn=>btn.addEventListener('click',()=>{
     const c = arr.find(x=>x.id===btn.dataset.id); if(c) abrirWhatsAppParaCita(c);
   }));
-  list.querySelectorAll('[data-radar-action="convert-hold"]').forEach(btn=>btn.addEventListener('click',()=>{
-    const c = arr.find(x=>x.id===btn.dataset.id); if(!c || !confirm('¿El cliente confirmó? Este HOLD se convertirá en reserva registrada.')) return;
-    const folio = SynapseReservationReference.fromCitaId(c.id, c.folio);
-    const trace = registrarTraceCita(c.id,{tipo:'estado',anterior:'hold',nuevo:'pendiente',origen:'synapse'});
-    const updates={};
-    updates['citas/'+c.id+'/estado']='pendiente';
-    updates['citas/'+c.id+'/folio']=folio;
-    updates['citas/'+c.id+'/nextAction']='Confirmar reserva con el cliente';
-    updates['citas/'+c.id+'/historial/'+trace.traceId]=trace.entry;
-    updates['citas_publicas/'+c.fecha+'_'+c.hora+'/folio']=folio;
-    db.ref().update(updates).catch(err=>alert('No se pudo convertir el HOLD.\n\nError: '+err.message));
-  }));
-  list.querySelectorAll('[data-radar-action="release-hold"]').forEach(btn=>btn.addEventListener('click',()=>{
-    const c = arr.find(x=>x.id===btn.dataset.id); if(!c || !confirm('¿Liberar este HOLD? El horario volverá a estar disponible.')) return;
-    const trace = registrarTraceCita(c.id,{tipo:'estado',anterior:'hold',nuevo:'cancelada',origen:'synapse'});
-    const updates={};
-    updates['citas/'+c.id+'/estado']='cancelada';
-    updates['citas/'+c.id+'/nextAction']='HOLD liberado';
-    updates['citas/'+c.id+'/historial/'+trace.traceId]=trace.entry;
-    updates['citas_publicas/'+c.fecha+'_'+c.hora]=null;
-    db.ref().update(updates).catch(err=>alert('No se pudo liberar el HOLD.\n\nError: '+err.message));
+  for(const action of ['convert-hold','release-hold']) list.querySelectorAll('[data-radar-action="'+action+'"]').forEach(btn=>btn.addEventListener('click',()=>{
+    const c=arr.find(x=>x.id===btn.dataset.id); if(c) abrirEventoAgenda(c);
   }));
   list.querySelectorAll('[data-radar-action="citas"]').forEach(btn=>btn.addEventListener('click',()=>{
     const tab = document.querySelector('.admin-tab-btn[data-tab="citas"]'); if(tab) tab.click();
@@ -2194,7 +2190,7 @@ function renderManualLeadSelect(){
   if(!sel) return;
   const prevVal = sel.value;
   const arr = Object.entries(leads||{})
-    .filter(([id,l])=>!['ganado','perdido'].includes(l.etapa))
+    .filter(([id,l])=>isCommercialContact(l))
     .sort((a,b)=>(a[1].nombre||'').localeCompare(b[1].nombre||''));
   sel.innerHTML = `<option value="">Cliente nuevo (sin lead existente)</option>` +
     arr.map(([id,l])=>`<option value="${id}">${escapeHtml(l.nombre||'(sin nombre)')}${l.telefono?' · '+escapeHtml(l.telefono):''}</option>`).join('');
@@ -2267,6 +2263,18 @@ async function crearLeadDesdeCitaManual({nombre, telefono, fecha, hora, propieda
   return newLeadId;
 }
 
+async function apartarIntervaloManual(citaId,fecha,hora,marker){
+  const [hours,blocks]=await Promise.all([db.ref('disponibilidad/horarios').get(),db.ref('disponibilidad/bloqueos').get()]);
+  const cfg=hours.val();if(!cfg)throw Error('AVAILABILITY_UNAVAILABLE');
+  const start=SynapseWorkspace.minutes(hora),duration=Number(cfg.duracionMin)||30,end=start+duration;
+  if(end>=1440)throw Error('DURATION_REQUIRED');
+  const interval={date:fecha,start,end};
+  if((blocks.val()?.[fecha]||[]).some(t=>SynapseWorkspace.overlap(interval,{date:fecha,start:SynapseWorkspace.minutes(t),end:SynapseWorkspace.minutes(t)+duration})))throw Error('SLOT_NOT_AVAILABLE');
+  const keys=SynapseWorkspace.slotKeys({id:citaId,fecha,hora,horaFin:SynapseWorkspace.time(end),estado:'programado',bloqueaDisponibilidad:true},cfg);
+  await SynapsePublicSlot.claimInterval(db.ref('citas_publicas'),keys,marker,interval,duration);
+  return{duracionMin:duration,horaFin:SynapseWorkspace.time(end)};
+}
+
 document.getElementById('btn-add-hold')?.addEventListener('click', ()=>{
   const nombre=document.getElementById('h-nombre').value.trim();
   const origen=document.getElementById('h-origen').value;
@@ -2284,13 +2292,13 @@ document.getElementById('btn-add-hold')?.addEventListener('click', ()=>{
   const holdFolio='HLD-'+clean.slice(-8), creado=new Date().toISOString();
   const trace=registrarTraceCita(citaId,{tipo:'creacion',fecha:creado,origen:'synapse-hold'});
   const updates={};
-  updates['citas_publicas/'+slotFlagKey]={propiedadId:propiedadId||null,citaId,holdFolio,estado:'hold'};
   updates['citas/'+citaId]={holdFolio,nombre,telefono:'',notas,origen,propiedadId,propiedadNombre,fecha,hora,leadId:null,estado:'hold',nextAction:'Esperar / solicitar confirmación',manual:true,creado,historial:{[trace.traceId]:trace.entry}};
+  let apartadoRegistrado=false;
   const btn=document.getElementById('btn-add-hold'); btn.disabled=true; btn.textContent='Apartando…';
-  db.ref().update(updates).then(()=>{
+  apartarIntervaloManual(citaId,fecha,hora,{propiedadId:propiedadId||null,citaId,holdFolio,estado:'hold'}).then(interval=>{Object.assign(updates['citas/'+citaId],interval);return db.ref().update(updates).then(()=>{apartadoRegistrado=true;});}).then(()=>{
     ['h-nombre','h-fecha','h-hora','h-notas'].forEach(id=>document.getElementById(id).value='');
     document.getElementById('h-propiedad').value='';
-  }).catch(err=>alert('No se pudo crear el HOLD.\n\nError: '+err.message)).finally(()=>{btn.disabled=false;btn.textContent='🟠 Apartar temporalmente';});
+  }).catch(async err=>{if(apartadoRegistrado){alert('El apartado sí quedó registrado con folio '+holdFolio+'. No lo repitas.');return;}try{await SynapsePublicSlot.releaseInterval(db.ref('citas_publicas'),citaId);}catch{}alert('No se pudo crear el apartado. Revisa el horario.\n\n'+err.message);}).finally(()=>{btn.disabled=false;btn.textContent='🟠 Apartar temporalmente';});
 });
 
 document.getElementById('btn-add-manual').addEventListener('click', ()=>{
@@ -2309,14 +2317,18 @@ document.getElementById('btn-add-manual').addEventListener('click', ()=>{
 
   const slotFlagKey = `${fecha}_${hora}`;
   if(ocupados[slotFlagKey]){
-    if(!confirm('Ya hay una cita agendada en ese horario exacto. ¿Quieres agendar de todos modos (se guardará junto a la existente)?')) return;
+    alert('Ese horario ya está ocupado. Elige otro horario.'); return;
   }
 
   const btn = document.getElementById('btn-add-manual');
   btn.disabled = true; btn.textContent = 'Agendando…';
 
-  db.ref('citas_publicas/'+slotFlagKey).set({ propiedadId: propiedadId || null })
-    .then(()=>{
+  const citaId=db.ref('citas').push().key;
+  const folio=SynapseReservationReference.fromCitaId(citaId);
+  let intervalo, citaRegistrada=false;
+  apartarIntervaloManual(citaId,fecha,hora,{propiedadId:propiedadId||null,citaId,folio})
+    .then(result=>{
+      intervalo=result;
       // Si no eligió un lead existente, crea uno nuevo automáticamente (mismo criterio que la agenda pública).
       if(!leadId){
         return crearLeadDesdeCitaManual({nombre, telefono, fecha, hora, propiedadId, propiedadNombre, notas})
@@ -2324,11 +2336,11 @@ document.getElementById('btn-add-manual').addEventListener('click', ()=>{
       }
     })
     .then(()=>{
-      const citaId = db.ref('citas').push().key;
       const creado = new Date().toISOString();
       const trace = registrarTraceCita(citaId, { tipo: 'creacion', fecha: creado, origen: 'synapse' });
       const updates = {};
       updates['citas/'+citaId] = {
+        ...intervalo, folio,
         nombre, telefono, notas,
         propiedadId, propiedadNombre,
         fecha, hora,
@@ -2338,7 +2350,7 @@ document.getElementById('btn-add-manual').addEventListener('click', ()=>{
         creado,
         historial: { [trace.traceId]: trace.entry }
       };
-      return db.ref().update(updates);
+      return db.ref().update(updates).then(()=>{citaRegistrada=true;});
     })
     .then(()=> leadId ? sincronizarLeadPorNuevaCita(leadId, fecha, hora, propiedadNombre) : null)
     .then(()=>{
@@ -2350,8 +2362,10 @@ document.getElementById('btn-add-manual').addEventListener('click', ()=>{
       document.getElementById('m-hora').value = '';
       document.getElementById('m-notas').value = '';
     })
-    .catch(err=>{
-      alert('No se pudo agendar la cita manual.\n\nError: ' + err.message);
+    .catch(async err=>{
+      if(citaRegistrada){alert('La cita sí quedó registrada con folio '+folio+'. Revisa el seguimiento del contacto; no repitas la reserva.');return;}
+      try{await SynapsePublicSlot.releaseInterval(db.ref('citas_publicas'),citaId);}catch{}
+      alert('No se pudo agendar la cita manual. Revisa el horario.\n\n' + err.message);
     })
     .finally(()=>{
       btn.disabled = false; btn.textContent = '+ Agendar manualmente';
@@ -2519,7 +2533,7 @@ function renderHorariosFantasma(){
   const el = document.getElementById('horarios-fantasma');
   if(!card || !el) return;
   const citasKeys = new Set(Object.values(ultimasCitas||{}).map(c=>`${c.fecha}_${c.hora}`));
-  const fantasmas = Object.keys(ocupados||{}).filter(k=> !citasKeys.has(k));
+  const fantasmas = Object.keys(ocupados||{}).filter(k=> /^\d{4}-\d{2}-\d{2}_\d{2}:\d{2}$/.test(k) && !ocupados[k]?.agenda && !citasKeys.has(k));
   card.style.display = fantasmas.length ? 'block' : 'none';
   if(fantasmas.length === 0) return;
   el.innerHTML = fantasmas.map(k=>{
@@ -2529,7 +2543,8 @@ function renderHorariosFantasma(){
   el.querySelectorAll('[data-action="liberar-fantasma"]').forEach(btn=>{
     btn.addEventListener('click', ()=>{
       if(!confirm('¿Liberar este horario? Vuelve a quedar disponible para agendar.')) return;
-      db.ref('citas_publicas/'+btn.dataset.key).remove();
+      alert('Revisa este bloqueo en Synapse Agenda. No se liberó automáticamente porque no tiene una referencia verificable.');
+      window.location.assign('/agenda');
     });
   });
 }
@@ -2587,6 +2602,8 @@ function abrirWhatsAppParaCita(cita){
   window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`,'_blank');
 }
 
+// Las mutaciones de agenda se concentran en el formulario con versión y control de ocupación.
+function abrirEventoAgenda(cita){window.location.assign('/agenda?event='+encodeURIComponent(cita.id));}
 function renderCitasList(citasObj){
   const list = document.getElementById('citas-list');
   const today = dateKey(new Date());
@@ -2616,22 +2633,9 @@ function renderCitasList(citasObj){
   `;
   }).join('');
 
-  list.querySelectorAll('[data-action="del"]').forEach(btn=>{
-    btn.addEventListener('click', ()=>{
-      const c = arr.find(x=>x.id===btn.dataset.id);
-      if(!confirm('¿Cancelar esta cita?')) return;
-      const estadoAnterior = c.estado || 'pendiente';
-      const trace = registrarTraceCita(c.id, { tipo: 'estado', anterior: estadoAnterior, nuevo: 'cancelada', origen: 'synapse' });
-      const updates = {};
-      updates['citas/'+c.id+'/estado'] = 'cancelada';
-      updates['citas/'+c.id+'/nextAction'] = NEXT_ACTION_POR_ESTADO.cancelada || 'Reprogramar';
-      updates['citas/'+c.id+'/historial/'+trace.traceId] = trace.entry;
-      updates['citas_publicas/'+c.fecha+'_'+c.hora] = null;
-      db.ref().update(updates)
-        .then(()=> sincronizarLeadPorEstadoCita(c, 'cancelada'))
-        .catch(err=> alert('No se pudo cancelar la cita.\n\nError: ' + err.message));
-    });
-  });
+  list.querySelectorAll('[data-action="del"]').forEach(btn=>btn.addEventListener('click',()=>{
+    const c=arr.find(x=>x.id===btn.dataset.id); if(c) abrirEventoAgenda(c);
+  }));
   list.querySelectorAll('[data-action="wa"]').forEach(btn=>{
     btn.addEventListener('click', ()=>{
       const c = arr.find(x=>x.id===btn.dataset.id);
@@ -2722,6 +2726,7 @@ function attachSeguimientoHandlers(container){
       const id = sel.dataset.id;
       const cita = ultimasCitas[id];
       if(!cita) return;
+      if(cita.origen==='synapse-agenda'||cita._agenda){sel.value=cita.resultado||'';abrirEventoAgenda({id,...cita});return;}
 
       const resultadoAnterior = cita.resultado || '';
       const resultadoNuevo = sel.value;
@@ -2759,50 +2764,20 @@ function attachSeguimientoHandlers(container){
     });
   });
 
-  container.querySelectorAll('[data-action="seg-reprogramar"]').forEach(btn=>{
-    btn.addEventListener('click', ()=>{
-      const cita = ultimasCitas[btn.dataset.id];
-      if (!cita) {
-        alert('La cita ya no está disponible.');
-        return;
-      }
-      if (!window.SynapseReprogramarV1) {
-        alert('El módulo de reprogramación no está disponible.');
-        return;
-      }
-      window.SynapseReprogramarV1.abrir({
-        ...cita,
-        id: btn.dataset.id
-      });
-    });
-  });
-
-  container.querySelectorAll('[data-action="seg-estado"]').forEach(sel=>{
-    sel.addEventListener('change', ()=>{
-      const id = sel.dataset.id;
-      const cita = ultimasCitas[id];
-      const estadoAnterior = cita.estado || 'pendiente';
-      const estadoNuevo = sel.value;
-      if(estadoAnterior === estadoNuevo) return;
-      const trace = registrarTraceCita(id, { tipo: 'estado', anterior: estadoAnterior, nuevo: estadoNuevo, origen: 'synapse' });
-      const updates = {};
-      updates['citas/'+id+'/estado'] = estadoNuevo;
-      updates['citas/'+id+'/nextAction'] = NEXT_ACTION_POR_ESTADO[estadoNuevo] || '';
-      updates['citas/'+id+'/historial/'+trace.traceId] = trace.entry;
-      db.ref().update(updates)
-        .then(()=>{
-          sel.className = 'seg-estado est-' + estadoNuevo;
-          return sincronizarLeadPorEstadoCita(cita, estadoNuevo);
-        })
-        .catch(err=> alert('No se pudo actualizar el estado.\n\nError: ' + err.message));
-    });
-  });
+  container.querySelectorAll('[data-action="seg-reprogramar"]').forEach(btn=>btn.addEventListener('click',()=>{
+    const cita=ultimasCitas[btn.dataset.id]; if(cita) abrirEventoAgenda({id:btn.dataset.id,...cita});
+  }));
+  container.querySelectorAll('[data-action="seg-estado"]').forEach(sel=>sel.addEventListener('change',()=>{
+    const cita=ultimasCitas[sel.dataset.id]; if(!cita)return;
+    sel.value=cita.estado||'pendiente'; abrirEventoAgenda({id:sel.dataset.id,...cita});
+  }));
 
   container.querySelectorAll('[data-action="seg-propiedad"]').forEach(sel=>{
     sel.addEventListener('change', ()=>{
       const id = sel.dataset.id;
       const cita = ultimasCitas[id];
       if(!cita) return;
+      if(cita.origen==='synapse-agenda'||cita._agenda){sel.value=cita.propiedadId||'';abrirEventoAgenda({id,...cita});return;}
 
       const propiedadIdAnterior = cita.propiedadId || null;
       const propiedadNombreAnterior = cita.propiedadNombre || '';

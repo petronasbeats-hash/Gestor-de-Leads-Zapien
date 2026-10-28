@@ -31,6 +31,9 @@ test('release exige sitio explícito y dependencias existentes; no reemplaza sal
     assert.equal(fs.existsSync(path.join(result.output, 'public/shared/attention-alerts.js')), true);
     assert.equal(fs.existsSync(path.join(result.output, 'functions/shared/attention-alerts.js')), true);
     assert.deepEqual(fs.readFileSync(path.join(result.output, 'public/assets/audio/synapse-nexo-v1.wav')),fs.readFileSync(path.join(__dirname,'../assets/audio/synapse-nexo-v1.wav')));
+    for(const file of ['workspace.html','shared/workspace-model.js','shared/workspace-store.js','web/workspace/workspace.js','web/workspace/workspace.css'])assert.deepEqual(fs.readFileSync(path.join(result.output,'public',file)),fs.readFileSync(path.join(__dirname,'..',file)));
+    assert.ok(config.hosting.rewrites.some(r=>r.source==='/contactos'&&r.destination==='/workspace.html'));
+    assert.ok(config.hosting.rewrites.some(r=>r.source==='/agenda'&&r.destination==='/workspace.html'));
     assert.equal(JSON.parse(fs.readFileSync(path.join(result.output, 'release-manifest.json'))).capabilities.booking, false);
     assert.match(fs.readFileSync(path.join(result.output, 'functions/.env.gestor-leads-zapien'), 'utf8'), /ATTENTION_PUBLIC_ORIGIN=https:\/\/synapse-core.web.app\n/);
     assert.throws(() => build(options), /OUTPUT_ALREADY_EXISTS/);
