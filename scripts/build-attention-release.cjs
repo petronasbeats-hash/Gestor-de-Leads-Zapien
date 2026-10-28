@@ -40,7 +40,10 @@ function build(options) {
     files.push({path: relative, sha256: createHash('sha256').update(content).digest('hex')});
   }
   function copy(source, relative) {if (fs.lstatSync(source).isSymbolicLink()) throw Error('SYMLINK_NOT_ALLOWED'); write(relative, fs.readFileSync(source));}
-  for (const item of ['index.html', 'agenda.html', 'reservar.html', 'atencion.html', 'atencion-operador.html', 'workspace.html', 'shared/workspace-model.js', 'shared/workspace-store.js', 'web/workspace/workspace.js', 'web/workspace/workspace.css', 'shared/reservation-reference.js', 'shared/attention-quick-replies.js', 'shared/attention-alerts.js', 'web/attention/attention.js', 'web/attention/attention.css']) copy(path.join(root, item), 'public/' + item);
+  for (const item of ['agenda.html', 'reservar.html', 'atencion.html', 'atencion-operador.html', 'workspace.html', 'shared/workspace-model.js', 'shared/workspace-store.js', 'web/workspace/workspace.js', 'web/workspace/workspace.css', 'shared/reservation-reference.js', 'shared/attention-quick-replies.js', 'shared/attention-alerts.js', 'web/attention/attention.js', 'web/attention/attention.css']) copy(path.join(root, item), 'public/' + item);
+  copy(path.join(root, 'workspace.html'), 'public/index.html');
+  copy(path.join(root, 'index.html'), 'public/administracion.html');
+  copy(path.join(root, 'shared/workspace-radar.js'), 'public/shared/workspace-radar.js');
   for (const item of ['404.html', 'leia.html']) copy(path.join(legacy, item), 'public/' + item);
   function assets(directory) {
     for (const entry of fs.readdirSync(directory, {withFileTypes: true})) {
@@ -67,10 +70,14 @@ function build(options) {
     {source: '/atencion-operador', destination: '/atencion-operador.html'},
     {source: '/atencion', destination: '/atencion.html'},
     {source: '/contactos', destination: '/workspace.html'},
+    {source: '/directorio', destination: '/workspace.html'},
+    {source: '/radar', destination: '/workspace.html'},
+    {source: '/operaciones', destination: '/workspace.html'},
+    {source: '/administracion', destination: '/administracion.html'},
     {source: '/agenda', destination: '/workspace.html'},
     {source: '/reservar', destination: '/reservar.html'},
     {source: '/leia', destination: '/leia.html'}]}}, null, 2) + '\n');
-  write('release-manifest.json', JSON.stringify({site, projectId: firebase.projectId, attentionOrigin, reservationOrigin, capabilities: {intake: true, conversation: true, guestConversation: true, messageAlerts: true, contacts: true, operations: true, actionPipelines: true, internalAgenda: true, hypeProfiles: false, booking: false, automaticReminders: false, leasePreparation: false}, files}, null, 2) + '\n');
+  write('release-manifest.json', JSON.stringify({site, projectId: firebase.projectId, attentionOrigin, reservationOrigin, capabilities: {intake: true, conversation: true, guestConversation: true, messageAlerts: true, contacts: true, directory: true, actionRadar: true, operations: true, actionPipelines: true, internalAgenda: true, hypeProfiles: false, booking: false, automaticReminders: false, leasePreparation: false}, files}, null, 2) + '\n');
   return {output, site, projectId: firebase.projectId, attentionOrigin, reservationOrigin, files: files.length};
 }
 if (require.main === module) {try {console.log(JSON.stringify(build(args(process.argv.slice(2))), null, 2));} catch (error) {console.error(error.message); process.exitCode = 1;}}

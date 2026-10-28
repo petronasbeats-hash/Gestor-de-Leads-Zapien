@@ -33,6 +33,10 @@ test('release exige sitio explícito y dependencias existentes; no reemplaza sal
     assert.deepEqual(fs.readFileSync(path.join(result.output, 'public/assets/audio/synapse-nexo-v1.wav')),fs.readFileSync(path.join(__dirname,'../assets/audio/synapse-nexo-v1.wav')));
     for(const file of ['workspace.html','shared/workspace-model.js','shared/workspace-store.js','web/workspace/workspace.js','web/workspace/workspace.css'])assert.deepEqual(fs.readFileSync(path.join(result.output,'public',file)),fs.readFileSync(path.join(__dirname,'..',file)));
     assert.ok(config.hosting.rewrites.some(r=>r.source==='/contactos'&&r.destination==='/workspace.html'));
+    assert.deepEqual(fs.readFileSync(path.join(result.output,'public/index.html')),fs.readFileSync(path.join(__dirname,'../workspace.html')));
+    assert.deepEqual(fs.readFileSync(path.join(result.output,'public/administracion.html')),fs.readFileSync(path.join(__dirname,'../index.html')));
+    for(const route of ['/directorio','/radar','/operaciones'])assert.ok(config.hosting.rewrites.some(r=>r.source===route&&r.destination==='/workspace.html'));
+    assert.ok(config.hosting.rewrites.some(r=>r.source==='/administracion'&&r.destination==='/administracion.html'));
     assert.ok(config.hosting.rewrites.some(r=>r.source==='/agenda'&&r.destination==='/workspace.html'));
     assert.equal(JSON.parse(fs.readFileSync(path.join(result.output, 'release-manifest.json'))).capabilities.booking, false);
     assert.match(fs.readFileSync(path.join(result.output, 'functions/.env.gestor-leads-zapien'), 'utf8'), /ATTENTION_PUBLIC_ORIGIN=https:\/\/synapse-core.web.app\n/);
