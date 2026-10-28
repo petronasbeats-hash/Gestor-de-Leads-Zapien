@@ -2,40 +2,124 @@
   "profiles": [
     {
       "propertyGroupId": "adn-suites-studios",
-      "unitTypes": ["STUDIO"],
-      "version": "adn-yin-2026-10-v1",
+      "unitTypes": [
+        "STUDIO"
+      ],
+      "version": "adn-yin-2026-10-v2",
       "source": "Resident Guide V1; correcciones del usuario de plazo, depósito y amenidades; ficha pública de unidad",
       "termMonths": 6,
       "depositMonths": 1,
-      "included": ["Agua", "Internet compartido", "Calentamiento solar de agua", "Espacio para motos y bicicletas sujeto a capacidad"],
-      "excluded": ["Sky Terrace", "Jardín Botánico", "Área de lavado y tendido"],
-      "additional": ["Electricidad: cobro adicional según el esquema de la unidad", "Estacionamiento de automóvil: costo adicional y sujeto a disponibilidad"],
-      "pending": ["Estimación del costo de electricidad"],
+      "included": [
+        "Agua",
+        "Internet compartido",
+        "Calentamiento solar de agua",
+        "Espacio para motos y bicicletas sujeto a capacidad"
+      ],
+      "excluded": [
+        "Sky Terrace",
+        "Jardín Botánico",
+        "Área de lavado y tendido"
+      ],
+      "additional": [
+        "Electricidad: cobro adicional según el esquema de la unidad",
+        "Estacionamiento de automóvil: costo adicional y sujeto a disponibilidad"
+      ],
+      "pending": [
+        "Estimación del costo de electricidad"
+      ],
       "requirements": [
-        {"id":"tenant_ine","label":"INE del arrendatario"},
-        {"id":"tenant_contact","label":"Número de contacto del arrendatario"},
-        {"id":"guarantor_ine","label":"INE del aval"},
-        {"id":"guarantor_address","label":"Comprobante de domicilio actualizado del aval"},
-        {"id":"guarantor_contact","label":"Número de contacto del aval"}
+        {
+          "id": "tenant_full_name",
+          "label": "Nombre completo del arrendatario"
+        },
+        {
+          "id": "tenant_ine",
+          "label": "INE del arrendatario"
+        },
+        {
+          "id": "tenant_contact",
+          "label": "Número de contacto del arrendatario"
+        },
+        {
+          "id": "guarantor_full_name",
+          "label": "Nombre completo del aval"
+        },
+        {
+          "id": "guarantor_ine",
+          "label": "INE del aval"
+        },
+        {
+          "id": "guarantor_address",
+          "label": "Comprobante de domicilio actualizado del aval, quien debe residir en la misma ciudad del inmueble en alquiler"
+        },
+        {
+          "id": "guarantor_contact",
+          "label": "Número de contacto del aval"
+        },
+        {
+          "id": "guarantor_local_residence",
+          "label": "Confirmar la ciudad y el domicilio actual del aval: debe radicar en la misma ciudad del inmueble en alquiler"
+        }
       ]
     },
     {
       "propertyGroupId": "adn-suites-studios",
-      "unitTypes": ["SUITE"],
-      "version": "adn-yang-2026-10-v1",
+      "unitTypes": [
+        "SUITE"
+      ],
+      "version": "adn-yang-2026-10-v2",
       "source": "Resident Guide V1; correcciones del usuario de plazo, depósito y amenidades; ficha pública de unidad",
       "termMonths": 6,
       "depositMonths": 1,
-      "included": ["Agua", "Internet compartido", "Calentamiento solar de agua", "Sky Terrace", "Jardín Botánico", "Área de lavado y tendido", "Espacio para motos y bicicletas sujeto a capacidad"],
+      "included": [
+        "Agua",
+        "Internet compartido",
+        "Calentamiento solar de agua",
+        "Sky Terrace",
+        "Jardín Botánico",
+        "Área de lavado y tendido",
+        "Espacio para motos y bicicletas sujeto a capacidad"
+      ],
       "excluded": [],
-      "additional": ["Estacionamiento de automóvil: costo adicional y sujeto a disponibilidad"],
-      "pending": ["Esquema y costo de electricidad por confirmar en esta unidad"],
+      "additional": [
+        "Estacionamiento de automóvil: costo adicional y sujeto a disponibilidad"
+      ],
+      "pending": [
+        "Esquema y costo de electricidad por confirmar en esta unidad"
+      ],
       "requirements": [
-        {"id":"tenant_ine","label":"INE del arrendatario"},
-        {"id":"tenant_contact","label":"Número de contacto del arrendatario"},
-        {"id":"guarantor_ine","label":"INE del aval"},
-        {"id":"guarantor_address","label":"Comprobante de domicilio actualizado del aval"},
-        {"id":"guarantor_contact","label":"Número de contacto del aval"}
+        {
+          "id": "tenant_full_name",
+          "label": "Nombre completo del arrendatario"
+        },
+        {
+          "id": "tenant_ine",
+          "label": "INE del arrendatario"
+        },
+        {
+          "id": "tenant_contact",
+          "label": "Número de contacto del arrendatario"
+        },
+        {
+          "id": "guarantor_full_name",
+          "label": "Nombre completo del aval"
+        },
+        {
+          "id": "guarantor_ine",
+          "label": "INE del aval"
+        },
+        {
+          "id": "guarantor_address",
+          "label": "Comprobante de domicilio actualizado del aval, quien debe residir en la misma ciudad del inmueble en alquiler"
+        },
+        {
+          "id": "guarantor_contact",
+          "label": "Número de contacto del aval"
+        },
+        {
+          "id": "guarantor_local_residence",
+          "label": "Confirmar la ciudad y el domicilio actual del aval: debe radicar en la misma ciudad del inmueble en alquiler"
+        }
       ]
     }
   ],

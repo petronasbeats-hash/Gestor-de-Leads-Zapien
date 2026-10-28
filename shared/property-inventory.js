@@ -1,0 +1,8 @@
+(function(root,factory){const api=factory();if(typeof module==='object'&&module.exports)module.exports=api;else root.SynapsePropertyInventory=api;})(typeof globalThis==='undefined'?this:globalThis,function(){
+ 'use strict';const labels={por_confirmar:'Por confirmar',disponible:'Disponible',en_contrato:'En contrato de alquiler',mantenimiento:'En mantenimiento'};
+ function state(property){const status=property?.inventario?.estado;return Object.hasOwn(labels,status)?status:'por_confirmar';}
+ const canVisit=p=>!['en_contrato','mantenimiento'].includes(state(p));
+ const stable=v=>Array.isArray(v)?v.map(stable):v&&typeof v==='object'?Object.fromEntries(Object.keys(v).sort().map(k=>[k,stable(v[k])])):v;
+ async function save(ref,expected,status,{uid,getUid,now=()=>new Date()}){if(!Object.hasOwn(labels,status))throw Error('Elige un estado válido.');if(!uid||getUid()!==uid)throw Error('Tu sesión cambió.');let failure;const next={...(expected||{}),estado:status,actualizadoEn:now().toISOString()};const result=await ref.transaction(current=>{failure=undefined;if(getUid()!==uid){failure=Error('Tu sesión cambió.');return;}if(current===null)return null;if(JSON.stringify(stable(current.inventario??null))!==JSON.stringify(stable(expected))){failure=Error('El estado cambió en otra sesión. Actualiza el catálogo antes de guardar.');return;}return {...current,inventario:next};},undefined,false);if(failure)throw failure;if(!result.committed)throw Error('No se pudo guardar el estado.');if(!result.snapshot.val())throw Error('El inmueble ya no existe.');return result.snapshot.val().inventario;}
+ return Object.freeze({labels,state,canVisit,save});
+});

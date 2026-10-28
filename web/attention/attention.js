@@ -318,6 +318,7 @@
       : (current.context.identityStatus === 'contact_verified' ? 'Teléfono verificado' : 'Identidad sin verificar');
     $('interest').value = current.context.currentPropertyId;
     $('contact-name').value = current.context.displayName; $('contact-surname').value = current.context.surname; $('contact-phone').value = current.context.phone;
+    if(window.SynapseWorkspace){try{$('agent-contact-whatsapp').href=window.SynapseWorkspace.whatsappUrl(current.context.phone);$('agent-contact-whatsapp').hidden=false;}catch{$('agent-contact-whatsapp').removeAttribute('href');$('agent-contact-whatsapp').hidden=true;}}
     renderSheet(active.sheet); renderMessages(active.messages);
     $('observed').textContent = 'Catálogo consultado: ' + new Date(active.observedAt).toLocaleString('es-MX', {timeZone: 'America/Mexico_City'});
     $('journal').replaceChildren(); active.journal.sort((a, b) => b.recordedAt.localeCompare(a.recordedAt)).forEach(entry => $('journal').append(node('div', entry.summary + (entry.nextAction ? '\nSiguiente acción: ' + entry.nextAction.description : ''), 'journal')));
@@ -401,6 +402,7 @@
       if (!user) {
         stopPolling();
         visitUI?.reset();
+        $('agent-contact-whatsapp').hidden=true;$('agent-contact-whatsapp').href='';
         active = null; activeOrganization = ''; catalog = []; quickReplies = []; pending.clear(); conversationDrafts.clear(); inboxButtons.clear();
         document.body.classList.remove('operator-ready', 'show-inbox');
         for (const name of ['capture', 'report']) if ($(name + '-dialog').open) closeDialog(name);
@@ -414,7 +416,7 @@
           const session = await api('/agent/session'); options($('organization'), session.organizations);
           if (!session.organizations.length) {$('workspace').hidden = true; status('Tu cuenta aún no tiene una organización autorizada para Atención.', true); return;}
           document.body.classList.add('operator-ready'); if (!active) document.body.classList.add('show-inbox');
-          setNoticeScope(user.uid+'/'+$('organization').value);await refresh();startPolling(); status('Sesión activa. Puedes capturar una atención.');
+          setNoticeScope(user.uid+'/'+$('organization').value);await refresh();startPolling();if(typeof URLSearchParams==='function'&&new URLSearchParams(location.search).get('new')==='1')$('capture-dialog').showModal(); status('Sesión activa. Puedes capturar una atención.');
         } catch (error) {status(errors[error.message] || 'No se pudo cargar la sesión de Atención.', true);}
       })();
     });

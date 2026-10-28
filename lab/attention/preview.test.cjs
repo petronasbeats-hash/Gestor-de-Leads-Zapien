@@ -56,12 +56,12 @@ test('Conserva el origen al cambiar el inmueble de interés',async()=>{
   e('sc-property').value=e('sc-property').children[0].value;await e('sc-property').trigger('change');
   assert.equal(e('sc-original-property').textContent,original);assert.notEqual(e('sc-property-name').textContent,original);assert.equal(e('sc-origin').textContent,'Marketplace Facebook');
 });
-test('Compartir requisitos es una acción del asesor y usa las condiciones de la unidad',async()=>{const e=mount();assert.equal(e('sc-requirement-list').children.length,0);await e('sc-share-requirements').trigger('click');assert.equal(e('sc-requirements').hidden,false);assert.equal(e('sc-requirement-list').children.length,5);assert.match(e('sc-conditions-summary').textContent,/6 meses/);await e('sc-client-view').trigger('click');assert.equal(e('sc-share-requirements').hidden,true);});
+test('Compartir requisitos es una acción del asesor y usa las condiciones de la unidad',async()=>{const e=mount();assert.equal(e('sc-requirement-list').children.length,0);await e('sc-share-requirements').trigger('click');assert.equal(e('sc-requirements').hidden,false);assert.equal(e('sc-requirement-list').children.length,8);assert.match(e('sc-conditions-summary').textContent,/6 meses/);await e('sc-client-view').trigger('click');assert.equal(e('sc-share-requirements').hidden,true);});
 test('El cliente continúa después de visita, declara requisitos y propone firma sin generar contrato',async()=>{
   const e=mount();e('sc-name').value='Persona de prueba';e('sc-phone').value='2380000000';await e('sc-start-form').trigger('submit');await e('sc-times').children[0].trigger('click');await e('sc-booking-form').trigger('submit');
   await e('sc-client-view').trigger('click');assert.equal(e('sc-client-continue').hidden,true);
   await e('sc-agent-view').trigger('click');await e('sc-complete-visit').trigger('click');await e('sc-prepare-followup').trigger('click');assert.match(e('sc-message').value,/Qué te pareció/);
-  await e('sc-client-view').trigger('click');assert.equal(e('sc-client-continue').hidden,false);await e('sc-request-contract').trigger('click');assert.equal(e('sc-contract-checklist').children.length,5);
+  await e('sc-client-view').trigger('click');assert.equal(e('sc-client-continue').hidden,false);await e('sc-request-contract').trigger('click');assert.equal(e('sc-contract-checklist').children.length,8);
   e('sc-confirm-property').checked=true;e('sc-declared-tenant_ine').checked=true;e('sc-signing-date').value='2026-11-02';await e('sc-contract-form').trigger('submit');
   assert.match(e('sc-contract-status').textContent,/incompleto/);assert.match(e('sc-contract-status').textContent,/pendiente de confirmar/);assert.match(e('sc-next').textContent,/Revisar expediente/);assert.equal(e('sc-submit-contract').disabled,true);
 });

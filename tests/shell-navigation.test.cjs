@@ -8,7 +8,7 @@ function shell(t,route,html='<body><div id="synapse-shell"></div>'){
 test('one primary menu groups operations under Directory and settings outside daily work',t=>{
  for(const [route,current] of [['/','radar'],['/operaciones','contacts'],['/contactos','contacts'],['/agenda/horarios','agenda'],['/inmuebles','properties'],['/configuracion','settings']]){
   const {window:w}=shell(t,route),d=w.document;
-  assert.deepEqual([...d.querySelectorAll('.synapse-primary a')].map(a=>a.textContent),['Radar','Atención','Directorio','Agenda','Inmuebles']);
+  assert.deepEqual([...d.querySelectorAll('.synapse-primary a')].map(a=>a.textContent),['Radar','Atención','Agenda','Directorio','Inmuebles']);
   assert.equal(d.querySelectorAll('[aria-current=page]').length,1);assert.equal(d.querySelector('[aria-current=page]').id,'nav-'+current);
   assert.ok([...d.querySelectorAll('.synapse-primary a')].every(a=>!a.target));
  }
@@ -35,3 +35,5 @@ test('existing admin routes open exactly the property or availability tool; main
   assert.ok(d.querySelector('a[href="/administracion?legacy=1"]'));
  }
 });
+
+test('progressive navigation collapses without storing client data and keeps grouped functions reachable',t=>{const{window:w}=shell(t,'/'),d=w.document;assert.deepEqual([...d.querySelectorAll('.shell-group>summary')].map(e=>e.textContent),['Día a día','Gestión']);d.querySelector('.shell-collapse').click();assert.equal(d.body.classList.contains('shell-collapsed'),true);assert.equal(w.localStorage.getItem('synapse.shell.v1'),'collapsed');assert.equal(d.querySelector('.shell-new').getAttribute('href'),'/atencion-operador?new=1');d.querySelector('.shell-collapse').click();assert.equal(d.body.classList.contains('shell-collapsed'),false);});

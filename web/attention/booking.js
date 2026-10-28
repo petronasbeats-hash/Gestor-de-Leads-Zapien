@@ -14,6 +14,7 @@ window.SynapseAttentionVisitUI = (() => {
     INVALID_TEXT:'Revisa el nombre completo y los datos del cliente.',
     EXISTING_VISIT_REVIEW:'Ya existe una visita activa que podría corresponder a este contacto e inmueble. Revísala en Agenda antes de crear otra.',
     PROPERTY_SCOPE_CHANGED:'El inmueble de la atención cambió. Actualiza la atención y revisa la cita antes de continuar.',
+    PROPERTY_NOT_AVAILABLE:'El inmueble está en contrato o mantenimiento. Revisa su estado en Inmuebles antes de reservar.',
     PROPERTY_NOT_PUBLISHED:'El inmueble ya no está publicado. Actualiza la atención antes de continuar.',
     BOOKING_REFERENCE_CONFLICT:'La referencia de esta cita requiere revisión. Abre Agenda antes de continuar.',
     SYNC_PENDING:'La cita ya está guardada y tiene folio. Completa su sincronización antes de confirmar el horario.',

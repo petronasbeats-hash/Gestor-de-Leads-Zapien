@@ -20,7 +20,7 @@
       const card=el('article',undefined,'space-card'),cover=el('div',undefined,'space-photo'),availablePhotos=photoRows(p);
       if(availablePhotos.length)image(cover,availablePhotos[0].url,p.nombre||'Espacio en Tehuacán');else fallback(cover);
       cover.append(el('span',p.unitType||p.operacion||'Conoce este espacio','space-type'));
-      const copy=el('div',undefined,'space-copy');copy.append(el('h3',p.nombre||'Espacio en Tehuacán'),el('p',zone(p),'space-zone'));
+      const copy=el('div',undefined,'space-copy');copy.append(el('h3',p.nombre||'Espacio en Tehuacán'),el('p',zone(p),'space-zone'));if(window.SynapsePropertyInventory&&SynapsePropertyInventory.state(p)!=='por_confirmar')copy.append(el('small',SynapsePropertyInventory.labels[SynapsePropertyInventory.state(p)],'inventory-public-state'));
       const specs=[p.recamaras?Number(p.recamaras)+' rec.':null,p.banos?Number(p.banos)+' baño'+(Number(p.banos)===1?'':'s'):null,p.category].filter(Boolean);copy.append(el('p',specs.join(' · ')||'Consulta las características de este espacio.','space-specs'));
       const price=el('div',money(p),'space-price');if(Number(p.precio)>0)price.append(el('small',p.operacion==='Renta'?'MXN / mes':'MXN'));copy.append(price);
       const button=el('button','Conocer este espacio ↗','btn');button.type='button';button.setAttribute('aria-label','Conocer '+(p.nombre||'este espacio'));button.addEventListener('click',()=>choose(key));copy.append(button);card.append(cover,copy);$('catalog-grid').append(card);

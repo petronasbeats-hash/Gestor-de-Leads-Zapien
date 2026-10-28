@@ -10,24 +10,33 @@
     ['properties', 'Inmuebles', '/inmuebles', 'm3 10 9-7 9 7M5 9v12h14V9M9 21v-8h6v8']
   ];
   const rail = document.createElement('aside'); rail.className = 'synapse-rail';
-  const brand = document.createElement('a'); brand.href = '/'; brand.className = 'synapse-logo';
-  const name = document.createElement('strong'); name.textContent = 'SYNAPSE';
-  const subtitle = document.createElement('small'); subtitle.textContent = 'Core · Experience';
-  brand.append(name, subtitle); rail.append(brand);
+  const railHead=document.createElement('div');railHead.className='shell-heading';
+  const brand = document.createElement('a'); brand.href = '/'; brand.className = 'synapse-logo';brand.setAttribute('aria-label','Synapse Core · Experience');
+  const mark=document.createElement('span');mark.className='shell-mark';mark.textContent='◉';mark.setAttribute('aria-hidden','true');
+  const words=document.createElement('span');words.className='shell-brand-copy';const name = document.createElement('strong'); name.textContent = 'SYNAPSE';
+  const subtitle = document.createElement('small'); subtitle.textContent = 'Core · Experience';words.append(name,subtitle);brand.append(mark,words);
+  const collapse=document.createElement('button');collapse.type='button';collapse.className='shell-collapse';collapse.textContent='‹';collapse.setAttribute('aria-label','Plegar menú');railHead.append(brand,collapse);rail.append(railHead);
+  const quick=document.createElement('a');quick.href='/atencion-operador?new=1';quick.className='shell-new';quick.setAttribute('aria-label','Nueva atención');quick.innerHTML='<span aria-hidden="true">＋</span><span class="shell-new-label">Nueva atención</span>';rail.append(quick);
   const nav = document.createElement('nav'); nav.className = 'synapse-primary'; nav.setAttribute('aria-label', 'Navegación principal');
-  for (const [id, label, href, path] of items) {
-    const a = document.createElement('a'); a.href = href; a.id = 'nav-' + id; a.dataset.module = id;
-    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-    svg.setAttribute('viewBox', '0 0 24 24'); svg.setAttribute('aria-hidden', 'true');
-    const line = document.createElementNS(svg.namespaceURI, 'path'); line.setAttribute('d', path); svg.append(line);
-    const text = document.createElement('span'); text.textContent = label;
-    a.append(svg, text); nav.append(a);
+  for(const [groupLabel,ids]of [['Día a día',['radar','attention','agenda']],['Gestión',['contacts','properties']]]){
+    const group=document.createElement('details');group.open=true;group.className='shell-group';const summary=document.createElement('summary');summary.textContent=groupLabel;group.append(summary);
+    for(const id of ids){const [,label,href,path]=items.find(item=>item[0]===id);const a=document.createElement('a');a.href=href;a.id='nav-'+id;a.dataset.module=id;a.setAttribute('aria-label',label);a.title=label;
+      const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');svg.setAttribute('viewBox','0 0 24 24');svg.setAttribute('aria-hidden','true');const line=document.createElementNS(svg.namespaceURI,'path');line.setAttribute('d',path);svg.append(line);const text=document.createElement('span');text.textContent=label;a.append(svg,text);group.append(a);
+    }nav.append(group);
   }
   rail.append(nav);
   const footer = document.createElement('div'); footer.className = 'synapse-rail-footer';
+  const hours=document.createElement('a');hours.href='/agenda/horarios';hours.textContent='Horarios y bloqueos';hours.className='shell-secondary-link';
   const settings = document.createElement('a'); settings.href = '/configuracion'; settings.id = 'nav-settings'; settings.textContent = 'Configuración';
   const publicLink = document.createElement('a'); publicLink.href = '/reservar'; publicLink.textContent = 'Vista del cliente ↗'; publicLink.target = '_blank'; publicLink.rel = 'noopener noreferrer';
-  footer.append(settings, publicLink); rail.append(footer); host.replaceChildren(rail);
+  footer.append(hours,settings, publicLink); rail.append(footer);
+  const mobile=document.createElement('button');mobile.type='button';mobile.className='shell-mobile-toggle';mobile.textContent='☰  Synapse';mobile.setAttribute('aria-label','Abrir menú de Synapse');mobile.setAttribute('aria-expanded','false');
+  const mask=document.createElement('button');mask.type='button';mask.className='shell-mask';mask.setAttribute('aria-label','Cerrar menú de Synapse');mask.hidden=true;host.replaceChildren(rail,mobile,mask);
+  let collapsed=false;try{collapsed=localStorage.getItem('synapse.shell.v1')==='collapsed';}catch{}
+  const narrow=()=>window.matchMedia?.('(max-width: 800px)').matches===true;
+  function setCollapsed(value){collapsed=value;document.body.classList.toggle('shell-collapsed',value);collapse.textContent=value?'›':'‹';collapse.setAttribute('aria-label',value?'Desplegar menú':'Plegar menú');collapse.setAttribute('aria-expanded',String(!value));if(value)rail.querySelectorAll('.shell-group').forEach(g=>g.open=true);try{localStorage.setItem('synapse.shell.v1',value?'collapsed':'expanded');}catch{}}
+  function mobileOpen(value){document.body.classList.toggle('shell-mobile-open',value);mobile.setAttribute('aria-expanded',String(value));mask.hidden=!value;}
+  collapse.addEventListener('click',()=>narrow()?mobileOpen(false):setCollapsed(!collapsed));mobile.addEventListener('click',()=>mobileOpen(!document.body.classList.contains('shell-mobile-open')));mask.addEventListener('click',()=>mobileOpen(false));window.addEventListener('keydown',e=>{if(e.key==='Escape')mobileOpen(false);});setCollapsed(collapsed);
   function sectionFor(path) {
     if (path.startsWith('/atencion-operador')) return 'attention';
     if (['/directorio', '/contactos', '/operaciones'].includes(path)) return 'contacts';
@@ -38,7 +47,7 @@
   }
   function setSection(section) {
     for (const a of rail.querySelectorAll('[id^="nav-"]')) {
-      if (a.id === 'nav-' + section) a.setAttribute('aria-current', 'page');
+      if (a.id === 'nav-' + section) {a.setAttribute('aria-current', 'page');const group=a.closest('details');if(group)group.open=true;}
       else a.removeAttribute('aria-current');
     }
   }
@@ -59,5 +68,6 @@
       document.querySelector('dialog[open]').focus();
       return;
     }
+    mobileOpen(false);
   });
 })();

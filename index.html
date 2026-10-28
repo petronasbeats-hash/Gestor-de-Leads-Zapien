@@ -202,7 +202,7 @@
   .cal-dot.est-no_asistio,.cal-dot.est-cancelada{background:var(--red);}
   .cal-more{font-size:10px;color:var(--muted);margin-top:2px;}
 </style>
-<link rel="stylesheet" href="/web/shell/navigation.css"><script src="/web/shell/navigation.js" defer></script><script src="/web/shell/admin-navigation.js" defer></script><link rel="stylesheet" href="/web/theme/theme.css"></head>
+<link rel="stylesheet" href="/web/shell/navigation.css"><script src="/web/shell/navigation.js" defer></script><script src="/web/shell/admin-navigation.js" defer></script><link rel="stylesheet" href="/web/theme/theme.css"><link rel="stylesheet" href="/web/agenda/weekly-hours.css"></head>
 <body class="synapse-app" data-surface="admin"><div id="synapse-shell"></div>
 
 <div class="login-wrap" id="login-wrap">
@@ -318,17 +318,17 @@
         <h2 class="mono" style="font-size:14px;color:var(--green);margin:0 0 12px;">Horario semanal</h2>
         <div id="horario-editor"></div>
         <div class="field"><label>Duración de cada cita (minutos)</label>
-          <select id="a-duracion"><option value="30">30 min</option><option value="60">60 min</option><option value="90">90 min</option></select>
+          <select id="a-duracion"><option value="15">15 min</option><option value="30">30 min</option><option value="45">45 min</option><option value="60">60 min</option><option value="90">90 min</option></select>
         </div>
         <div class="row2" style="grid-template-columns:1fr 1fr;">
           <div class="field" style="margin-bottom:0;"><label>Velocidad promedio de traslado (km/h)</label>
             <input type="number" id="a-velocidad" value="25" min="5" max="120">
           </div>
           <div class="field" style="margin-bottom:0;"><label>Margen extra por parada (min)</label>
-            <input type="number" id="a-buffer" value="10" min="0" max="60">
+            <input type="number" id="a-buffer" value="10" min="0" max="120">
           </div>
         </div>
-        <div class="sub" style="margin:8px 0 0;">Con esto se calcula el tiempo de traslado real entre propiedades y se deshabilitan automáticamente los horarios que no den tiempo de llegar a la siguiente cita.</div>
+        <div class="sub" style="margin:8px 0 0;">Con esto se estima el tiempo de traslado entre propiedades y se deshabilitan automáticamente los horarios que no den tiempo de llegar a la siguiente cita.</div>
         <button class="btn btn-primary btn-sm" id="btn-save-horario" style="margin-top:10px;">Guardar horario</button>
       </div>
 
@@ -346,7 +346,7 @@
       <div class="card">
         <h2 class="mono" style="font-size:14px;color:var(--green);margin:0 0 12px;">Propiedades</h2>
         <div class="sub" style="margin-bottom:12px;">Administra las fichas y publicaciones del catálogo de Reservar. Las unidades ADN ya heredan su ubicación validada; no necesitas volver a capturar coordenadas al editar fotos.</div>
-        <div class="property-workbench"><div class="property-catalog"><div id="propiedades-list"></div>
+        <div id="inventory-overview" class="inventory-overview"></div><div class="inventory-toolbar"><label>Buscar en inventario<input id="inventory-search" type="search" placeholder="Nombre, dirección o unidad"></label><label>Estado del inmueble<select id="inventory-filter"><option value="">Todo el inventario</option><option value="disponible">Disponibles</option><option value="en_contrato">En contrato de alquiler</option><option value="mantenimiento">En mantenimiento</option><option value="por_confirmar">Por confirmar</option></select></label></div><p id="inventory-message" role="status" aria-live="polite" class="sub"></p><div class="property-workbench"><div class="property-catalog"><div id="propiedades-list"></div>
         <details class="settings-secondary"><summary>Herramienta de importación ADN</summary><div id="adn-intake-card" style="margin:12px 0;padding:12px;border:1px solid var(--green);border-radius:8px;background:var(--green-dim);">
           <div class="mono" style="font-size:12px;color:var(--green);font-weight:700;">ADN SUITES & STUDIOS · ALTA ASISTIDA</div>
           <div class="sub" style="margin:6px 0 10px;">Lote inicial de 9 unidades publicadas en Facebook. La importación no sobrescribe ni duplica unidades ADN existentes.</div>
@@ -575,7 +575,7 @@
 </div>
 
 <script src="shared/reservation-reference.js"></script>
-<script src="/shared/workspace-model.js"></script>
+<script src="/shared/property-inventory.js"></script><script src="/shared/workspace-model.js"></script><script src="/shared/weekly-hours.js"></script><script src="/web/agenda/weekly-hours.js"></script>
 <script src="/shared/public-slot-claim.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
@@ -1478,81 +1478,11 @@ async function sincronizarLeadPorResultadoCita(cita, resultado){
 }
 
 /* ---------- Horario semanal ---------- */
+let weeklyEditor;
 function renderHorarioEditor(cfg){
-  const editor = document.getElementById('horario-editor');
-  editor.innerHTML = DAY_KEYS.map(dk=>{
-    const cRaw = (cfg && cfg[dk]) || {activo: dk!=='dom' && dk!=='sab'};
-    const c = normalizarDia(cRaw);
-    const rangosHtml = c.rangos.map((r,i)=>`
-      <div class="row2 rango-row" data-day="${dk}" data-idx="${i}">
-        <span></span>
-        <input type="time" class="h-inicio" value="${r.inicio}">
-        <input type="time" class="h-fin" value="${r.fin}">
-        <button type="button" class="btn btn-sm btn-quitar-rango" style="color:var(--red);">✕</button>
-      </div>`).join('');
-    return `
-    <div class="day-group" data-day="${dk}" style="margin-bottom:14px;border-bottom:1px dashed var(--line);padding-bottom:10px;">
-      <label style="display:flex;align-items:center;gap:6px;font-size:12.5px;margin-bottom:6px;">
-        <input type="checkbox" data-day="${dk}" class="h-activo" ${c.activo?'checked':''}> ${DAY_LABELS[dk]}
-      </label>
-      <div class="rangos-list" data-day="${dk}">${rangosHtml}</div>
-      <button type="button" class="btn btn-sm btn-add-rango" data-day="${dk}" style="margin-top:4px;">+ Agregar franja (ej. tarde)</button>
-    </div>`;
-  }).join('');
-  document.getElementById('a-duracion').value = (cfg && cfg.duracionMin) || 30;
-  document.getElementById('a-velocidad').value = (cfg && cfg.velocidadKmH) || 25;
-  document.getElementById('a-buffer').value = (cfg && cfg.bufferMin) || 10;
-  attachHorarioEditorEvents();
+  if(!weeklyEditor)weeklyEditor=SynapseWeeklyEditor.mount({root:document.getElementById('horario-editor'),saveButton:document.getElementById('btn-save-horario'),db,getUid:()=>auth.currentUser?.uid,controls:{duracionMin:document.getElementById('a-duracion'),velocidadKmH:document.getElementById('a-velocidad'),bufferMin:document.getElementById('a-buffer')}});
+  weeklyEditor.receive(cfg);
 }
-function attachHorarioEditorEvents(){
-  document.querySelectorAll('.btn-add-rango').forEach(btn=>{
-    btn.addEventListener('click', ()=>{
-      const dk = btn.dataset.day;
-      const list = document.querySelector(`.rangos-list[data-day="${dk}"]`);
-      const idx = list.querySelectorAll('.rango-row').length;
-      const row = document.createElement('div');
-      row.className = 'row2 rango-row';
-      row.dataset.day = dk; row.dataset.idx = idx;
-      row.innerHTML = `
-        <span></span>
-        <input type="time" class="h-inicio" value="16:00">
-        <input type="time" class="h-fin" value="18:00">
-        <button type="button" class="btn btn-sm btn-quitar-rango" style="color:var(--red);">✕</button>`;
-      list.appendChild(row);
-      attachQuitarRango(row.querySelector('.btn-quitar-rango'));
-    });
-  });
-  document.querySelectorAll('.btn-quitar-rango').forEach(attachQuitarRango);
-}
-function attachQuitarRango(btn){
-  btn.addEventListener('click', ()=>{
-    const row = btn.closest('.rango-row');
-    const list = row.parentElement;
-    if(list.querySelectorAll('.rango-row').length <= 1){
-      alert('Cada día activo necesita al menos una franja de horario.');
-      return;
-    }
-    row.remove();
-  });
-}
-document.getElementById('btn-save-horario').addEventListener('click', ()=>{
-  const out = {
-    duracionMin: Number(document.getElementById('a-duracion').value),
-    velocidadKmH: Number(document.getElementById('a-velocidad').value) || 25,
-    bufferMin: Number(document.getElementById('a-buffer').value) || 10
-  };
-  DAY_KEYS.forEach(dk=>{
-    const activo = document.querySelector(`.h-activo[data-day="${dk}"]`).checked;
-    const rangos = [...document.querySelectorAll(`.rango-row[data-day="${dk}"]`)].map(row=>({
-      inicio: row.querySelector('.h-inicio').value,
-      fin: row.querySelector('.h-fin').value
-    }));
-    out[dk] = { activo, rangos };
-  });
-  db.ref('disponibilidad/horarios').set(out).then(()=>{
-    alert('Horario guardado.');
-  });
-});
 
 /* ---------- Carga de datos del panel ---------- */
 function loadAdminData(){
@@ -1611,6 +1541,8 @@ function propiedadNombreOperativo(p){
 
   return p.nombre || '(sin nombre)';
 }
+
+for(const id of ['inventory-filter','inventory-search'])document.getElementById(id).addEventListener(id==='inventory-search'?'input':'change',()=>renderPropiedadesAdmin(propiedades));
 
 /* ---------- Propiedad de interés dentro de la ficha del lead ---------- */
 function renderPropiedadLeadSelect(){
@@ -1834,7 +1766,7 @@ function propiedadFaltantes(p){
 
 function propertyPublicUrl(p){
   if(!p || !p.unitId) return null;
-  return 'https://gestor-leads-zapien.web.app/reservar.html?unidad='+encodeURIComponent(p.unitId);
+  return 'https://synapse-core.web.app/reservar?unidad='+encodeURIComponent(p.unitId);
 }
 function propertyShareMessage(p){
   const url=propertyPublicUrl(p);
@@ -1852,6 +1784,7 @@ function propertyShareMessage(p){
 }
 async function copyPropertyShare(p){
   if(!p || !p.unitId){ alert('Esta propiedad todavía no tiene un ID de unidad para generar su enlace directo.'); return; }
+  if(!SynapsePropertyInventory.canVisit(p)){alert('Este inmueble figura '+SynapsePropertyInventory.labels[SynapsePropertyInventory.state(p)].toLowerCase()+'. Revisa su estado antes de ofrecerlo.');return;}
   const confirmed = window.confirm('¿Confirmas que '+p.nombre+' está disponible actualmente?\n\nAceptar = copiar respuesta confirmando disponibilidad.\nCancelar = no copiar ni afirmar disponibilidad.');
   if(!confirmed) return;
   const msg=propertyShareMessage(p);
@@ -1861,9 +1794,12 @@ async function copyPropertyShare(p){
 }
 function renderPropiedadesAdmin(obj){
   const list = document.getElementById('propiedades-list');
-  const arr = Object.entries(obj).map(([id,p])=>({id,...p}));
+  const all = Object.entries(obj).map(([id,p])=>({id,...p}));
+  const filter=document.getElementById('inventory-filter').value,query=document.getElementById('inventory-search').value.trim().toLocaleLowerCase('es');
+  const arr=all.filter(p=>(!filter||SynapsePropertyInventory.state(p)===filter)&&(!query||[p.nombre,p.direccion,p.unitId,p.propertyName].filter(Boolean).join(' ').toLocaleLowerCase('es').includes(query)));
+  const overview=document.getElementById('inventory-overview');overview.replaceChildren();for(const [value,label]of Object.entries(SynapsePropertyInventory.labels)){const button=document.createElement('button');button.type='button';button.className='inventory-count';button.setAttribute('aria-pressed',String(filter===value));const count=all.filter(p=>SynapsePropertyInventory.state(p)===value).length;const strong=document.createElement('strong');strong.textContent=count;const copy=document.createElement('span');copy.textContent=label;button.append(strong,copy);button.addEventListener('click',()=>{document.getElementById('inventory-filter').value=filter===value?'':value;renderPropiedadesAdmin(propiedades);});overview.append(button);}
   if(arr.length === 0){
-    list.innerHTML = `<div class="empty">Sin propiedades registradas.</div>`;
+    list.innerHTML = `<div class="empty">${all.length?'No hay inmuebles para este filtro.':'Sin propiedades registradas.'}</div>`;
     actualizarAvisoPropiedadesIncompletas(0);
     return;
   }
@@ -1875,21 +1811,22 @@ function renderPropiedadesAdmin(obj){
     return `
     <div class="cita-item">
       <div>
-        <b>${escapeHtml(propiedadNombreOperativo(p))}</b> ${p.activo===false?'<span class="cita-meta">(inactiva)</span>':''}
+        <b>${escapeHtml(propiedadNombreOperativo(p))}</b> <span class="inventory-badge inventory-${SynapsePropertyInventory.state(p)}">${SynapsePropertyInventory.labels[SynapsePropertyInventory.state(p)]}</span><div class="cita-meta">${p.activo===false?'Sin publicar en Reservar':'Publicada en Reservar'}</div>
         <div class="cita-meta">${escapeHtml(p.direccion||'')}${(p.lat!=null&&p.lng!=null)?' · '+p.lat+', '+p.lng:' · sin coordenadas'}</div>
         <div class="cita-meta">${p.operacion?p.operacion+' · ':''}${p.precio ? '$' + escapeHtml(String(p.precio)) : 'Sin precio'}</div>
         ${faltantes.length ? `<div class="cita-meta" style="color:var(--amber);">⚠ Falta: ${faltantes.join(', ')}</div>` : `<div class="cita-meta" style="color:var(--green);">✓ Ficha completa</div>`}
       </div>
-      <div style="display:flex;gap:6px;">
+      <div class="inventory-actions"><label>Estado operativo<select data-inventory-id="${p.id}">${Object.entries(SynapsePropertyInventory.labels).map(([value,label])=>`<option value="${value}" ${value===SynapsePropertyInventory.state(p)?'selected':''}>${label}</option>`).join('')}</select></label><button type="button" class="btn btn-sm" data-action="save-inventory" data-id="${p.id}">Guardar estado</button>
         ${p.unitId?`<button class="btn btn-sm" data-action="share-prop" data-id="${p.id}">↗ Compartir</button>`:""}
         <button class="btn btn-sm" data-action="edit-prop" data-id="${p.id}">✏️ Editar</button>
-        <button class="btn btn-sm" data-action="toggle-prop" data-id="${p.id}">${p.activo===false?'Activar':'Desactivar'}</button>
+        <button class="btn btn-sm" data-action="toggle-prop" data-id="${p.id}">${p.activo===false?'Publicar':'Retirar publicación'}</button>
         <button class="btn btn-sm" data-action="del-prop" data-id="${p.id}" style="color:var(--red);">Eliminar</button>
       </div>
     </div>
   `;
   }).join('');
 
+  list.querySelectorAll('[data-action="save-inventory"]').forEach(button=>button.addEventListener('click',async()=>{const property=arr.find(p=>p.id===button.dataset.id),uid=auth.currentUser?.uid;if(!property||!uid)return;const picker=[...list.querySelectorAll('[data-inventory-id]')].find(p=>p.dataset.inventoryId===property.id);button.disabled=true;try{await SynapsePropertyInventory.save(db.ref('propiedades/'+property.id),property.inventario??null,picker.value,{uid,getUid:()=>auth.currentUser?.uid});document.getElementById('inventory-message').textContent='Estado guardado. El inmueble permanece en inventario.';}catch(error){document.getElementById('inventory-message').textContent=error.message||'No se pudo guardar el estado.';}finally{button.disabled=false;}}));
   list.querySelectorAll('[data-action="share-prop"]').forEach(btn=>{
     btn.addEventListener('click', ()=>{
       const p=arr.find(x=>x.id===btn.dataset.id);
