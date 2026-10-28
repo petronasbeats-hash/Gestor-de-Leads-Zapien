@@ -80,7 +80,7 @@ test('wrong secrets, old-mode invitations and forged identity/org/threads are re
   assert.equal((await f.service.previewInvitation(f.token)).accessMode, 'verified_phone');
   await assert.rejects(f.service.openGuest({requestId: 'downgrade', token: f.token, secret: secret()}), /INVITATION_INVALID/);
 });
-test('rotation, revocation, expiry and phone changes invalidate guest access', async () => {
+test('rotation, explicit revocation and expiry invalidate guest access', async () => {
   const f = await fixture(), opened = await f.open();
   await f.service.guestMessage({requestId: 'before-rotation', token: f.token, secret: f.browserSecret, text: 'Previous thread'});
   const newToken = await f.invite('rotate'); await assert.rejects(f.view(), /INVITATION_INVALID/);
@@ -91,10 +91,21 @@ test('rotation, revocation, expiry and phone changes invalidate guest access', a
   await f.service.revoke(f.principal, {requestId: 'revoke', conversationId: f.conversationId, expectedVersion: current.version});
   await assert.rejects(f.service.guestView({token: newToken, secret: newSecret}), /INVITATION_INVALID/);
   const expired = await fixture(); await expired.open(); expired.advance(86400001); await assert.rejects(expired.view(), /INVITATION_INVALID/);
-  const phone = await fixture(); await phone.open();
-  const target = (await phone.service.inspect(phone.principal, phone.conversationId)).conversation;
-  await phone.service.updateContact(phone.principal, {requestId: 'contact-change', conversationId: phone.conversationId, expectedVersion: target.version, phone: '2381234567'});
-  await assert.rejects(phone.view(), /INVITATION_INVALID/);
+});
+test('adding a guest phone preserves the same private thread without verifying identity or extending access', async () => {
+  const f=await fixture(); const opened=await f.open();
+  await f.service.guestMessage({requestId:'guest-before-phone',token:f.token,secret:f.browserSecret,text:'Keep my conversation'});
+  const before=(await f.service.inspect(f.principal,f.conversationId)).conversation;
+  const result=await f.service.updateContact(f.principal,{requestId:'contact-change',conversationId:f.conversationId,expectedVersion:before.version,displayName:'New private name',phone:'2381234567'});
+  assert.equal(result.invitationInvalidated,false);
+  const after=(await f.service.inspect(f.principal,f.conversationId)).conversation;
+  assert.deepEqual(after.invitation,before.invitation);assert.deepEqual(after.guestAccess,before.guestAccess);
+  const view=await f.view();assert.equal(view.identityStatus,'unverified');assert.equal(view.messages[0].text,'Keep my conversation');
+  assert.equal(JSON.stringify(view).includes('2381234567'),false);assert.equal(JSON.stringify(view).includes('New private name'),false);
+  await assert.rejects(f.service.guestView({token:f.token,secret:secret()}),/GUEST_ACCESS_REQUIRED/);
+  await f.service.sendMessage(f.principal,{requestId:'reply-after-phone',conversationId:f.conversationId,threadId:opened.threadId,text:'Same thread'});
+  assert.equal((await f.view()).messages.length,2);
+  f.advance(86400001);await assert.rejects(f.view(),/INVITATION_INVALID/);
 });
 test('shared conditions respect current property and version; no automatic cross-unit inheritance', async () => {
   const f = await fixture(); await f.open(); assert.equal((await f.view()).conditions, null);

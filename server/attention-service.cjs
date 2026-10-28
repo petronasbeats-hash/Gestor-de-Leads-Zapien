@@ -162,14 +162,23 @@ function createAttentionService({store, readAvailability, leaseConfig = {}, now 
       const phone = input.phone ? continuity.normalizePhone(input.phone) : '';
       return store.apply(principal.organizationId, id(input.requestId), principal.uid, {operation: 'update_contact', input}, state => {
         const current = conversation(state, input.conversationId); permitted(principal, current.context.currentPropertyId); revision(current, input.expectedVersion);
-        if (current.context.phone !== phone) {
+        const phoneChanged = current.context.phone !== phone;
+        const guestOnly = current.invitation?.accessMode === 'hype_business_guest' && !current.customerUid && current.context.identityStatus === 'unverified';
+        const invitationInvalidated = phoneChanged && !guestOnly;
+        if (phoneChanged) {
           delete current.customerUid;
-          current.invitation = {...current.invitation, revoked: true};
+          // A guest's existing browser secret is independent of an unverified
+          // contact number. Keep that same thread, expiry and secret binding.
+          // Verified-phone access must still be revoked when the phone changes.
+          if (invitationInvalidated) current.invitation = {...current.invitation, revoked: true};
           current.context.identityStatus = 'unverified';
         }
         Object.assign(current.context, {displayName, surname, phone}); current.version++;
-        event(state, principal, input.requestId, current, 'contact_updated', 'Datos de contacto actualizados por el asesor. Un cambio de teléfono requiere nueva verificación.');
-        return {state, receipt: {conversationId: current.id, version: current.version}};
+        event(state, principal, input.requestId, current, 'contact_updated', invitationInvalidated
+          ? 'Datos de contacto actualizados. El cambio de teléfono invalidó el acceso vinculado a su verificación.'
+          : guestOnly ? 'Datos de contacto actualizados por el asesor. Se conserva la continuidad de invitado; el teléfono no queda verificado.'
+          : 'Datos de contacto actualizados por el asesor. Se conserva el estado de acceso existente.');
+        return {state, receipt: {conversationId: current.id, version: current.version, phoneChanged, invitationInvalidated, guestContinuityPreserved: guestOnly}};
       });
     },
     async summarize(principal, input) {

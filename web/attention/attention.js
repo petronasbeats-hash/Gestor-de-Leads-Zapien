@@ -370,12 +370,12 @@
       $('capture').reset(); $('share-text').value = ''; await list(); await inspect(result.conversationId); closeDialog('capture'); status('Atención guardada con su primera entrada de bitácora.');
     });});
     $('change-interest').addEventListener('click', () => run(async () => {await mutate('interest', {propertyId: $('interest').value, expectedVersion: active.conversation.version}); status('Inmueble actualizado. Se conserva el origen de la atención.');}));
-    $('save-contact').addEventListener('click', () => run(async () => {await mutate('contact', {displayName: $('contact-name').value, surname: $('contact-surname').value, phone: $('contact-phone').value, expectedVersion: active.conversation.version}); $('share-text').value = ''; status('Contacto actualizado. Si cambió el teléfono, crea otro enlace.');}));
+    $('save-contact').addEventListener('click', () => run(async () => {const result=await mutate('contact', {displayName: $('contact-name').value, surname: $('contact-surname').value, phone: $('contact-phone').value, expectedVersion: active.conversation.version}); if(result.invitationInvalidated)$('share-text').value = ''; status(result.invitationInvalidated?'Contacto actualizado. El acceso vinculado al teléfono cambió; prepara un nuevo enlace.':result.guestContinuityPreserved?'Datos guardados. El enlace de invitado conserva su vigencia original; el teléfono sigue sin verificar.':'Contacto actualizado. Se conserva el estado de acceso existente.');}));
     $('conditions').addEventListener('click', () => run(async () => {await mutate('conditions', {expectedVersion: active.conversation.version}); status('Requisitos y condiciones habilitados para esta atención.');}));
     $('invite').addEventListener('click', () => run(async () => {
       const result = await mutate('invite', {expectedVersion: active.conversation.version});
       $('share-text').value = 'Hola. Continúa aquí tu atención sobre ' + active.sheet.name + ' con Synapse Attention by HYPE Business:\n' + result.url + '\nConsulta la ficha y conversa con tu asesor. No necesitas registrarte ni recibir un SMS. Abre el enlace en tu navegador y consérvalo para continuar.';
-      status('Enlace preparado. Cópialo y compártelo con el cliente por su canal de origen.');
+      status('Enlace preparado. Vence el '+new Date(result.expiresAt).toLocaleString('es-MX',{timeZone:'America/Mexico_City'})+'. Compártelo por el canal elegido por el cliente; crearlo no equivale a enviarlo.');
     }));
     $('revoke').addEventListener('click', () => run(async () => {await mutate('revoke', {expectedVersion: active.conversation.version}); $('share-text').value = ''; status('Enlace revocado.');}));
     for (const [button, field] of [['copy-share', 'share-text'], ['copy-message', 'message']]) $(button).addEventListener('click', () => run(async () => {await navigator.clipboard.writeText($(field).value); status('Texto copiado.');}));
