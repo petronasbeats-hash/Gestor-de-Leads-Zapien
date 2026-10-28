@@ -1,15 +1,27 @@
 'use strict';
 const fs=require('node:fs'),os=require('node:os'),path=require('node:path'),{execFileSync}=require('node:child_process'),{administrator}=require('./activate-attention-access.cjs');
-function inspect(rules){const owner=administrator(rules),r=rules.rules;const normalize=value=>typeof value==='string'?value.replace(/\s/g,'').replace(/===/g,'=='):value;
-  const sameOwner=value=>normalize(value)===`auth!=null&&auth.uid=='${owner}'`||normalize(value)===`auth!=null&&auth.uid=="${owner}"`;
-  const yes=value=>value===true||normalize(value)==='true';
-  const canWrite=value=>yes(value)||sameOwner(value)||normalize(value)==='auth!=null';
-  const schemaCompatible=node=>!node||typeof node!=='object'||Object.entries(node).every(([key,v])=>key==='.validate'?canWrite(v):key.startsWith('.')?true:schemaCompatible(v));
-  // Only known expressions are accepted; do not evaluate downloaded rules as JS.
-  const createsWithoutAuth=value=>yes(value)||['!data.exists()','auth==null','auth==null&&!data.exists()','!data.exists()&&newData.exists()','auth==null&&!data.exists()&&newData.exists()'].includes(normalize(value));
-  const checks={contacts:sameOwner(r.leads?.['.read'])&&canWrite(r.leads?.['.write']),events:sameOwner(r.citas?.['.read'])&&canWrite(r.citas?.['.write']),publicOccupancy:yes(r.citas_publicas?.['.read'])&&canWrite(r.citas_publicas?.['.write']),phoneIndex:canWrite(r.telefonos_index?.['.write'])||Object.entries(r.telefonos_index||{}).some(([key,node])=>key.startsWith('$')&&canWrite(node['.write'])),schemasCompatible:['leads','citas','citas_publicas'].every(key=>schemaCompatible(r[key])),publicBooking:createsWithoutAuth(r.citas_publicas?.['.write'])||Object.entries(r.citas_publicas||{}).some(([key,node])=>key.startsWith('$')&&createsWithoutAuth(node['.write']))};
+function policy(rules){
+  const owner=administrator(rules);
+  const normalize=value=>typeof value==='string'?value.replace(/\s/g,'').replace(/===/g,'=='):value;
+  function strip(value){if(typeof value!=='string')return value;let s=value;while(s[0]==='('&&s.at(-1)===')'){let depth=0,outer=true;for(let i=0;i<s.length-1;i++){if(s[i]==='(')depth++;else if(s[i]===')')depth--;if(depth===0){outer=false;break;}}if(!outer)break;s=s.slice(1,-1);}return s;}
+  const sameOwner=value=>{const s=strip(normalize(value));return s===`auth!=null&&auth.uid=='${owner}'`||s===`auth!=null&&auth.uid=="${owner}"`;};
+  const yes=value=>value===true||strip(normalize(value))==='true';
+  function ownerOrNew(value){const s=strip(normalize(value));if(typeof s!=='string')return false;let depth=0,split=-1;for(let i=0;i<s.length;i++){if(s[i]==='(')depth++;else if(s[i]===')')depth--;else if(depth===0&&s.slice(i,i+2)==='||'){if(split!==-1)return false;split=i;i++;}}if(split<0)return false;const a=strip(s.slice(0,split)),b=strip(s.slice(split+2));return sameOwner(a)&&b==='!data.exists()'||sameOwner(b)&&a==='!data.exists()';}
+  const canWrite=value=>yes(value)||sameOwner(value)||strip(normalize(value))==='auth!=null'||ownerOrNew(value);
+  const canRead=value=>yes(value)||sameOwner(value)||strip(normalize(value))==='auth!=null';
+  const createsWithoutAuth=value=>yes(value)||ownerOrNew(value)||['!data.exists()','auth==null','auth==null&&!data.exists()','!data.exists()&&newData.exists()','auth==null&&!data.exists()&&newData.exists()'].includes(strip(normalize(value)));
+  // A leaf transaction can use the sole wildcard's write rule; a collection
+  // transaction still requires permission at the collection itself.
+  function wildcard(node){const keys=Object.keys(node||{}).filter(key=>!key.startsWith('.'));return keys.length===1&&keys[0].startsWith('$')?node[keys[0]]:null;}
+  return{sameOwner,yes,canWrite,canRead,createsWithoutAuth,wildcard};
+}
+function inspect(rules){const r=rules.rules,{sameOwner,yes,canWrite,canRead,createsWithoutAuth,wildcard}=policy(rules);
+  const schemaCompatible=(node,isPublic=false)=>!node||typeof node!=='object'||Object.entries(node).every(([key,v])=>key==='.validate'?(isPublic?yes(v):canWrite(v)):key.startsWith('.')?true:schemaCompatible(v,isPublic));
+  const eventLeaf=wildcard(r.citas),phoneLeaf=wildcard(r.telefonos_index),publicLeaf=wildcard(r.citas_publicas);
+  const checks={contacts:sameOwner(r.leads?.['.read'])&&canWrite(r.leads?.['.write']),events:sameOwner(r.citas?.['.read'])&&(canWrite(r.citas?.['.write'])||canWrite(eventLeaf?.['.write'])),publicOccupancy:yes(r.citas_publicas?.['.read'])&&canWrite(r.citas_publicas?.['.write']),phoneIndex:(canRead(r.telefonos_index?.['.read'])||canRead(phoneLeaf?.['.read']))&&(canWrite(r.telefonos_index?.['.write'])||canWrite(phoneLeaf?.['.write'])),schemasCompatible:['leads','citas','citas_publicas','telefonos_index'].every(key=>schemaCompatible(r[key],key==='citas_publicas')),publicBooking:createsWithoutAuth(r.citas_publicas?.['.write'])||createsWithoutAuth(publicLeaf?.['.write'])};
   if(Object.values(checks).some(ok=>!ok)){const e=Error('WORKSPACE_PERMISSIONS_REQUIRE_REVIEW');e.checks=checks;throw e;}return{...checks,noRulesChanged:true};
 }
+
 function diagnose(rules){
   const owner=administrator(rules),literals=new Map(),names=new Map();
   const known=new Set(['leads','citas','citas_publicas','telefonos_index','propiedades','disponibilidad','horarios','bloqueos','nombre','telefono','fecha','hora','propiedadId','leadId','citaId','folio','estado','pendiente','confirmada','cancelada','realizada','hold','uid','admin']);
@@ -24,4 +36,4 @@ function main(argv){const params={};let diagnostic=false;for(let i=0;i<argv.leng
   try{try{execFileSync('firebase',['database:get','/.settings/rules','--output',file,'--project',project,'--instance',instance],{cwd:temp,env,stdio:['ignore','pipe','pipe'],timeout:90000});}catch{throw Error('FIREBASE_RULES_READ_FAILED');}const rules=JSON.parse(fs.readFileSync(file,'utf8')),result=diagnostic?diagnose(rules):inspect(rules);console.log(JSON.stringify({projectId:project,...result},null,2));if(diagnostic)process.exitCode=2;}finally{fs.rmSync(temp,{recursive:true,force:true});}
 }
 if(require.main===module){try{main(process.argv.slice(2));}catch(e){console.error(JSON.stringify({error:e.message,checks:e.checks||null}));process.exitCode=1;}}
-module.exports={inspect,diagnose};
+module.exports={inspect,diagnose,policy};

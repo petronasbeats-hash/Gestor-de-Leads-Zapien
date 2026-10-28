@@ -102,8 +102,9 @@ firma programada no satisface la etapa: debe registrarse como realizada, con
 participantes correctos y sincronización completa. Una entrada histórica a una
 fase avanzada exige motivo sin inventar evidencias de etapas anteriores.
 
-Esta versión usa los permisos del administrador existente; no añade acceso
-multiagente ni modifica reglas. El comprobador de publicación se detiene ante
+Esta versión usa al administrador existente y no añade acceso multiagente.
+La activación preparada autoriza únicamente su transacción de ocupación global;
+conserva las reglas privadas y los permisos por cita/teléfono. El comprobador de publicación se detiene ante
 permisos insuficientes o esquemas desconocidos. No hay migraciones, fusiones,
 validación de identidad ni acreditación jurídica de los roles. Los archivos
 sensibles, autorizaciones y documentos de contrato siguen fuera de este alcance.

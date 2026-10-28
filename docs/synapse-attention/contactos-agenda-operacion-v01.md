@@ -119,6 +119,50 @@ La nueva opción pasó tres pruebas adicionales, incluido el CLI con Firebase
 simulado: solo lectura de reglas, anonimización y eliminación del temporal.
 
 
+### Corrección del diagnóstico observado
+
+El diagnóstico real mostró autorización del administrador en cada `citas/$citaId`
+y `telefonos_index/$telefono`, con la expresión propietario-o-registro-nuevo.
+Las transacciones privadas de eventos y del índice se hacen en esas hojas;
+el comprobador corregido reconoce ese formato sin conceder permisos nuevos.
+La lectura del índice también se comprueba en el nivel correspondiente.
+
+La transacción de intervalos se hace en `citas_publicas` completo y requiere su
+propia autorización de escritura. El único cambio preparado es añadir en ese
+nivel `.write` con la misma expresión del administrador existente en `leads`.
+Se conservan todas las demás reglas y el comportamiento de alta pública legado.
+No se añade `.write` al padre `citas` ni al índice telefónico.
+
+El script `activate-workspace-rules.cjs` lee reglas completas del Mac autenticado,
+genera el candidato a partir de esa copia y exige que todos los demás controles
+pasen. De forma predeterminada prepara respaldo y vista previa. Con `--apply`
+vuelve a leer para detectar cambios, despliega solo reglas de la instancia
+indicada y verifica una tercera lectura. Nunca guarda UID reales en el repositorio
+ni los imprime; los archivos locales de respaldo tienen permisos privados.
+
+```bash
+node scripts/activate-workspace-rules.cjs \
+  --project gestor-leads-zapien \
+  --instance gestor-leads-zapien-default-rtdb \
+  --backup-dir RUTA_NUEVA_DE_RESPALDO \
+  --apply
+node scripts/check-workspace-access.cjs \
+  --project gestor-leads-zapien \
+  --instance gestor-leads-zapien-default-rtdb
+```
+
+El respaldo incluye `before.rules.json`, `after.rules.json`, `apply.firebase.json`
+y `rollback.firebase.json`. El último permite restaurar mediante `firebase deploy
+--only database --project gestor-leads-zapien --config RUTA/rollback.firebase.json`
+tras revisar que no haya cambios ajenos posteriores. La comparación previa reduce
+la ventana de concurrencia pero el despliegue de reglas del CLI no es un bloqueo
+atómico contra ediciones simultáneas de otro administrador. Si la verificación
+posterior falla, el script se detiene y conserva el respaldo; no restaura por
+suposición ni continúa con Hosting.
+
+Referencias oficiales consultadas: [alcance de reglas](https://firebase.google.com/docs/database/security/core-syntax)
+y [configuración de instancia del CLI](https://github.com/firebase/firebase-tools/blob/main/src/database/rulesConfig.ts).
+
 Si pasa, construir la salida nueva con `build-attention-release.cjs --site
 synapse-core --legacy-root RUTA_ORIGINAL --out RUTA_NUEVA`, y publicar desde esa
 salida con `firebase deploy --only hosting --project gestor-leads-zapien`.
@@ -133,7 +177,7 @@ Esta implementación no crea eventos reales ni reclasifica personas automáticam
 
 ## Verificación y límites
 
-Verificación de esta versión: 111 pruebas de aplicación y 11 comprobaciones del
+Verificación de esta versión: 122 pruebas de aplicación y 13 comprobaciones del
 emulador pasaron. La construcción completa produjo 37 archivos, 21 públicos;
 se verificaron sus hashes y el WAV Nexo conserva el SHA-256 aprobado.
 
@@ -142,7 +186,11 @@ manuales anteriores, compatibilidad, permisos de preflight y regresiones de
 Atención/Nexo. El emulador aislado usa únicamente `demo-synapse-workspace`, datos
 ficticios y SDK cliente real; prueba permisos privados, idempotencia, concurrencia,
 cancelación, proyección pública, bloqueos legados y cruce de escritores públicos.
-Sus reglas son una fixture: no prueban las reglas reales de producción.
+La fixture actual reproduce las expresiones observadas de citas, ocupación e
+índice con un UID ficticio; otros valores de ejemplo son ficticios. Se verificó
+el rechazo previo de la transacción global, su autorización posterior solo para
+el administrador y la conservación de los permisos privados. El despliegue y
+la lectura de verificación en producción todavía dependen del Mac autenticado.
 
 ```bash
 npm ci --prefix lab/workspace --ignore-scripts
