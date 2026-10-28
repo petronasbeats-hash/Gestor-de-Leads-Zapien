@@ -5,6 +5,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const {build} = require('../scripts/build-attention-release.cjs');
+const unversion=value=>value.toString('utf8').replace(/\?v=[a-f0-9]{16}/g,'');
 test('release exige sitio explícito y dependencias existentes; no reemplaza salidas anteriores', () => {
   const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'synapse-release-test-'));
   try {
@@ -24,6 +25,7 @@ test('release exige sitio explícito y dependencias existentes; no reemplaza sal
     assert.equal(config.database, undefined);
     assert.equal(config.hosting.public, 'public');
     assert.equal(config.hosting.site, 'synapse-core');
+    assert.ok(config.hosting.headers.some(rule=>rule.headers.some(header=>header.key==='Cache-Control'&&header.value.includes('must-revalidate'))));
     assert.equal(fs.existsSync(path.join(result.output, 'public/core-contracts')), false);
     assert.equal(fs.existsSync(path.join(result.output, 'public/assets/firebase-debug.log')), false);
     assert.equal(fs.existsSync(path.join(result.output, 'functions/server/attention-service.cjs')), true);
@@ -31,15 +33,28 @@ test('release exige sitio explícito y dependencias existentes; no reemplaza sal
     assert.equal(fs.existsSync(path.join(result.output, 'public/shared/attention-alerts.js')), true);
     assert.equal(fs.existsSync(path.join(result.output, 'functions/shared/attention-alerts.js')), true);
     assert.deepEqual(fs.readFileSync(path.join(result.output, 'public/assets/audio/synapse-nexo-v1.wav')),fs.readFileSync(path.join(__dirname,'../assets/audio/synapse-nexo-v1.wav')));
-    for(const file of ['workspace.html','shared/workspace-model.js','shared/workspace-store.js','web/workspace/workspace.js','web/workspace/workspace.css'])assert.deepEqual(fs.readFileSync(path.join(result.output,'public',file)),fs.readFileSync(path.join(__dirname,'..',file)));
+    for(const file of ['workspace.html','shared/workspace-model.js','shared/workspace-store.js','web/workspace/workspace.js','web/workspace/workspace.css'])assert.equal(unversion(fs.readFileSync(path.join(result.output,'public',file))),fs.readFileSync(path.join(__dirname,'..',file),'utf8'));
     assert.ok(config.hosting.rewrites.some(r=>r.source==='/contactos'&&r.destination==='/workspace.html'));
-    assert.deepEqual(fs.readFileSync(path.join(result.output,'public/index.html')),fs.readFileSync(path.join(__dirname,'../workspace.html')));
-    assert.deepEqual(fs.readFileSync(path.join(result.output,'public/administracion.html')),fs.readFileSync(path.join(__dirname,'../index.html')));
+    assert.equal(unversion(fs.readFileSync(path.join(result.output,'public/index.html'))),fs.readFileSync(path.join(__dirname,'../workspace.html'),'utf8'));
+    assert.equal(unversion(fs.readFileSync(path.join(result.output,'public/administracion.html'))),fs.readFileSync(path.join(__dirname,'../index.html'),'utf8'));
     for(const route of ['/directorio','/radar','/operaciones'])assert.ok(config.hosting.rewrites.some(r=>r.source===route&&r.destination==='/workspace.html'));
     assert.ok(config.hosting.rewrites.some(r=>r.source==='/administracion'&&r.destination==='/administracion.html'));
     assert.ok(config.hosting.rewrites.some(r=>r.source==='/agenda'&&r.destination==='/workspace.html'));
     assert.equal(JSON.parse(fs.readFileSync(path.join(result.output, 'release-manifest.json'))).capabilities.booking, false);
     assert.match(fs.readFileSync(path.join(result.output, 'functions/.env.gestor-leads-zapien'), 'utf8'), /ATTENTION_PUBLIC_ORIGIN=https:\/\/synapse-core.web.app\n/);
+    const crypto=require('node:crypto'),rootHtml=fs.readFileSync(path.join(result.output,'public/index.html'),'utf8');
+    const workspaceVersion=crypto.createHash('sha256').update(fs.readFileSync(path.join(result.output,'public/web/workspace/workspace.js'))).digest('hex').slice(0,16);
+    assert.ok(rootHtml.includes('/web/workspace/workspace.js?v='+workspaceVersion));
+    assert.match(rootHtml,/https:\/\/www\.gstatic\.com\/firebasejs\/10\.7\.1\/firebase-app-compat\.js"/);
+    const beforeAdmin=fs.readFileSync(path.join(result.output,'public/administracion.html'),'utf8');
+    const beforeVersion=beforeAdmin.match(/assets\/js\/reprogramar-ui\.v1\.js\?v=([a-f0-9]{16})/)[1];
+    fs.writeFileSync(path.join(legacy,'assets/js/reprogramar-ui.v1.js'),'// Changed fixture for the next release.');
+    const nextBuild=build({...options,'--out':path.join(temp,'changed-release')});
+    const nextVersion=fs.readFileSync(path.join(nextBuild.output,'public/administracion.html'),'utf8').match(/assets\/js\/reprogramar-ui\.v1\.js\?v=([a-f0-9]{16})/)[1];
+    assert.notEqual(nextVersion,beforeVersion);
+    const checkedManifest=JSON.parse(fs.readFileSync(path.join(nextBuild.output,'release-manifest.json'),'utf8'));
+    assert.equal(new Set(checkedManifest.files.map(f=>f.path)).size,checkedManifest.files.length);
+    for(const file of checkedManifest.files)assert.equal(crypto.createHash('sha256').update(fs.readFileSync(path.join(nextBuild.output,file.path))).digest('hex'),file.sha256);
     assert.throws(() => build(options), /OUTPUT_ALREADY_EXISTS/);
     for (const attentionOrigin of ['http://synapse-core.web.app', 'https://other.web.app', 'https://synapse-core--preview.web.app.evil.example', 'https://synapse-core--preview.web.app/path', 'https://user@synapse-core.web.app', 'https://synapse-core.web.app:8443', 'https://synapse-core.web.app?next=other']) {
       assert.throws(() => build({...options, '--out': path.join(temp, 'invalid'), '--attention-origin': attentionOrigin}), /INVALID_ATTENTION_ORIGIN/);

@@ -37,7 +37,7 @@ function build(options) {
   const files = [];
   function write(relative, content) {
     const target = path.join(output, relative); fs.mkdirSync(path.dirname(target), {recursive: true}); fs.writeFileSync(target, content);
-    files.push({path: relative, sha256: createHash('sha256').update(content).digest('hex')});
+    const entry={path:relative,sha256:createHash('sha256').update(content).digest('hex')},existing=files.findIndex(file=>file.path===relative);if(existing<0)files.push(entry);else files[existing]=entry;
   }
   function copy(source, relative) {if (fs.lstatSync(source).isSymbolicLink()) throw Error('SYMLINK_NOT_ALLOWED'); write(relative, fs.readFileSync(source));}
   for (const item of ['agenda.html', 'reservar.html', 'atencion.html', 'atencion-operador.html', 'workspace.html', 'shared/workspace-model.js', 'shared/workspace-store.js', 'web/workspace/workspace.js', 'web/workspace/workspace.css', 'shared/reservation-reference.js', 'shared/attention-quick-replies.js', 'shared/attention-alerts.js', 'web/attention/attention.js', 'web/attention/attention.css']) copy(path.join(root, item), 'public/' + item);
@@ -65,7 +65,23 @@ function build(options) {
   copy(path.join(root, 'lab/attention/continuity-contract.js'), 'functions/lab/attention/continuity-contract.js');
   copy(path.join(root, 'lab/attention/fixtures/lease-config.json'), 'functions/config/lease.json');
   write('functions/.env.' + firebase.projectId, 'ATTENTION_PUBLIC_ORIGIN=' + attentionOrigin + '\nATTENTION_DATABASE_URL=' + firebase.databaseURL + '\n');
-  write('firebase.json', JSON.stringify({functions: [{source: 'functions', codebase: 'synapse-attention', ignore: ['node_modules', '.git', '*debug.log']}], hosting: {site, public: 'public', ignore: ['**/.*'], rewrites: [
+  // Asset versions travel with each HTML page, preventing a fresh screen from
+  // running an older cached bundle after a Hosting release.
+  for(const file of files.filter(file=>file.path.startsWith('public/')&&file.path.endsWith('.html'))){
+    const original=fs.readFileSync(path.join(output,file.path),'utf8');
+    const versioned=original.replace(/(src|href)=(["'])([^"']+)\2/g,(attribute,key,quote,value)=>{
+      if(/^(?:[a-z]+:|\/\/)/i.test(value))return attribute;
+      const url=new URL(value,'https://synapse-release.invalid/'+file.path.slice(7));
+      if(!/\.(?:js|css)$/.test(url.pathname))return attribute;
+      const base=path.join(output,'public'),local=path.resolve(base,'.'+url.pathname);
+      if(!local.startsWith(base+path.sep)||!fs.existsSync(local)||!fs.statSync(local).isFile())return attribute;
+      url.searchParams.set('v',createHash('sha256').update(fs.readFileSync(local)).digest('hex').slice(0,16));
+      const pathname=value.startsWith('/')?url.pathname:url.pathname.slice(1);
+      return key+'='+quote+pathname+url.search+url.hash+quote;
+    });
+    if(versioned!==original)write(file.path,versioned);
+  }
+  write('firebase.json', JSON.stringify({functions: [{source: 'functions', codebase: 'synapse-attention', ignore: ['node_modules', '.git', '*debug.log']}], hosting: {site, public: 'public', ignore: ['**/.*'], headers: [{source:'**',headers:[{key:'Cache-Control',value:'no-cache, max-age=0, must-revalidate'}]}], rewrites: [
     {source: '/attention-api/**', function: {functionId: 'attentionApi', region: 'us-central1'}},
     {source: '/atencion-operador', destination: '/atencion-operador.html'},
     {source: '/atencion', destination: '/atencion.html'},

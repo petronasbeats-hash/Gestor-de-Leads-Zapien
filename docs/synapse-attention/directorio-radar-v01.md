@@ -1,7 +1,9 @@
 # Directorio y Radar
 
 Fecha: 28 de octubre de 2026, México. Actualización preparada sobre la versión
-Contactos/Agenda publicada en ad2c12a; esta interfaz todavía requiere Hosting.
+Contactos/Agenda publicada en ad2c12a. El usuario publicó la interfaz 87433ce
+con 39 archivos de salida y 23 públicos; el ajuste de caché descrito al final
+está preparado y todavía requiere Hosting.
 
 ## Entrada principal
 
@@ -80,3 +82,25 @@ No requiere volver a aplicar reglas ni desplegar Functions. Los datos reales y
 las operaciones registradas desde la interfaz publicada se conservan. La revisión
 visual de esta variante se realizará después de publicarla; no se ha simulado
 una publicación ni se han creado registros de prueba en producción.
+
+
+## Verificación posterior y caché
+
+La comprobación HTTP posterior a 87433ce obtuvo 200 e igualdad de hashes para los
+23 archivos y para las rutas raíz, Radar, Directorio, Contactos, Agenda,
+Administración y Reservar. Una sesión ya abierta mostró HTML nuevo con
+comportamiento anterior del script. Las respuestas publicadas indicaban
+`Cache-Control: max-age=3600`. La recarga normal de esa sesión mantuvo ese
+comportamiento; no se declara terminada la comprobación visual del Radar.
+
+La construcción ahora añade a los JS/CSS locales una consulta `v` derivada de su
+SHA-256 y configura revalidación de respuestas en Hosting. Una modificación de un
+archivo produce otra URL de recurso; las dependencias CDN externas y los enlaces
+de navegación no se versionan. El manifiesto registra los hashes del HTML final
+sin duplicar entradas. Las pruebas simulan dos construcciones con un JS modificado,
+verifican el cambio de versión y todos los hashes del resultado.
+
+Solo se requiere otro despliegue de Hosting y una recarga completa inicial de la
+pestaña que ya conservaba la versión antigua. No se cambian datos, permisos,
+Functions ni lógica de reservas. Las 132 pruebas de aplicación ya habían pasado;
+para esta corrección de construcción pasó además el test ampliado de publicación.
