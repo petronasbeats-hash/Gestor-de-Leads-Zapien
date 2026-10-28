@@ -104,6 +104,21 @@ permisos de transacción y esquemas compatibles. Ante
 de comprobaciones; no habilitar escritura pública ni cambiar reglas por intuición.
 El archivo temporal de reglas se elimina al terminar.
 
+El primer intento real de publicación se detuvo en el preflight: contactos y
+esquemas reconocidos; citas, ocupación, índice telefónico y escritura pública
+requieren revisión. Esto no prueba denegación real: las expresiones desconocidas
+se rechazan de forma conservadora. No se ejecutaron construcción ni despliegue.
+
+Para obtener solamente la estructura de permisos, añadir `--diagnose` al mismo
+comando. Lee únicamente `/.settings/rules`, anonimiza UID, constantes desconocidas
+y nombres de nodos no reconocidos y omite raíces ajenas al diagnóstico. Devuelve
+`publicationAuthorized:false` y código de salida 2 incluso con reglas conocidas,
+para impedir que se utilice como autorización de un despliegue encadenado.
+No suprimir el preflight de publicación ni sustituirlo por este diagnóstico.
+La nueva opción pasó tres pruebas adicionales, incluido el CLI con Firebase
+simulado: solo lectura de reglas, anonimización y eliminación del temporal.
+
+
 Si pasa, construir la salida nueva con `build-attention-release.cjs --site
 synapse-core --legacy-root RUTA_ORIGINAL --out RUTA_NUEVA`, y publicar desde esa
 salida con `firebase deploy --only hosting --project gestor-leads-zapien`.
