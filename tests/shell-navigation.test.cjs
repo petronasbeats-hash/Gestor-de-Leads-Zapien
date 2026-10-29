@@ -6,9 +6,9 @@ function shell(t,route,html='<body><div id="synapse-shell"></div>'){
  const dom=new JSDOM(html,{url:'https://synapse.example'+route,runScripts:'outside-only'});t.after(()=>dom.window.close());dom.window.eval(script);return dom;
 }
 test('one primary menu groups operations under Directory and settings outside daily work',t=>{
- for(const [route,current] of [['/','radar'],['/operaciones','contacts'],['/contactos','contacts'],['/agenda/horarios','agenda'],['/inmuebles','properties'],['/territorio','territory'],['/configuracion','settings']]){
+ for(const [route,current] of [['/','radar'],['/operaciones','contacts'],['/contactos','contacts'],['/agenda/horarios','agenda'],['/inmuebles','properties'],['/territorio','territory'],['/destaca','destaca'],['/configuracion','settings']]){
   const {window:w}=shell(t,route),d=w.document;
-  assert.deepEqual([...d.querySelectorAll('.synapse-primary a')].map(a=>a.textContent),['Radar','Atención','Agenda','Directorio','Inmuebles','Territorio']);
+  assert.deepEqual([...d.querySelectorAll('.synapse-primary a')].map(a=>a.textContent),['Radar','Atención','Agenda','Directorio','Inmuebles','Territorio','Destaca']);
   assert.equal(d.querySelectorAll('[aria-current=page]').length,1);assert.equal(d.querySelector('[aria-current=page]').id,'nav-'+current);
   assert.ok([...d.querySelectorAll('.synapse-primary a')].every(a=>!a.target));
  }

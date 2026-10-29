@@ -54,3 +54,12 @@ test('territory HTTP authenticates scope and rejects forged metadata and oversiz
  const before=calls;assert.equal((await http(handler,'/agent/territory/save',{notes:'x'.repeat(17000)})).statusCode,413);assert.equal(calls,before);
  assert.equal((await http(handler,'/agent/territory/unknown',{})).statusCode,404);
 });
+test('private pending projection omits contacts and photos; closing an action preserves capture and result history',async()=>{
+ const {service,db}=fixture();await service.save(principal,command({capture:{...command().capture,nextAction:{description:'Check permission',dueDate:'2026-10-29'},photos:[{id:'private-photo'}]}}));const projected=await service.pending(principal,{});assert.equal(projected.items.length,1);for(const secret of ['PRIVATE_NAME','PRIVATE_NOTES','private-photo','2380000000'])assert.ok(!JSON.stringify(projected).includes(secret));
+ await assert.rejects(service.save(principal,command({requestId:'silent-clear',expectedVersion:1})),/ACTION_RESULT_REQUIRED/);
+ const closing={captureId:'capture-A',requestId:'action-close',expectedVersion:1,resolution:'realizada',result:'Permission was reviewed.'};await service.completeAction(principal,closing);assert.equal((await service.completeAction(principal,closing)).replayed,true);assert.equal((await service.pending(principal,{})).items.length,0);const record=(await service.list(principal,{})).captures[0];assert.equal(record.photos[0].id,'private-photo');assert.equal(record.contact.name,'PRIVATE_NAME');assert.equal(record.history['action-close'].result,closing.result);assert.equal(record.history['action-close'].previousNextAction.description,'Check permission');assert.equal(db.data.propiedades['private-property'].activo,false);
+ await assert.rejects(service.completeAction({...principal,uid:'other'},closing),/VERSION_CONFLICT/);
+});
+test('a stale outcome cannot close an action edited in another session',async()=>{
+ const {service}=fixture();await service.save(principal,command({capture:{id:'capture-A',nextAction:{description:'First'}}}));await service.save(principal,command({requestId:'edit-action',expectedVersion:1,capture:{id:'capture-A',nextAction:{description:'New action'}}}));await assert.rejects(service.completeAction(principal,{captureId:'capture-A',requestId:'stale',expectedVersion:1,resolution:'cancelada',result:'Old result'}),/VERSION_CONFLICT/);assert.equal((await service.pending(principal,{})).items[0].description,'New action');
+});

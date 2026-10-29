@@ -1,6 +1,6 @@
 # Synapse Territorio · primera integración
 
-Fecha: 2026-10-28. Estado: código preparado para revisión y publicación; no se han creado captaciones reales ni desplegado esta versión desde este entorno.
+Fecha: 2026-10-28. Estado: la base 9d17cd5b9d0f34548369335f9d9a9521ec72f83e está publicada; se verificaron 44/44 archivos públicos y el servicio Territorio. La ampliación de Radar/cierre documentada en destaca-v01.md está preparada y aún pendiente de publicar. Las pruebas no crearon captaciones reales.
 
 ## Propósito y alcance
 
@@ -19,7 +19,7 @@ La ruta `/territorio` forma parte de Gestión en el menú común de Synapse. Reu
 7. Revisar permiso de contacto, autorización de publicación y su referencia. Para marcar Lista para preparar ficha se exige una autorización declarada y una referencia de evidencia. Esto no prueba propiedad ni facultad legal de representación.
 8. Vincular, si corresponde, una propiedad existente permitida para esa cuenta. La vinculación conserva una referencia privada; no cambia el catálogo, su estado, sus fotos o su publicación.
 
-Los estados son Capturada, Contactar, Validar información y permiso, Lista para preparar ficha, Vinculada a inmueble y Archivada. La siguiente acción y fecha se consultan en Territorio. **Esta primera versión no agrega todavía esas acciones al Radar general ni a Agenda**. Archivar o vincular evita presentarla como una acción pendiente de captación dentro del módulo; no borra su ficha.
+Los estados son Capturada, Contactar, Validar información y permiso, Lista para preparar ficha, Vinculada a inmueble y Archivada. La siguiente acción y fecha se consultan en Territorio. **La ampliación preparada integra esas acciones al Radar general mediante una proyección privada. No crea eventos en Agenda**. Archivar o vincular evita presentarla como una acción pendiente de captación dentro del módulo; no borra su ficha.
 
 ## Persistencia y límites de fotos
 
@@ -63,4 +63,4 @@ Pendiente después de publicar: revisar visualmente en teléfono real y escritor
 
 Publicar Functions (`functions:synapse-attention`) y Hosting juntos desde una compilación nueva y fijada al commit revisado. No desplegar reglas ni usar `--only functions` sin limitar el codebase. La compilación necesita las dependencias estáticas del repositorio original indicadas en la documentación de release.
 
-Después: integrar las siguientes acciones de Territorio al Radar, incorporar un almacén privado de medios con políticas de acceso y respaldo, y preparar la conversión explícita de captación autorizada a identidad de Property Core. La publicación seguirá siendo una acción revisable; no debe activar contratos ni cobranza.
+La ampliación de Radar y cierre con resultado está documentada en `destaca-v01.md`. Después: incorporar un almacén privado de medios con políticas de acceso y respaldo, y preparar la conversión explícita de captación autorizada a identidad de Property Core. La publicación seguirá siendo una acción revisable; no debe activar contratos ni cobranza.

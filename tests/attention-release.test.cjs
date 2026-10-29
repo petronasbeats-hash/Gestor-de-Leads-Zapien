@@ -21,11 +21,12 @@ test('release exige sitio explícito y dependencias existentes; no reemplaza sal
     fs.writeFileSync(path.join(legacy, 'assets/firebase-debug.log'), 'must not publish');
     const result = build(options);
     assert.equal(result.site, 'synapse-core');
-    for(const file of ['public/territorio.html','public/shared/territory-model.js','public/web/territory/territory.js','public/web/territory/local-drafts.js','public/web/territory/territory.css','functions/server/territory-service.cjs','functions/shared/territory-model.js'])assert.equal(fs.existsSync(path.join(result.output,file)),true);
+    for(const file of ['public/destaca.html','public/shared/destaca-model.js','public/web/destaca/destaca.js','public/web/workspace/action-sources.js','functions/server/destaca-service.cjs','functions/shared/destaca-model.js','public/territorio.html','public/shared/territory-model.js','public/web/territory/territory.js','public/web/territory/local-drafts.js','public/web/territory/territory.css','functions/server/territory-service.cjs','functions/shared/territory-model.js'])assert.equal(fs.existsSync(path.join(result.output,file)),true);
     const config = JSON.parse(fs.readFileSync(path.join(result.output, 'firebase.json')));
     assert.equal(config.database, undefined);
+    assert.ok(config.hosting.rewrites.some(r=>r.source==='/destaca'&&r.destination==='/destaca.html'));
     assert.ok(config.hosting.rewrites.some(r=>r.source==='/territorio'&&r.destination==='/territorio.html'));
-    const capabilities=JSON.parse(fs.readFileSync(path.join(result.output,'release-manifest.json'))).capabilities;assert.equal(capabilities.territory,true);assert.equal(capabilities.territoryPrivatePhotos,false);
+    const capabilities=JSON.parse(fs.readFileSync(path.join(result.output,'release-manifest.json'))).capabilities;assert.equal(capabilities.destaca,true);assert.equal(capabilities.destacaBenefits,false);assert.equal(capabilities.territoryRadar,true);assert.equal(capabilities.territoryActionClosure,true);assert.equal(capabilities.territory,true);assert.equal(capabilities.territoryPrivatePhotos,false);
     assert.match(fs.readFileSync(path.join(result.output,'public/territorio.html'),'utf8'),/territory\.js\?v=[a-f0-9]{16}/);
     assert.equal(config.hosting.public, 'public');
     assert.equal(config.hosting.site, 'synapse-core');

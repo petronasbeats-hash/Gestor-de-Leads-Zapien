@@ -1,7 +1,7 @@
 (function(root,factory){const M=typeof module==='object'&&module.exports?require('./workspace-model.js'):root.SynapseWorkspace;const api=factory(M);if(typeof module==='object'&&module.exports)module.exports=api;else root.SynapseRadar=api;})(typeof globalThis==='undefined'?this:globalThis,function(M){
   'use strict';
   function date(value){try{return M.validDate(value);}catch{return '';}}
-  function build({leads={},citas={}}={},now=new Date()){
+  function build({leads={},citas={},privateActions=[]}={},now=new Date()){
     const today=M.calendarDate(now),time=new Intl.DateTimeFormat('en-GB',{timeZone:'America/Mexico_City',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).format(now);
     const events=Object.entries(citas).filter(([,e])=>e&&typeof e==='object').map(([id,e])=>({id,...e})),items=[];
     const bucket=d=>!d?'undated':d<today?'overdue':d===today?'today':'upcoming';
@@ -27,6 +27,12 @@
       // event leaves the operation action available to advance its stage.
       if(flow.current.mode==='evento'&&flow.event&&M.active(flow.event))continue;
       add({id:'operation:'+op.ownerContactId+':'+op.id,kind:'operation',operationId:op.id,ownerContactId:op.ownerContactId,title:op.referencia,action:flow.canAdvance&&flow.next?'Revisar avance a '+flow.next.label:flow.current.mode==='evento'&&flow.event?.estado==='realizada'?'Revisar realización del evento':flow.action,detail:flow.current.label+' · '+Object.entries(op.participantes).map(([id,p])=>(leads[id]?.nombre||'Contacto')+' · '+p.roles.join(', ')).join(' / '),date:'',time:''});
+    }
+    const actionIds=new Set();
+    for(const item of Array.isArray(privateActions)?privateActions:[]){
+      if(!item||!['territory','destaca'].includes(item.kind)||![item.recordId,item.organizationId].every(v=>typeof v==='string'&&/^[A-Za-z0-9_-]{1,128}$/.test(v)&&!['__proto__','constructor','prototype'].includes(v))||typeof item.description!=='string'||!item.description.trim())continue;
+      const id=item.kind+':'+item.organizationId+':'+item.recordId;if(actionIds.has(id))continue;actionIds.add(id);
+      add({id,kind:item.kind,recordId:item.recordId,organizationId:item.organizationId,title:item.description,detail:(item.title||'Registro')+' · '+(item.kind==='territory'?'Territorio':'Destaca'),action:item.kind==='territory'?'Revisar captación':'Revisar recomendación',date:date(item.dueDate),time:'',href:(item.kind==='territory'?'/territorio':'/destaca')+'?organization='+encodeURIComponent(item.organizationId)+(item.kind==='territory'?'&capture=':'&recommendation=')+encodeURIComponent(item.recordId)+'&panel=followup'});
     }
     items.sort((a,b)=>a.rank-b.rank||String(a.date+' '+a.time).localeCompare(b.date+' '+b.time)||a.title.localeCompare(b.title,'es'));
     const counts={all:items.length,repair:0,overdue:0,today:0,upcoming:0,undated:0};for(const item of items)counts[item.bucket]++;

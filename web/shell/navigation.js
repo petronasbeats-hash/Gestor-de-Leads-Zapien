@@ -8,6 +8,7 @@
     ['contacts', 'Directorio', '/directorio', 'M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M15 3a4 4 0 0 1 0 8M22 21v-2a4 4 0 0 0-3-4M13 7a4 4 0 1 1-8 0 4 4 0 0 1 8 0Z'],
     ['agenda', 'Agenda', '/agenda', 'M8 2v4M16 2v4M3 10h18M5 4h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Z'],
     ['properties', 'Inmuebles', '/inmuebles', 'm3 10 9-7 9 7M5 9v12h14V9M9 21v-8h6v8'],
+    ['destaca','Destaca','/destaca','m12 3 3 6 7 1-5 5 1 7-6-3-6 3 1-7-5-5 7-1 3-6'],
     ['territory', 'Territorio', '/territorio', 'm3 6 6-3 6 3 6-3v15l-6 3-6-3-6 3V6M9 3v15M15 6v15']
   ];
   const rail = document.createElement('aside'); rail.className = 'synapse-rail';
@@ -19,7 +20,7 @@
   const collapse=document.createElement('button');collapse.type='button';collapse.className='shell-collapse';collapse.textContent='‹';collapse.setAttribute('aria-label','Plegar menú');railHead.append(brand,collapse);rail.append(railHead);
   const quick=document.createElement('a');quick.href='/atencion-operador?new=1';quick.className='shell-new';quick.setAttribute('aria-label','Nueva atención');quick.innerHTML='<span aria-hidden="true">＋</span><span class="shell-new-label">Nueva atención</span>';rail.append(quick);
   const nav = document.createElement('nav'); nav.className = 'synapse-primary'; nav.setAttribute('aria-label', 'Navegación principal');
-  for(const [groupLabel,ids]of [['Día a día',['radar','attention','agenda']],['Gestión',['contacts','properties','territory']]]){
+  for(const [groupLabel,ids]of [['Día a día',['radar','attention','agenda']],['Gestión',['contacts','properties','territory','destaca']]]){
     const group=document.createElement('details');group.open=true;group.className='shell-group';const summary=document.createElement('summary');summary.textContent=groupLabel;group.append(summary);
     for(const id of ids){const [,label,href,path]=items.find(item=>item[0]===id);const a=document.createElement('a');a.href=href;a.id='nav-'+id;a.dataset.module=id;a.setAttribute('aria-label',label);a.title=label;
       const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');svg.setAttribute('viewBox','0 0 24 24');svg.setAttribute('aria-hidden','true');const line=document.createElementNS(svg.namespaceURI,'path');line.setAttribute('d',path);svg.append(line);const text=document.createElement('span');text.textContent=label;a.append(svg,text);group.append(a);
@@ -44,6 +45,7 @@
     if (path.startsWith('/agenda') && path !== '/agenda.html') return 'agenda';
     if (path === '/inmuebles') return 'properties';
     if (path === '/territorio') return 'territory';
+    if (path === '/destaca') return 'destaca';
     if (['/configuracion', '/administracion', '/administracion.html'].includes(path)) return 'settings';
     return 'radar';
   }
