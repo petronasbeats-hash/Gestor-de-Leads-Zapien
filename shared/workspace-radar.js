@@ -9,7 +9,9 @@
     function add(item){item.bucket=item.kind==='repair'?'repair':bucket(item.date);item.rank=rank[item.bucket];items.push(item);}
     for(const e of events){
       const day=date(e.fecha),title=e.titulo||e.propiedadNombre||e.nombre||'Compromiso';
-      if(e._agenda?.occupancyReviewRequired&&e._agenda?.sync!=='pending'){add({id:'event:'+e.id,kind:'repair',eventId:e.id,title:'Revisar ocupación · '+title,action:'Revisar bloqueo heredado',detail:'La actividad está cerrada; queda un bloqueo sin referencia verificada.',date:day,time:e.hora||''});continue;}
+      // Closed activities are history, even if a legacy occupancy marker still needs review.
+      // Never release or reinterpret that marker while projecting daily actions.
+      if(!M.active(e)&&e._agenda?.occupancyReviewRequired&&e._agenda?.sync!=='pending')continue;
       if(e._agenda?.sync==='pending'){add({id:'event:'+e.id,kind:'repair',eventId:e.id,title,action:'Completar sincronización',detail:'La ocupación requiere revisión antes de confirmar.',date:day,time:e.hora||''});continue;}
       if(!M.active(e))continue;
       const started=day&&(day<today||day===today&&e.hora&&e.hora<=time);
