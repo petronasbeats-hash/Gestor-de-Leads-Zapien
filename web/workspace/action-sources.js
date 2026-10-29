@@ -20,11 +20,11 @@
      const session=await json('/attention-api/agent/session',token);if(!current())return;
      if(!Array.isArray(session.organizations)||session.organizations.some(o=>!validId(o.id)))throw Error('INVALID_RESPONSE');
      const orgs=[...new Map(session.organizations.map(o=>[o.id,o])).values()];
-     const sources=orgs.flatMap(org=>['territory','destaca'].map(kind=>({org,kind})));
+     const sources=orgs.flatMap(org=>['territory','destaca','attention'].map(kind=>({org,kind})));
      const results=await Promise.allSettled(sources.map(async ({org,kind})=>{
-      const value=await json('/attention-api/agent/'+kind+'/pending',token,{organizationId:org.id});
+      const value=await json('/attention-api/agent/'+(kind==='attention'?'':kind+'/')+'pending',token,{organizationId:org.id});
       if(!Array.isArray(value.items))throw Error('INVALID_RESPONSE');
-      return value.items.map(item=>{const recordId=kind==='territory'?item.captureId:item.recommendationId;if(!validId(recordId)||typeof item.title!=='string'||item.title.length>180||typeof item.description!=='string'||!item.description.trim()||item.description.length>400||typeof item.dueDate!=='string'||!Number.isSafeInteger(item.version)||item.version<1)throw Error('INVALID_RESPONSE');return {kind,recordId,organizationId:org.id,title:item.title,description:item.description,dueDate:item.dueDate,version:item.version};});
+      return value.items.map(item=>{const recordId=kind==='territory'?item.captureId:kind==='attention'?item.conversationId:item.recommendationId;if(!validId(recordId)||typeof item.title!=='string'||item.title.length>361||typeof item.description!=='string'||!item.description.trim()||item.description.length>400||typeof item.dueDate!=='string'||!Number.isSafeInteger(item.version)||item.version<1)throw Error('INVALID_RESPONSE');return {kind,recordId,...(kind==='attention'?{actionType:item.actionType==='followup'?'followup':'reply'}:{}),organizationId:org.id,title:item.title,description:item.description,dueDate:item.dueDate,version:item.version};});
      }));
      if(!current())return;const failures=results.filter(r=>r.status==='rejected').length;
      emit({items:results.flatMap(r=>r.status==='fulfilled'?r.value:[]),status:!orgs.length?'disabled':failures===sources.length?'error':failures?'partial':'ready',failedSources:failures,observedAt:new Date().toISOString()});

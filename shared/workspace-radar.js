@@ -32,13 +32,25 @@
     }
     const actionIds=new Set();
     for(const item of Array.isArray(privateActions)?privateActions:[]){
-      if(!item||!['territory','destaca'].includes(item.kind)||![item.recordId,item.organizationId].every(v=>typeof v==='string'&&/^[A-Za-z0-9_-]{1,128}$/.test(v)&&!['__proto__','constructor','prototype'].includes(v))||typeof item.description!=='string'||!item.description.trim())continue;
+      if(!item||!['territory','destaca','attention'].includes(item.kind)||![item.recordId,item.organizationId].every(v=>typeof v==='string'&&/^[A-Za-z0-9_-]{1,128}$/.test(v)&&!['__proto__','constructor','prototype'].includes(v))||typeof item.description!=='string'||!item.description.trim())continue;
       const id=item.kind+':'+item.organizationId+':'+item.recordId;if(actionIds.has(id))continue;actionIds.add(id);
-      add({id,kind:item.kind,recordId:item.recordId,organizationId:item.organizationId,title:item.description,detail:(item.title||'Registro')+' · '+(item.kind==='territory'?'Territorio':'Destaca'),action:item.kind==='territory'?'Revisar captación':'Revisar recomendación',date:date(item.dueDate),time:'',href:(item.kind==='territory'?'/territorio':'/destaca')+'?organization='+encodeURIComponent(item.organizationId)+(item.kind==='territory'?'&capture=':'&recommendation=')+encodeURIComponent(item.recordId)+'&panel=followup'});
+      const attention=item.kind==='attention';
+      add({id,kind:item.kind,recordId:item.recordId,organizationId:item.organizationId,title:item.description,detail:(item.title||'Registro')+' · '+(attention?'Atención':item.kind==='territory'?'Territorio':'Destaca'),action:attention?'Atender cliente':item.kind==='territory'?'Revisar captación':'Revisar recomendación',date:date(item.dueDate),time:'',href:(attention?'/atencion-operador':item.kind==='territory'?'/territorio':'/destaca')+'?organization='+encodeURIComponent(item.organizationId)+(attention?'&conversation=':item.kind==='territory'?'&capture=':'&recommendation=')+encodeURIComponent(item.recordId)+(attention?'&panel='+(item.actionType==='followup'?'journal':'conversation'):'&panel=followup')});
     }
     items.sort((a,b)=>a.rank-b.rank||String(a.date+' '+a.time).localeCompare(b.date+' '+b.time)||a.title.localeCompare(b.title,'es'));
     const counts={all:items.length,repair:0,overdue:0,today:0,upcoming:0,undated:0};for(const item of items)counts[item.bucket]++;
     return{today,items,counts};
   }
-  return Object.freeze({build});
+  function reminders(citas={},now=new Date()){
+    const today=M.calendarDate(now),parts=new Intl.DateTimeFormat('en-GB',{timeZone:'America/Mexico_City',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).format(now).split(':');
+    const clock=Number(parts[0])*60+Number(parts[1]),rows=[];
+    for(const [id,event]of Object.entries(citas)){
+      if(!event||!M.active(event)||event.estado==='hold'||event.tipoEvento==='tarea'||event._agenda?.sync==='pending'||!date(event.fecha))continue;
+      let minute;try{minute=M.minutes(event.hora);}catch{continue;}
+      const left=Math.round((Date.parse(event.fecha+'T00:00:00Z')-Date.parse(today+'T00:00:00Z'))/60000)+minute-clock;
+      if(left<0||left>1440)continue;rows.push({id,title:event.titulo||event.propiedadNombre||event.nombre||'Compromiso',date:event.fecha,time:event.hora,minutes:left});
+    }
+    return rows.sort((a,b)=>a.minutes-b.minutes||a.id.localeCompare(b.id));
+  }
+  return Object.freeze({build,reminders});
 });

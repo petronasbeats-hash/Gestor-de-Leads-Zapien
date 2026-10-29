@@ -3,6 +3,17 @@
   'use strict';
   const signature = Object.freeze([[554.37,.025,.24],[830.61,.145,.24],[739.99,.395,.50]].map(Object.freeze));
   const signatureAsset = '/assets/audio/synapse-nexo-v1.wav';
+  // Reading a message never resolves it. Same-timestamp legacy replies remain
+  // pending unless causality is proven by a sequence or an explicit resolution.
+  function responseStats(messages) {
+    const rows=Array.isArray(messages)?messages:[],incoming=rows.filter(m=>['customer','guest'].includes(m.actorRole));
+    const replies=new Map();
+    for(const message of rows.filter(m=>m.actorRole==='agent')){const key=message.threadId||'',latest=replies.get(key)||{sequence:0,timestamp:-Infinity,legacyTimestamp:-Infinity},at=Date.parse(message.recordedAt);if(Number.isSafeInteger(message.sequence))latest.sequence=Math.max(latest.sequence,message.sequence);else if(Number.isFinite(at))latest.legacyTimestamp=Math.max(latest.legacyTimestamp,at);if(Number.isFinite(at))latest.timestamp=Math.max(latest.timestamp,at);replies.set(key,latest);}
+    const pending=incoming.filter(m=>{if(m.answeredBy)return false;const reply=replies.get(m.threadId||'');return !reply||!(Number.isSafeInteger(m.sequence)?reply.sequence>m.sequence||reply.legacyTimestamp>Date.parse(m.recordedAt):reply.timestamp>Date.parse(m.recordedAt));});
+    const sort=(a,b)=>(a.sequence||0)-(b.sequence||0)||String(a.recordedAt).localeCompare(String(b.recordedAt))||String(a.id).localeCompare(String(b.id));
+    pending.sort(sort);incoming.sort(sort);
+    return {count:pending.length,lastIncomingId:incoming.at(-1)?.id||'',lastId:pending.at(-1)?.id||'',firstAt:pending[0]?.recordedAt||'',pendingIds:pending.map(m=>m.id)};
+  }
   function messageStats(messages, incomingRoles) {
     const rows=[...messages].sort((a,b)=>String(a.recordedAt).localeCompare(String(b.recordedAt))||String(a.id).localeCompare(String(b.id)));
     let count=0,lastId='',lastAt='',lastReply='';
@@ -69,5 +80,5 @@
       get enabled(){return enabled&&context?.state==='running';}
     };
   }
-  return Object.freeze({signature,signatureAsset,messageStats,createTracker,createSound});
+  return Object.freeze({signature,signatureAsset,messageStats,responseStats,createTracker,createSound});
 });

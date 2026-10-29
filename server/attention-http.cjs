@@ -1,5 +1,5 @@
 'use strict';
-const knownErrors = new Set(['INVALID_IDENTIFIER', 'INVALID_FIELDS', 'INVALID_TEXT', 'PHONE_REQUIRED', 'PHONE_INVALID', 'NAME_REQUIRED', 'SOURCE_REQUIRED', 'ENTRY_CHANNEL_REQUIRED', 'PROPERTY_NOT_PUBLISHED', 'PROPERTY_FORBIDDEN', 'AUTHENTICATION_REQUIRED', 'ORGANIZATION_FORBIDDEN', 'AGENT_REQUIRED', 'CONVERSATION_NOT_FOUND', 'VERSION_CONFLICT', 'COMMAND_ID_CONFLICT', 'INVITATION_INVALID', 'INVITATION_REISSUE_REQUIRED', 'CUSTOMER_VERIFICATION_REQUIRED', 'CONDITIONS_NOT_CONFIGURED', 'AVAILABILITY_UNAVAILABLE', 'GUEST_ACCESS_REQUIRED', 'GUEST_LINK_IN_USE', 'BOOKING_NOT_AVAILABLE', 'BOOKING_REFERENCE_CONFLICT', 'BOOKING_NOT_READY']);
+const knownErrors = new Set(['CONTACT_CHANNEL_INVALID', 'INVALID_IDENTIFIER', 'INVALID_FIELDS', 'INVALID_TEXT', 'PHONE_REQUIRED', 'PHONE_INVALID', 'NAME_REQUIRED', 'SOURCE_REQUIRED', 'ENTRY_CHANNEL_REQUIRED', 'PROPERTY_NOT_PUBLISHED', 'PROPERTY_FORBIDDEN', 'AUTHENTICATION_REQUIRED', 'ORGANIZATION_FORBIDDEN', 'AGENT_REQUIRED', 'CONVERSATION_NOT_FOUND', 'VERSION_CONFLICT', 'COMMAND_ID_CONFLICT', 'INVITATION_INVALID', 'INVITATION_REISSUE_REQUIRED', 'CUSTOMER_VERIFICATION_REQUIRED', 'CONDITIONS_NOT_CONFIGURED', 'AVAILABILITY_UNAVAILABLE', 'GUEST_ACCESS_REQUIRED', 'GUEST_LINK_IN_USE', 'BOOKING_NOT_AVAILABLE', 'BOOKING_REFERENCE_CONFLICT', 'BOOKING_NOT_READY']);
 function createAttentionHttp({service, authority, territoryService, destacaService}) {
   return async function attentionHttp(req, res) {
     const reply = (status, payload) => {
@@ -10,7 +10,7 @@ function createAttentionHttp({service, authority, territoryService, destacaServi
       res.end(JSON.stringify(payload));
     };
     const path = new URL(req.url, 'https://localhost').pathname.replace(/^\/attention-api(?=\/)/, '');
-    if (req.method === 'GET' && path === '/health') return reply(200, {service: 'synapse-attention', intake: true, guestConversation: true, messageAlerts: true, operatorVisitRegistration: true, territory: Boolean(territoryService), territoryPrivatePhotos: false, territoryRadar: Boolean(territoryService), territoryActionClosure: Boolean(territoryService), destaca: Boolean(destacaService), destacaBenefits: false, hypeProfiles: false, booking: false, reminders: false});
+    if (req.method === 'GET' && path === '/health') return reply(200, {service: 'synapse-attention', intake: true, guestConversation: true, messageAlerts: true, attentionRadar: true, contactPreferences: true, operatorVisitRegistration: true, territory: Boolean(territoryService), territoryPrivatePhotos: false, territoryRadar: Boolean(territoryService), territoryActionClosure: Boolean(territoryService), destaca: Boolean(destacaService), destacaBenefits: false, hypeProfiles: false, booking: false, reminders: false});
     if (req.method === 'GET' && path === '/agent/session') {
       try { return reply(200, await authority.session(req.headers.authorization)); }
       catch { return reply(401, {error: 'AUTHENTICATION_REQUIRED'}); }
@@ -41,6 +41,8 @@ function createAttentionHttp({service, authority, territoryService, destacaServi
       if (path === '/guest/open') return reply(200, await service.openGuest(body));
       if (path === '/guest/view') return reply(200, await service.guestView(body));
       if (path === '/guest/message') return reply(200, await service.guestMessage(body));
+      if (path === '/guest/channel') return reply(200, await service.setContactPreference(null,body));
+      if (path === '/customer/channel') return reply(200, await service.setContactPreference(await authority.customer(bearer),body));
       if (path === '/customer/claim') return reply(200, await service.claim(await authority.customer(bearer), body));
       if (path === '/customer/view') {
         if (Object.keys(body).some(key => key !== 'token')) throw Error('INVALID_FIELDS');
@@ -67,6 +69,10 @@ function createAttentionHttp({service, authority, territoryService, destacaServi
         '/agent/list': (principal, input) => { if (Object.keys(input).length) throw Error('INVALID_FIELDS'); return service.list(principal); },
         '/agent/inspect': (principal, input) => { if (Object.keys(input).some(key => key !== 'conversationId')) throw Error('INVALID_FIELDS'); return service.inspect(principal, input.conversationId); },
         '/agent/capture': service.capture,
+        '/agent/pending': service.pending,
+        '/agent/complete-action': service.completeAction,
+        '/agent/external-reply': service.recordExternalReply,
+        '/agent/channel': service.setContactPreference,
         '/agent/interest': service.changeInterest,
         '/agent/visit': service.recordVisit,
         '/agent/contact': service.updateContact,

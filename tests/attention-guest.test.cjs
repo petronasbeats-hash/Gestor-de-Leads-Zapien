@@ -199,3 +199,9 @@ test('actual customer script opens, sends and restores guest session without Fir
   await reloaded._clock.tick();const currentSheet=(await f.service.inspect(f.principal,f.conversationId)).sheet;
   assert.equal(reloaded.sheet.children[0].textContent,currentSheet.name);assert.equal(reloaded.message.value,'Customer unsent draft');
 });
+
+test('customer chooses a channel without phone, without a message, and the choice survives reopening the same browser',async()=>{
+ const f=await fixture(),storage=new Map(),page=await customerPage(f,storage);page['customer-preferred-channel'].value='messenger';await page['save-customer-channel'].handlers.click();
+ for(let i=0;i<200;i++){if(page.status.textContent?.includes('Tu preferencia quedó guardada'))break;await new Promise(r=>setTimeout(r,5));}
+ assert.match(page.status.textContent,/Tu preferencia quedó guardada/);const state=await f.store.read('org-demo');assert.equal(state.conversations[f.conversationId].context.preferredChannel,'messenger');assert.equal(Object.keys(state.messages?.[f.conversationId]||{}).length,1);assert.equal(Object.values(state.messages[f.conversationId])[0].actorRole,'agent');const again=await customerPage(f,storage);assert.equal(again['customer-preferred-channel'].value,'messenger');assert.equal(again.verification.hidden,true);
+});

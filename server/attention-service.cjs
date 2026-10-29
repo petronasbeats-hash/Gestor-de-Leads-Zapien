@@ -2,7 +2,7 @@
 
 const {randomBytes} = require('node:crypto');
 const continuity = require('../lab/attention/continuity-contract.js');
-const {prepareEntry, dailyReport} = require('./attention-journal.cjs');
+const {prepareEntry, dailyReport, businessDate} = require('./attention-journal.cjs');
 const lease = require('../shared/lease-continuity.js');
 const alerts = require('../shared/attention-alerts.js');
 const {id, hash} = require('./attention-store.cjs');
@@ -31,6 +31,16 @@ function conversation(state, conversationId) {
 function revision(current, expected) {
   if (!Number.isSafeInteger(expected) || expected !== current.version) throw Error('VERSION_CONFLICT');
 }
+const contactChannels = Object.freeze({synapse:'Synapse',whatsapp:'WhatsApp',messenger:'Messenger / Facebook'});
+function preferredChannel(value) {if(!Object.hasOwn(contactChannels,value))throw Error('CONTACT_CHANNEL_INVALID');return value;}
+function messageSequence(state,current) {
+  current.messageSequence=Object.values(state.messages?.[current.id]||{}).reduce((last,m)=>Math.max(last,Number.isSafeInteger(m.sequence)?m.sequence:0),current.messageSequence||0)+1;
+  return current.messageSequence;
+}
+function followup(state,current) {
+  return Object.values(state.journal||{}).filter(e=>e.conversationId===current.id&&e.nextAction&&!['message_recorded','reservation_registered'].includes(e.kind))
+    .sort((a,b)=>(a.sequence||0)-(b.sequence||0)||String(a.recordedAt).localeCompare(String(b.recordedAt))||String(a.id).localeCompare(String(b.id))).at(-1);
+}
 function publicSheet(sheet) {
   const result = Object.fromEntries(['propertyId', 'name', 'unitId', 'rent', 'photos', 'included', 'excluded', 'additional', 'pending'].map(key => [key, sheet[key]]));
   // Legacy free-text descriptions were not reviewed for exact addresses. A new
@@ -52,7 +62,8 @@ function createAttentionService({store, readAvailability, leaseConfig = {}, now 
       kind, summary, source: current.context.source, entryChannel: current.context.entryChannel,
       currentChannel: current.context.currentChannel, propertyId: current.context.currentPropertyId,
       occurredAt: now().toISOString(), ...extra}, {agentUid: current.agentUid || principal.uid, organizationId: principal.organizationId}, now()),
-      actorUid: principal.uid, actorRole: principal.role};
+      actorUid: principal.uid, actorRole: principal.role, sequence:(current.journalSequence||0)+1};
+    current.journalSequence=entry.sequence;
     state.journal = {...state.journal, [requestId]: entry};
   }
   async function live(principal, propertyId) {
@@ -112,16 +123,74 @@ function createAttentionService({store, readAvailability, leaseConfig = {}, now 
       agent(principal);
       const state = await store.read(principal.organizationId);
       return Object.values(state.conversations || {}).filter(item => principal.propertyIds.includes(item.context.currentPropertyId))
-        .map(item => ({...item, inbox: alerts.messageStats(Object.values(state.messages?.[item.id] || {}), ['customer','guest'])}));
+        .map(item => ({...item, inbox: alerts.messageStats(Object.values(state.messages?.[item.id] || {}), ['customer','guest']), response:alerts.responseStats(Object.values(state.messages?.[item.id]||{}))}));
+    },
+    async pending(principal,input) {
+      agent(principal);fields(input,[]);
+      const state=await store.read(principal.organizationId),items=[];
+      for(const current of Object.values(state.conversations||{})){
+        if(current.agentUid!==principal.uid||!principal.propertyIds.includes(current.context.currentPropertyId)||current.status!=='open')continue;
+        const messages=Object.values(state.messages?.[current.id]||{}),response=alerts.responseStats(messages),next=followup(state,current);
+        const title=[current.context.displayName,current.context.surname].filter(Boolean).join(' ')||'Atención sin nombre';
+        if(response.count)items.push({conversationId:current.id,title,description:'Responder al cliente · '+response.count+' mensaje(s) pendiente(s)',dueDate:businessDate(response.firstAt),version:current.version,actionType:'reply',actionId:response.lastIncomingId,preferredChannel:current.context.preferredChannel||'synapse'});
+        else if(next?.nextAction.status==='pending'&&!(next.kind==='attention_started'&&(messages.some(m=>m.actorRole==='agent')||current.externalReply)))items.push({conversationId:current.id,title,description:next.nextAction.description,dueDate:next.nextAction.dueDate||'',version:current.version,actionType:'followup',actionId:next.id,preferredChannel:current.context.preferredChannel||'synapse'});
+      }
+      return {items};
+    },
+    async completeAction(principal,input) {
+      agent(principal);fields(input,['requestId','conversationId','actionId','result']);text(input.result,1000,true);
+      return store.apply(principal.organizationId,id(input.requestId),principal.uid,{operation:'complete_action',input},state=>{
+        const current=conversation(state,input.conversationId);permitted(principal,current.context.currentPropertyId);
+        if(current.agentUid!==principal.uid)throw Error('PROPERTY_FORBIDDEN');
+        const next=followup(state,current);
+        if(!next||next.id!==input.actionId||next.nextAction.status!=='pending')throw Error('VERSION_CONFLICT');
+        event(state,principal,input.requestId,current,'action_completed',input.result,{nextAction:{...next.nextAction,status:'done'}});
+        return {state,receipt:{conversationId:current.id,status:'completed'}};
+      });
+    },
+    async recordExternalReply(principal,input) {
+      agent(principal);fields(input,['requestId','conversationId','incomingId','channel','result']);
+      if(!['whatsapp','messenger'].includes(input.channel))throw Error('CONTACT_CHANNEL_INVALID');text(input.result,1000,true);
+      return store.apply(principal.organizationId,id(input.requestId),principal.uid,{operation:'external_reply',input},state=>{
+        const current=conversation(state,input.conversationId);permitted(principal,current.context.currentPropertyId);
+        if(current.agentUid!==principal.uid)throw Error('PROPERTY_FORBIDDEN');
+        const response=alerts.responseStats(Object.values(state.messages?.[current.id]||{}));
+        if(!response.count||response.lastIncomingId!==input.incomingId)throw Error('VERSION_CONFLICT');
+        const resolution={requestId:input.requestId,channel:input.channel,kind:'agent_reported',recordedAt:now().toISOString()};
+        for(const key of response.pendingIds)state.messages[current.id][key].answeredBy=resolution;
+        current.externalReply=resolution;current.version++;
+        event(state,principal,input.requestId,current,'external_reply_recorded','El asesor registró una respuesta por '+contactChannels[input.channel]+': '+input.result+'. Registro manual; no acredita envío, entrega ni lectura.');
+        return {state,receipt:{conversationId:current.id,status:'recorded',delivery:'not_verified'}};
+      });
+    },
+    async setContactPreference(principal,input) {
+      const channel=preferredChannel(input.preferredChannel);let resolved,organizationId,credential;
+      if(principal?.role==='agent'){agent(principal);fields(input,['requestId','conversationId','preferredChannel','expectedVersion']);organizationId=principal.organizationId;}
+      else {fields(input,['requestId','token','secret','preferredChannel']);resolved=await resolveInvitation(input.token);organizationId=resolved.organizationId;
+        if(input.secret){credential=guestCredential(input.secret);guestAccess(resolved.current,resolved.tokenHash,credential);principal={role:'guest',uid:credential.uid};}
+        else if(principal?.role!=='customer'||resolved.current.customerUid!==principal.uid)throw Error('CUSTOMER_VERIFICATION_REQUIRED');
+      }
+      const requestId=id(input.requestId),conversationId=resolved?.current.id||id(input.conversationId);
+      const payload={operation:'contact_preference',conversationId,preferredChannel:channel,...(resolved?{tokenHash:resolved.tokenHash,secretHash:credential?.secretHash||null}: {expectedVersion:input.expectedVersion})};
+      return store.apply(organizationId,requestId,id(principal.uid),payload,state=>{
+        const current=conversation(state,conversationId);
+        if(principal.role==='agent'){permitted(principal,current.context.currentPropertyId);revision(current,input.expectedVersion);}
+        else if(credential)guestAccess(current,resolved.tokenHash,credential);
+        else if(current.customerUid!==principal.uid||current.invitation?.tokenHash!==resolved.tokenHash||current.invitation.revoked||Date.parse(current.invitation.expiresAt)<=now().getTime())throw Error('CUSTOMER_VERIFICATION_REQUIRED');
+        current.context.preferredChannel=channel;current.version++;
+        event(state,{...principal,organizationId},requestId,current,'contact_preference_changed','Medio preferido: '+contactChannels[channel]+'. Declarado por '+(principal.role==='agent'?'el asesor':'el cliente')+'. No activa envíos automáticos.');
+        return {state,receipt:{conversationId,preferredChannel:channel}};
+      });
     },
     async inspect(principal, conversationId) {
       agent(principal);
       const state = await store.read(principal.organizationId);
       const current = conversation(state, conversationId);
       permitted(principal, current.context.currentPropertyId);
-      const snapshot = await live(principal, current.context.currentPropertyId);
-      return {conversation: current, sheet: lease.propertySheet(current.context.currentPropertyId, snapshot.properties[current.context.currentPropertyId], leaseConfig),
-        observedAt: snapshot.observedAt, messages: Object.values(state.messages?.[conversationId] || {}),
+      const snapshot = await readSnapshot();
+      if(!snapshot.properties[current.context.currentPropertyId])throw Error('PROPERTY_NOT_PUBLISHED');
+      return {conversation: current, publicationActive:snapshot.properties[current.context.currentPropertyId].activo!==false, sheet: lease.propertySheet(current.context.currentPropertyId, snapshot.properties[current.context.currentPropertyId], leaseConfig),
+        observedAt: snapshot.observedAt, response:alerts.responseStats(Object.values(state.messages?.[conversationId]||{})), messages: Object.values(state.messages?.[conversationId] || {}),
         journal: Object.values(state.journal || {}).filter(item => item.conversationId === conversationId)};
     },
     async recordVisit(principal, input) {
@@ -252,7 +321,7 @@ function createAttentionService({store, readAvailability, leaseConfig = {}, now 
         if (principal.role === 'agent') permitted(principal, current.context.currentPropertyId);
         else if (current.customerUid !== principal.uid || current.invitation?.tokenHash !== resolved.tokenHash || current.invitation.revoked || Date.parse(current.invitation.expiresAt) <= now().getTime()) throw Error('CUSTOMER_VERIFICATION_REQUIRED');
         if (threadId && activeGuestInvitation(current, current.invitation?.tokenHash).threadId !== threadId) throw Error('GUEST_ACCESS_REQUIRED');
-        state.messages = {...state.messages, [current.id]: {...state.messages?.[current.id], [input.requestId]: {id: input.requestId, actorRole: principal.role, threadId, text: messageText, recordedAt: now().toISOString()}}};
+        state.messages = {...state.messages, [current.id]: {...state.messages?.[current.id], [input.requestId]: {id: input.requestId, actorRole: principal.role, threadId, text: messageText, sequence:messageSequence(state,current), recordedAt: now().toISOString()}}};
         event(state, {...principal, organizationId}, input.requestId, current, 'message_recorded', 'Mensaje de ' + (principal.role === 'agent' ? 'asesor' : 'cliente') + ': ' + messageText,
           {nextAction: {description: principal.role === 'customer' ? 'Responder al cliente' : 'Esperar respuesta del cliente', status: 'pending'}});
         return {state, receipt: {conversationId: current.id, messageId: input.requestId, status: 'recorded'}};
@@ -293,7 +362,7 @@ function createAttentionService({store, readAvailability, leaseConfig = {}, now 
       const property = snapshot.properties?.[propertyId];
       if (!property || property.activo === false) throw Error('PROPERTY_NOT_PUBLISHED');
       const sheet = lease.propertySheet(propertyId, property, leaseConfig);
-      return {conversationId: current.id, threadId: invitation.threadId, identityStatus: 'unverified', expiresAt: invitation.expiresAt,
+      return {conversationId: current.id, preferredChannel:current.context.preferredChannel||'synapse', threadId: invitation.threadId, identityStatus: 'unverified', expiresAt: invitation.expiresAt,
         sheet: publicSheet(sheet), messages: Object.values(state.messages?.[current.id] || {}).filter(item => item.threadId === invitation.threadId),
         conditions: current.sharedConditions?.propertyId === propertyId && current.sharedConditions?.conditionsVersion === sheet.conditionsVersion ? current.sharedConditions : null};
     },
@@ -306,7 +375,7 @@ function createAttentionService({store, readAvailability, leaseConfig = {}, now 
         const current = conversation(state, resolved.current.id);
         const invitation = guestAccess(current, resolved.tokenHash, credential);
         state.messages = {...state.messages, [current.id]: {...state.messages?.[current.id], [input.requestId]: {
-          id: input.requestId, actorRole: 'guest', threadId: invitation.threadId, text: messageText, recordedAt: now().toISOString()}}};
+          id: input.requestId, actorRole: 'guest', threadId: invitation.threadId, text: messageText, sequence:messageSequence(state,current), recordedAt: now().toISOString()}}};
         event(state, {uid: credential.uid, role: 'guest', organizationId: resolved.organizationId}, input.requestId, current, 'message_recorded', 'Mensaje de invitado: ' + messageText,
           {nextAction: {description: 'Responder al invitado', status: 'pending'}});
         return {state, receipt: {conversationId: current.id, messageId: input.requestId, status: 'recorded'}};
@@ -334,7 +403,7 @@ function createAttentionService({store, readAvailability, leaseConfig = {}, now 
       const propertyId = current.context.currentPropertyId;
       if (!snapshot.properties?.[propertyId] || snapshot.properties[propertyId].activo === false) throw Error('PROPERTY_NOT_PUBLISHED');
       const sheet = lease.propertySheet(propertyId, snapshot.properties[propertyId], leaseConfig);
-      return {conversationId: current.id, sheet: publicSheet(sheet), messages: Object.values(state.messages?.[current.id] || {}).filter(item => !item.threadId),
+      return {conversationId: current.id, preferredChannel:current.context.preferredChannel||'synapse', sheet: publicSheet(sheet), messages: Object.values(state.messages?.[current.id] || {}).filter(item => !item.threadId),
         conditions: current.sharedConditions?.propertyId === propertyId && current.sharedConditions?.conditionsVersion === sheet.conditionsVersion ? current.sharedConditions : null};
     },
     async report(principal, date) {

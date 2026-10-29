@@ -16,7 +16,10 @@
   let readTracker, noticeScope = '', inboxRows = [], pollTimer, pollBusy = false, pollEpoch = 0, polling = false;
   const token = role === 'customer' ? location.hash.slice(1) : '';
   const sourceNames = {marketplace_facebook: 'Marketplace Facebook', facebook: 'Facebook', whatsapp: 'WhatsApp', casa_login: 'Casa Login', hype_synapse_experience: 'HYPE by Synapse Experience', directa: 'Directa'};
+  const channelNames={synapse:'Synapse',whatsapp:'WhatsApp',messenger:'Messenger / Facebook'};
+  let activeFollowup;
   const errors = {
+    CONTACT_CHANNEL_INVALID:'Elige Synapse, WhatsApp o Messenger.',
     AUTHENTICATION_REQUIRED: 'Inicia sesión de nuevo para continuar.', ORGANIZATION_FORBIDDEN: 'Tu cuenta no tiene acceso a esta organización.',
     PROPERTY_FORBIDDEN: 'El inmueble está fuera de tu acceso autorizado.', PROPERTY_NOT_PUBLISHED: 'Esta publicación ya no está activa. Actualiza el catálogo.',
     VERSION_CONFLICT: 'La atención cambió. Actualiza antes de continuar.', COMMAND_ID_CONFLICT: 'Esta operación ya tiene otros datos. Actualiza la atención.',
@@ -160,12 +163,12 @@
         }
         if(selected&&selected.context.currentPropertyId!==active?.sheet.propertyId){
           status('El inmueble de esta atención cambió. Pulsa Actualizar para revisar su ficha.');
-        }else if(selected?.inbox?.count>previousCount){
+        }else if(selected&&(selected.inbox?.count>previousCount||selected.version!==active.conversation.version||selected.response?.count!==active.response?.count)){
           const conversationId=selected.id,next=await agentApi('inspect',{conversationId});
           if(epoch!==pollEpoch||scope!==noticeScope||busy||active?.conversation.id!==conversationId)return;
-          active.messages=next.messages;active.journal=next.journal;renderMessages(next.messages);
-          if(JSON.stringify(next.conversation.context)===JSON.stringify(active.conversation.context)&&next.conversation.invitation?.tokenHash===active.conversation.invitation?.tokenHash)active.conversation=next.conversation;
-          markVisibleMessagesRead();
+          active.messages=next.messages;active.journal=next.journal;active.response=next.response;renderMessages(next.messages);
+          if(JSON.stringify({...next.conversation.context,preferredChannel:null})===JSON.stringify({...active.conversation.context,preferredChannel:null})&&next.conversation.invitation?.tokenHash===active.conversation.invitation?.tokenHash)active.conversation=next.conversation;
+          renderResponseStatus();markVisibleMessagesRead();
         }
       }else{
         const data=guestSecret?await api('/guest/view',{token,secret:guestSecret},false):await api('/customer/view',{token});
@@ -215,7 +218,7 @@
     updateSoundButton();
   }
   function closeDialog(name) { $(name + '-dialog').close(); }
-  const draftFields = ['message', 'summary', 'next-action', 'due-date', 'reply-preset'];
+  const draftFields = ['message', 'summary', 'next-action', 'due-date', 'reply-preset', 'external-result', 'external-channel', 'attention-followup-result'];
   function saveDraft() {
     if (!active?.conversation || !activeOrganization) return;
     conversationDrafts.set(activeOrganization + '/' + active.conversation.id, {
@@ -295,6 +298,16 @@
   async function list() {
     const items = await agentApi('list');renderInbox(items);
   }
+  function renderResponseStatus(){
+    if(!active?.conversation)return;
+    const current=active.conversation,response=alerts.responseStats(active.messages||[]),own=current.agentUid===auth.currentUser?.uid;
+    $('response-status').textContent=(active.publicationActive===false?'Publicación inactiva; conserva la atención y ofrece alternativas. ':'')+(response.count?response.count+' mensaje(s) pendiente(s) de respuesta.':'Sin mensajes pendientes de respuesta.')+' Medio preferido: '+(channelNames[current.context.preferredChannel]||'sin preferencia registrada')+'. Enviar aquí solo registra el mensaje en Synapse.';
+    $('external-reply').hidden=!response.count||!own;
+    activeFollowup=(active.journal||[]).filter(e=>e.nextAction&&!['message_recorded','reservation_registered'].includes(e.kind)).sort((a,b)=>(a.sequence||0)-(b.sequence||0)||String(a.recordedAt).localeCompare(String(b.recordedAt))||String(a.id).localeCompare(String(b.id))).at(-1);
+    const pending=activeFollowup?.nextAction.status==='pending'&&!(activeFollowup.kind==='attention_started'&&((active.messages||[]).some(m=>m.actorRole==='agent')||current.externalReply));
+    $('attention-followup').hidden=!own||!pending||response.count>0;
+    $('attention-followup-text').textContent=pending?activeFollowup.nextAction.description:'';
+  }
   async function inspect(conversationId) {
     const next = await agentApi('inspect', {conversationId});
     const changing = activeOrganization !== $('organization').value || active?.conversation.id !== next.conversation.id;
@@ -319,7 +332,7 @@
     $('interest').value = current.context.currentPropertyId;
     $('contact-name').value = current.context.displayName; $('contact-surname').value = current.context.surname; $('contact-phone').value = current.context.phone;
     if(window.SynapseWorkspace){try{$('agent-contact-whatsapp').href=window.SynapseWorkspace.whatsappUrl(current.context.phone);$('agent-contact-whatsapp').hidden=false;}catch{$('agent-contact-whatsapp').removeAttribute('href');$('agent-contact-whatsapp').hidden=true;}}
-    renderSheet(active.sheet); renderMessages(active.messages);
+    renderSheet(active.sheet); renderMessages(active.messages);renderResponseStatus();$('agent-preferred-channel').value=current.context.preferredChannel||'synapse';
     $('observed').textContent = 'Catálogo consultado: ' + new Date(active.observedAt).toLocaleString('es-MX', {timeZone: 'America/Mexico_City'});
     $('journal').replaceChildren(); active.journal.sort((a, b) => b.recordedAt.localeCompare(a.recordedAt)).forEach(entry => $('journal').append(node('div', entry.summary + (entry.nextAction ? '\nSiguiente acción: ' + entry.nextAction.description : ''), 'journal')));
     quickReplies = window.SynapseQuickReplies.forProperty(active.sheet, $('reserve-link').href);
@@ -370,6 +383,9 @@
       $('capture').reset(); $('share-text').value = ''; await list(); await inspect(result.conversationId); closeDialog('capture'); status('Atención guardada con su primera entrada de bitácora.');
     });});
     $('change-interest').addEventListener('click', () => run(async () => {await mutate('interest', {propertyId: $('interest').value, expectedVersion: active.conversation.version}); status('Inmueble actualizado. Se conserva el origen de la atención.');}));
+    $('save-preferred-channel').addEventListener('click',()=>run(async()=>{await mutate('channel',{preferredChannel:$('agent-preferred-channel').value,expectedVersion:active.conversation.version});status('Medio preferido guardado. Los envíos por otras aplicaciones se realizan por separado.');}));
+    $('record-external-reply').addEventListener('click',()=>run(async()=>{const response=alerts.responseStats(active.messages||[]);await mutate('external-reply',{incomingId:response.lastIncomingId,channel:$('external-channel').value,result:$('external-result').value});$('external-result').value='';status('Respuesta externa registrada en la bitácora. No equivale a una comprobación de entrega.');}));
+    $('complete-attention-followup').addEventListener('click',()=>run(async()=>{if(!activeFollowup)return;await mutate('complete-action',{actionId:activeFollowup.id,result:$('attention-followup-result').value});$('attention-followup-result').value='';status('Seguimiento cerrado con resultado. Se conserva en la bitácora.');}));
     $('save-contact').addEventListener('click', () => run(async () => {const result=await mutate('contact', {displayName: $('contact-name').value, surname: $('contact-surname').value, phone: $('contact-phone').value, expectedVersion: active.conversation.version}); if(result.invitationInvalidated)$('share-text').value = ''; status(result.invitationInvalidated?'Contacto actualizado. El acceso vinculado al teléfono cambió; prepara un nuevo enlace.':result.guestContinuityPreserved?'Datos guardados. El enlace de invitado conserva su vigencia original; el teléfono sigue sin verificar.':'Contacto actualizado. Se conserva el estado de acceso existente.');}));
     $('conditions').addEventListener('click', () => run(async () => {await mutate('conditions', {expectedVersion: active.conversation.version}); status('Requisitos y condiciones habilitados para esta atención.');}));
     $('invite').addEventListener('click', () => run(async () => {
@@ -403,6 +419,7 @@
         stopPolling();
         visitUI?.reset();
         $('agent-contact-whatsapp').hidden=true;$('agent-contact-whatsapp').href='';
+        activeFollowup=null;$('response-status').textContent='';$('attention-followup-text').textContent='';$('agent-preferred-channel').value='synapse';$('external-reply').hidden=true;$('attention-followup').hidden=true;
         active = null; activeOrganization = ''; catalog = []; quickReplies = []; pending.clear(); conversationDrafts.clear(); inboxButtons.clear();
         document.body.classList.remove('operator-ready', 'show-inbox');
         for (const name of ['capture', 'report']) if ($(name + '-dialog').open) closeDialog(name);
@@ -414,9 +431,11 @@
       (async () => {
         try {
           const session = await api('/agent/session'); options($('organization'), session.organizations);
+          const params=typeof URLSearchParams==='function'?new URLSearchParams(location.search):null;
+          if(params?.get('organization')){if(!session.organizations.some(o=>o.id===params.get('organization')))throw Error('ORGANIZATION_FORBIDDEN');$('organization').value=params.get('organization');}
           if (!session.organizations.length) {$('workspace').hidden = true; status('Tu cuenta aún no tiene una organización autorizada para Atención.', true); return;}
           document.body.classList.add('operator-ready'); if (!active) document.body.classList.add('show-inbox');
-          setNoticeScope(user.uid+'/'+$('organization').value);await refresh();startPolling();if(typeof URLSearchParams==='function'&&new URLSearchParams(location.search).get('new')==='1')$('capture-dialog').showModal(); status('Sesión activa. Puedes capturar una atención.');
+          setNoticeScope(user.uid+'/'+$('organization').value);await refresh();if(params?.get('conversation')){await inspect(params.get('conversation'));if(params.get('panel')==='journal')selectPanel('journal');}startPolling();if(typeof URLSearchParams==='function'&&new URLSearchParams(location.search).get('new')==='1')$('capture-dialog').showModal(); status('Sesión activa. Puedes capturar una atención.');
         } catch (error) {status(errors[error.message] || 'No se pudo cargar la sesión de Atención.', true);}
       })();
     });
@@ -445,12 +464,18 @@
     renderSheet(data.sheet); renderMessages(data.messages); $('verification').hidden = true; $('customer-chat').hidden = false;
     observeCustomerMessages(data);startPolling();
     $('access-state').textContent = guestSecret ? 'Invitado · sin registro. Tu identidad no está verificada. Continúa desde este navegador.' : 'Acceso con teléfono verificado.';
-    renderCustomerConditions(data.conditions);
+    renderCustomerConditions(data.conditions);$('customer-preferred-channel').value=data.preferredChannel||'synapse';
     return true;
   }
   async function setupCustomer() {
     const data = await api('/invitation/preview', {token}, false); renderSheet(data.sheet);
     if(alerts){const digest=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(token));setNoticeScope('customer/'+Array.from(new Uint8Array(digest),byte=>byte.toString(16).padStart(2,'0')).join(''));}
+    $('save-customer-channel').addEventListener('click',()=>run(async()=>{
+      const preferredChannel=$('customer-preferred-channel').value;
+      if(guestSecret&&!guestJoined){await command('/guest/open',{token,secret:guestSecret},true,false);guestJoined=true;}
+      await command(guestSecret?'/guest/channel':'/customer/channel',{token,...(guestSecret?{secret:guestSecret}:{}),preferredChannel},true,!guestSecret);
+      await refreshCustomer();status('Tu preferencia quedó guardada: '+channelNames[preferredChannel]+'. Tu asesor podrá verla.');
+    }));
     $('refresh-customer').addEventListener('click', () => run(refreshCustomer));
     $('message-form').addEventListener('submit', event => {event.preventDefault(); run(async () => {
       if (guestSecret) {
