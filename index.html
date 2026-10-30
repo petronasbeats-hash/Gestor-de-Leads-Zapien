@@ -401,9 +401,10 @@
         <textarea id="p-descripcion" placeholder="Descripción del inmueble (amenidades, estado, notas de venta)" style="width:100%;background:var(--bg);border:1px solid var(--line);color:var(--text);padding:9px 11px;border-radius:6px;font-size:13.5px;margin-top:8px;min-height:60px;resize:vertical;"></textarea>
         <textarea id="p-fotos" placeholder="Links de fotos, uno por línea (ej. https://...) — o sube directo abajo" style="width:100%;background:var(--bg);border:1px solid var(--line);color:var(--text);padding:9px 11px;border-radius:6px;font-size:13.5px;margin-top:8px;min-height:50px;resize:vertical;"></textarea>
         <div style="margin-top:8px;">
-          <label class="btn btn-sm" for="p-fotos-file" style="display:inline-block;cursor:pointer;">📷 Subir fotos desde tu celular/PC</label>
-          <input type="file" id="p-fotos-file" accept="image/*" multiple style="display:none;">
-          <span id="p-fotos-upload-status" class="cita-meta" style="margin-left:8px;"></span>
+          <label for="p-fotos-file" style="display:block;font-size:13px;margin-bottom:6px;">Seleccionar fotos del inmueble</label>
+          <input type="file" id="p-fotos-file" accept="image/*" multiple aria-describedby="p-fotos-help p-fotos-upload-status" style="display:block;width:100%;background:var(--bg);border:1px solid var(--line);color:var(--text);padding:10px;border-radius:6px;font-size:14px;cursor:pointer;">
+          <p id="p-fotos-help" class="cita-meta" style="margin:8px 0 0;">Elige tus fotos en el selector de archivos. Espera a que aparezcan las miniaturas y después pulsa Guardar cambios para agregarlas a la ficha.</p>
+          <span id="p-fotos-upload-status" class="cita-meta" role="status" aria-live="polite" style="display:block;margin-top:8px;"></span>
         </div>
         <div class="cita-meta" style="margin-top:8px;">PHOTO DIRECTOR · La primera foto será la portada. Orden sugerido: portada/vista general → segunda perspectiva → atributo diferenciador → baño/equipamiento → detalles → amenidades/contexto. Usa “Portada” y las flechas para ajustar el orden antes de guardar.</div>
         <div id="p-fotos-thumbs" style="display:flex;gap:10px;flex-wrap:wrap;margin-top:8px;"></div>
@@ -2367,11 +2368,12 @@ document.getElementById('p-fotos').addEventListener('input', ()=>{ normalizePhot
 document.getElementById('p-fotos-file').addEventListener('change', async (e)=>{
   const files = Array.from(e.target.files || []);
   if(!files.length) return;
-  if(!storage){ alert('Firebase Storage no está disponible.'); return; }
-  if(!auth.currentUser){ alert('Tu sesión se cerró, vuelve a iniciar sesión.'); return; }
   const statusEl = document.getElementById('p-fotos-upload-status');
+  if(!storage){ statusEl.textContent='No se pueden cargar fotos: el almacenamiento no está disponible. Recarga la página e inténtalo de nuevo.'; e.target.value=''; return; }
+  if(!auth.currentUser){ statusEl.textContent='Tu sesión se cerró. Vuelve a iniciar sesión para cargar fotos.'; e.target.value=''; return; }
   const existing = document.getElementById('p-fotos').value.split('\n').map(s=>s.trim()).filter(Boolean);
-  let done = 0;
+  let done = 0, failed = 0;
+  const errors=[];
   statusEl.textContent = `Subiendo 0/${files.length}…`;
   for(const file of files){
     try{
@@ -2387,10 +2389,11 @@ document.getElementById('p-fotos-file').addEventListener('change', async (e)=>{
       document.getElementById('p-fotos').value = existing.join('\n');
       renderFotosThumbs();
     }catch(err){
-      alert(`No se pudo subir "${file.name}".\n\nError: ${err.message}`);
+      failed++;
+      errors.push(`No se pudo subir "${file.name}": ${err.message || 'revisa tu conexión o permisos de carga'}`);
     }
   }
-  statusEl.textContent = done ? `${done} foto(s) subida(s) ✓` : '';
+  statusEl.textContent = [done ? `${done} de ${files.length} foto(s) cargadas. Pulsa Guardar cambios para agregarlas a la ficha.` : 'No se cargó ninguna foto.',failed ? errors.join(' · ') : ''].filter(Boolean).join(' ');
   e.target.value = '';
 });
 
