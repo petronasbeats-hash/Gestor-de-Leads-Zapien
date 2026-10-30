@@ -1,12 +1,11 @@
 <!DOCTYPE html>
-<html lang="es">
-<head>
+<html lang="es" data-theme="light">
+<head><script src="/web/theme/theme-engine.js"></script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>Synapse Core — Iré Inmobiliaria</title>
 <link rel="manifest" href="data:application/manifest+json,{}">
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600;700&display=swap');
 
   :root{
     --bg:#0a0d0c; --bg-panel:#111613; --bg-panel-2:#161c18; --line:#223028;
@@ -203,8 +202,8 @@
   .cal-dot.est-no_asistio,.cal-dot.est-cancelada{background:var(--red);}
   .cal-more{font-size:10px;color:var(--muted);margin-top:2px;}
 </style>
-</head>
-<body>
+<link rel="stylesheet" href="/web/shell/navigation.css"><script src="/web/shell/navigation.js" defer></script><script src="/web/shell/admin-navigation.js" defer></script><link rel="stylesheet" href="/web/theme/theme.css"><link rel="stylesheet" href="/web/agenda/weekly-hours.css"></head>
+<body class="synapse-app" data-surface="admin"><div id="synapse-shell"></div>
 
 <div class="login-wrap" id="login-wrap">
   <div class="login-box">
@@ -230,18 +229,27 @@
 <div class="app" id="app-root" style="display:none;">
   <header>
     <div class="eyebrow"><span class="dot"></span>SYNAPSE CORE · IRÉ INMOBILIARIA · TEHUACÁN, PUE.</div>
-    <h1>Synapse Core</h1>
-    <div class="sub">Pipeline de 9 etapas, con checklist de calidad y bitácora por lead.</div>
+    <h1 id="admin-module-title">Configuración</h1>
+    <div class="sub" id="admin-module-description">Herramientas de administración de Synapse.</div>
     <div id="sync-status" class="mono">
       <span id="sync-status-text">conectando…</span>
       <button class="btn btn-sm" id="btn-logout">Cerrar sesión</button>
     </div>
     <div class="view-tabs">
-      <button class="view-tab active" id="view-tab-leads">📋 Leads</button>
+      <a class="view-tab" href="/radar" style="text-decoration:none;">◉ Radar</a>
+      <a class="view-tab" href="/directorio" style="text-decoration:none;">👤 Directorio</a>
+      <a class="view-tab" href="/agenda" style="text-decoration:none;">🗓️ Agenda</a>
+      <button class="view-tab active" id="view-tab-leads">📋 Pipeline anterior</button>
       <button class="view-tab" id="view-tab-citas">📅 Citas</button>
+      <a class="view-tab" href="/atencion-operador" style="text-decoration:none;">💬 Atención</a>
     </div>
   </header>
 
+  <section id="configuration-home" hidden>
+    <h2>Tu espacio de trabajo</h2><p>Las tareas del día están en Radar. Aquí encuentras las herramientas de administración.</p>
+    <div class="settings-grid"><a href="/agenda/horarios"><strong>Horarios y bloqueos</strong><small>Configura cuándo se pueden reservar visitas y bloquea los periodos ocupados.</small></a><a href="/inmuebles"><strong>Catálogo de inmuebles</strong><small>Gestiona fichas, fotografías, precios y publicaciones.</small></a><a href="/reservar" target="_blank" rel="noopener noreferrer"><strong>Vista del cliente ↗</strong><small>Revisa el catálogo público y el proceso de reserva.</small></a></div>
+    <details class="settings-secondary"><summary>Herramientas anteriores y respaldo</summary><p>Consulta el panel anterior para exportar o importar respaldos y revisar registros históricos. El Directorio y Agenda son los accesos de operación diaria.</p><a href="/administracion?legacy=1">Abrir panel anterior</a></details>
+  </section>
   <div id="leads-view">
     <div class="dash" id="dash"></div>
 
@@ -310,17 +318,17 @@
         <h2 class="mono" style="font-size:14px;color:var(--green);margin:0 0 12px;">Horario semanal</h2>
         <div id="horario-editor"></div>
         <div class="field"><label>Duración de cada cita (minutos)</label>
-          <select id="a-duracion"><option value="30">30 min</option><option value="60">60 min</option><option value="90">90 min</option></select>
+          <select id="a-duracion"><option value="15">15 min</option><option value="30">30 min</option><option value="45">45 min</option><option value="60">60 min</option><option value="90">90 min</option></select>
         </div>
         <div class="row2" style="grid-template-columns:1fr 1fr;">
           <div class="field" style="margin-bottom:0;"><label>Velocidad promedio de traslado (km/h)</label>
             <input type="number" id="a-velocidad" value="25" min="5" max="120">
           </div>
           <div class="field" style="margin-bottom:0;"><label>Margen extra por parada (min)</label>
-            <input type="number" id="a-buffer" value="10" min="0" max="60">
+            <input type="number" id="a-buffer" value="10" min="0" max="120">
           </div>
         </div>
-        <div class="sub" style="margin:8px 0 0;">Con esto se calcula el tiempo de traslado real entre propiedades y se deshabilitan automáticamente los horarios que no den tiempo de llegar a la siguiente cita.</div>
+        <div class="sub" style="margin:8px 0 0;">Con esto se estima el tiempo de traslado entre propiedades y se deshabilitan automáticamente los horarios que no den tiempo de llegar a la siguiente cita.</div>
         <button class="btn btn-primary btn-sm" id="btn-save-horario" style="margin-top:10px;">Guardar horario</button>
       </div>
 
@@ -337,9 +345,9 @@
     <div class="tab-panel" data-tab-panel="propiedades">
       <div class="card">
         <h2 class="mono" style="font-size:14px;color:var(--green);margin:0 0 12px;">Propiedades</h2>
-        <div class="sub" style="margin-bottom:12px;">Administra las propiedades disponibles que aparecen en Agenda/Reservar. Las unidades ADN ya heredan su ubicación validada; no necesitas volver a capturar coordenadas al editar fotos.</div>
-        <div id="propiedades-list"></div>
-        <div id="adn-intake-card" style="margin:12px 0;padding:12px;border:1px solid var(--green);border-radius:8px;background:var(--green-dim);">
+        <div class="sub" style="margin-bottom:12px;">Administra las fichas y publicaciones del catálogo de Reservar. Las unidades ADN ya heredan su ubicación validada; no necesitas volver a capturar coordenadas al editar fotos.</div>
+        <div id="inventory-overview" class="inventory-overview"></div><div class="inventory-toolbar"><label>Buscar en inventario<input id="inventory-search" type="search" placeholder="Nombre, dirección o unidad"></label><label>Estado del inmueble<select id="inventory-filter"><option value="">Todo el inventario</option><option value="disponible">Disponibles</option><option value="en_contrato">En contrato de alquiler</option><option value="mantenimiento">En mantenimiento</option><option value="por_confirmar">Por confirmar</option></select></label></div><p id="inventory-message" role="status" aria-live="polite" class="sub"></p><div class="property-workbench"><div class="property-catalog"><div id="propiedades-list"></div>
+        <details class="settings-secondary"><summary>Herramienta de importación ADN</summary><div id="adn-intake-card" style="margin:12px 0;padding:12px;border:1px solid var(--green);border-radius:8px;background:var(--green-dim);">
           <div class="mono" style="font-size:12px;color:var(--green);font-weight:700;">ADN SUITES & STUDIOS · ALTA ASISTIDA</div>
           <div class="sub" style="margin:6px 0 10px;">Lote inicial de 9 unidades publicadas en Facebook. La importación no sobrescribe ni duplica unidades ADN existentes.</div>
           <button class="btn btn-primary btn-sm" id="btn-adn-intake-preview">Revisar lote ADN</button>
@@ -347,6 +355,7 @@
           <div id="adn-intake-status" class="cita-meta" style="margin-top:8px;"></div>
         </div>
         
+        </details></div><details id="property-editor" class="settings-secondary"><summary id="property-editor-title">＋ Agregar inmueble</summary>
         <div class="row2" style="grid-template-columns:1.4fr 1fr 1fr;margin-top:10px;">
           <input type="text" id="p-nombre" placeholder="Nombre / dirección corta">
           <input type="text" id="p-lat" placeholder="Latitud (ej. 18.4625)">
@@ -392,9 +401,10 @@
         <textarea id="p-descripcion" placeholder="Descripción del inmueble (amenidades, estado, notas de venta)" style="width:100%;background:var(--bg);border:1px solid var(--line);color:var(--text);padding:9px 11px;border-radius:6px;font-size:13.5px;margin-top:8px;min-height:60px;resize:vertical;"></textarea>
         <textarea id="p-fotos" placeholder="Links de fotos, uno por línea (ej. https://...) — o sube directo abajo" style="width:100%;background:var(--bg);border:1px solid var(--line);color:var(--text);padding:9px 11px;border-radius:6px;font-size:13.5px;margin-top:8px;min-height:50px;resize:vertical;"></textarea>
         <div style="margin-top:8px;">
-          <label class="btn btn-sm" for="p-fotos-file" style="display:inline-block;cursor:pointer;">📷 Subir fotos desde tu celular/PC</label>
-          <input type="file" id="p-fotos-file" accept="image/*" multiple style="display:none;">
-          <span id="p-fotos-upload-status" class="cita-meta" style="margin-left:8px;"></span>
+          <label for="p-fotos-file" style="display:block;font-size:13px;margin-bottom:6px;">Seleccionar fotos del inmueble</label>
+          <input type="file" id="p-fotos-file" accept="image/*" multiple aria-describedby="p-fotos-help p-fotos-upload-status" style="display:block;width:100%;background:var(--bg);border:1px solid var(--line);color:var(--text);padding:10px;border-radius:6px;font-size:14px;cursor:pointer;">
+          <p id="p-fotos-help" class="cita-meta" style="margin:8px 0 0;">Elige tus fotos en el selector de archivos. Espera a que aparezcan las miniaturas y después pulsa Guardar cambios para agregarlas a la ficha.</p>
+          <span id="p-fotos-upload-status" class="cita-meta" role="status" aria-live="polite" style="display:block;margin-top:8px;"></span>
         </div>
         <div class="cita-meta" style="margin-top:8px;">PHOTO DIRECTOR · La primera foto será la portada. Orden sugerido: portada/vista general → segunda perspectiva → atributo diferenciador → baño/equipamiento → detalles → amenidades/contexto. Usa “Portada” y las flechas para ajustar el orden antes de guardar.</div>
         <div id="p-fotos-thumbs" style="display:flex;gap:10px;flex-wrap:wrap;margin-top:8px;"></div>
@@ -402,7 +412,7 @@
         <div id="p-edit-banner" class="cita-meta" style="display:none;color:var(--amber);margin-top:8px;">✏️ Editando propiedad existente — se actualizará el mismo registro, no se creará una nueva.</div>
         <button class="btn btn-sm" id="btn-apply-adn-photo-meta" style="margin-top:8px;display:none;">✨ Aplicar descripciones ADN</button>
         <button class="btn btn-primary btn-sm" id="btn-add-propiedad" style="margin-top:8px;">+ Agregar propiedad</button>
-        <button class="btn btn-sm" id="btn-cancel-edit-prop" style="margin-top:8px;margin-left:8px;display:none;">Cancelar edición</button>
+        <button class="btn btn-sm" id="btn-cancel-edit-prop" style="margin-top:8px;margin-left:8px;display:none;">Cancelar edición</button></details></div>
       </div>
     </div>
 
@@ -565,6 +575,9 @@
   </div>
 </div>
 
+<script src="shared/reservation-reference.js"></script>
+<script src="/shared/property-inventory.js"></script><script src="/shared/workspace-model.js"></script><script src="/shared/weekly-hours.js"></script><script src="/web/agenda/weekly-hours.js"></script>
+<script src="/shared/public-slot-claim.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
@@ -887,12 +900,19 @@ function backfillIndiceTelefonos(){
 }
 
 function saveLead(id, data){
-  return db.ref('leads/'+id).set(data).then(()=>{
+  return db.ref('leads/'+id).transaction(current=>{
+    if(!current)return data;
+    const merged={...current,...data,bitacora:{...current.bitacora,...data.bitacora}};
+    if(current._synapse)merged._synapse={...current._synapse,version:(current._synapse.version||0)+1,updatedAt:new Date().toISOString()};
+    return merged;
+  },undefined,false).then(()=>{
     const tn = normalizarTelefono(data.telefono);
     if(tn) db.ref('telefonos_index/'+tn).set(id).catch(()=>{});
   });
 }
 function deleteLeadRemote(id){
+  const metadata=leads[id]?._synapse;
+  if(Object.keys(metadata?.operaciones||{}).length||Object.keys(metadata?.operationRefs||{}).length)return Promise.reject(Error('CONTACT_HAS_OPERATIONS'));
   const tel = leads[id] && leads[id].telefono;
   const relId = leads[id] && leads[id].leadRelacionadoId;
   return db.ref('leads/'+id).remove().then(()=>{
@@ -920,8 +940,9 @@ function isOverdue(lead){
   return lead.fechaProximaAccion < todayStr();
 }
 
+function isCommercialContact(contact){return !contact._synapse?.categorias||contact._synapse.categorias.some(c=>c==='prospecto'||c==='cliente');}
 function renderDash(){
-  const all = Object.values(leads);
+  const all = Object.values(leads).filter(isCommercialContact);
   const activos = all.filter(l=>l.etapa!=='ganado' && l.etapa!=='perdido').length;
   const vencidos = all.filter(isOverdue).length;
   const now = new Date();
@@ -970,6 +991,7 @@ function renderList(){
 
   let arr = Object.entries(leads).map(([id,l])=>({id,...l}));
   arr = arr.filter(l=>{
+    if(!isCommercialContact(l)) return false;
     if(search && !(`${l.nombre||''} ${l.telefono||''}`.toLowerCase().includes(search))) return false;
     if(filterEtapa && l.etapa !== filterEtapa) return false;
     if(filterOperacion && (l.operacion||'Compra') !== filterOperacion) return false;
@@ -1222,6 +1244,8 @@ document.getElementById('btn-save').addEventListener('click', ()=>{
 
 document.getElementById('btn-delete').addEventListener('click', ()=>{
   if(!currentLeadId) return;
+  const metadata=leads[currentLeadId]?._synapse;
+  if(Object.keys(metadata?.operaciones||{}).length||Object.keys(metadata?.operationRefs||{}).length){alert('Este contacto está vinculado a operaciones. Conserva su ficha y gestiona sus relaciones desde Contactos.');return;}
   if(confirm('¿Eliminar este lead? Esta acción no se puede deshacer. Si está perdido, mejor déjalo archivado en vez de borrarlo.')){
     deleteLeadRemote(currentLeadId).then(closeModal);
   }
@@ -1298,6 +1322,22 @@ document.getElementById('import-file').addEventListener('change', (e)=>{
 const DAY_KEYS = ["dom","lun","mar","mie","jue","vie","sab"];
 const DAY_LABELS = {dom:"Domingo",lun:"Lunes",mar:"Martes",mie:"Miércoles",jue:"Jueves",vie:"Viernes",sab:"Sábado"};
 const ESTADOS_CITA = { hold:'HOLD temporal', pendiente:'Pendiente', confirmada:'Confirmada', realizada:'Realizada', no_asistio:'No asistió', cancelada:'Cancelada' };
+
+const RESULTADOS_VISITA = {
+  interesado: 'Interesado',
+  otra_opcion: 'Quiere otra opción',
+  seguimiento: 'Requiere seguimiento',
+  cerrado: 'Cerró',
+  no_interesado: 'No interesado'
+};
+
+const NEXT_ACTION_POR_RESULTADO = {
+  interesado: 'Dar seguimiento para avanzar',
+  otra_opcion: 'Buscar otra opción / generar match',
+  seguimiento: 'Contactar y dar seguimiento',
+  cerrado: 'Completar cierre y documentación',
+  no_interesado: 'Cerrar seguimiento'
+};
 // NEXT ACTION: cada estado de una cita implica una siguiente acción lógica que Synapse ya entiende,
 // aunque hoy todavía la ejecute una persona (ver /areas/ire-lead-tracker.md — filosofía Synapse Core).
 function registrarTraceCita(citaId, trace){
@@ -1414,82 +1454,36 @@ async function sincronizarLeadPorEstadoCita(cita, nuevoEstado){
   }
 }
 
+// Proyecta el resultado confirmado de una visita hacia el Lead.
+// La cita conserva la evidencia; el Lead recibe sólo la siguiente acción operacional.
+async function sincronizarLeadPorResultadoCita(cita, resultado){
+  if(!cita || !cita.leadId || !resultado) return;
+
+  const nextAction = NEXT_ACTION_POR_RESULTADO[resultado] || '';
+  if(!nextAction) return;
+
+  const snap = await db.ref('leads/'+cita.leadId).once('value');
+  const lead = snap.val();
+  if(!lead) return;
+
+  const propTxt = cita.propiedadNombre ? ` — ${cita.propiedadNombre}` : '';
+  const resultadoTxt = RESULTADOS_VISITA[resultado] || resultado;
+
+  await db.ref('leads/'+cita.leadId).update({
+    proximaAccion: `${nextAction}${propTxt}`,
+    fechaProximaAccion: todayStr()
+  });
+
+  await db.ref('leads/'+cita.leadId+'/bitacora/'+bitacoraKeyCitas())
+    .set(`Resultado de visita: ${resultadoTxt}${propTxt}. Próxima acción: ${nextAction}.`);
+}
+
 /* ---------- Horario semanal ---------- */
+let weeklyEditor;
 function renderHorarioEditor(cfg){
-  const editor = document.getElementById('horario-editor');
-  editor.innerHTML = DAY_KEYS.map(dk=>{
-    const cRaw = (cfg && cfg[dk]) || {activo: dk!=='dom' && dk!=='sab'};
-    const c = normalizarDia(cRaw);
-    const rangosHtml = c.rangos.map((r,i)=>`
-      <div class="row2 rango-row" data-day="${dk}" data-idx="${i}">
-        <span></span>
-        <input type="time" class="h-inicio" value="${r.inicio}">
-        <input type="time" class="h-fin" value="${r.fin}">
-        <button type="button" class="btn btn-sm btn-quitar-rango" style="color:var(--red);">✕</button>
-      </div>`).join('');
-    return `
-    <div class="day-group" data-day="${dk}" style="margin-bottom:14px;border-bottom:1px dashed var(--line);padding-bottom:10px;">
-      <label style="display:flex;align-items:center;gap:6px;font-size:12.5px;margin-bottom:6px;">
-        <input type="checkbox" data-day="${dk}" class="h-activo" ${c.activo?'checked':''}> ${DAY_LABELS[dk]}
-      </label>
-      <div class="rangos-list" data-day="${dk}">${rangosHtml}</div>
-      <button type="button" class="btn btn-sm btn-add-rango" data-day="${dk}" style="margin-top:4px;">+ Agregar franja (ej. tarde)</button>
-    </div>`;
-  }).join('');
-  document.getElementById('a-duracion').value = (cfg && cfg.duracionMin) || 30;
-  document.getElementById('a-velocidad').value = (cfg && cfg.velocidadKmH) || 25;
-  document.getElementById('a-buffer').value = (cfg && cfg.bufferMin) || 10;
-  attachHorarioEditorEvents();
+  if(!weeklyEditor)weeklyEditor=SynapseWeeklyEditor.mount({root:document.getElementById('horario-editor'),saveButton:document.getElementById('btn-save-horario'),db,getUid:()=>auth.currentUser?.uid,controls:{duracionMin:document.getElementById('a-duracion'),velocidadKmH:document.getElementById('a-velocidad'),bufferMin:document.getElementById('a-buffer')}});
+  weeklyEditor.receive(cfg);
 }
-function attachHorarioEditorEvents(){
-  document.querySelectorAll('.btn-add-rango').forEach(btn=>{
-    btn.addEventListener('click', ()=>{
-      const dk = btn.dataset.day;
-      const list = document.querySelector(`.rangos-list[data-day="${dk}"]`);
-      const idx = list.querySelectorAll('.rango-row').length;
-      const row = document.createElement('div');
-      row.className = 'row2 rango-row';
-      row.dataset.day = dk; row.dataset.idx = idx;
-      row.innerHTML = `
-        <span></span>
-        <input type="time" class="h-inicio" value="16:00">
-        <input type="time" class="h-fin" value="18:00">
-        <button type="button" class="btn btn-sm btn-quitar-rango" style="color:var(--red);">✕</button>`;
-      list.appendChild(row);
-      attachQuitarRango(row.querySelector('.btn-quitar-rango'));
-    });
-  });
-  document.querySelectorAll('.btn-quitar-rango').forEach(attachQuitarRango);
-}
-function attachQuitarRango(btn){
-  btn.addEventListener('click', ()=>{
-    const row = btn.closest('.rango-row');
-    const list = row.parentElement;
-    if(list.querySelectorAll('.rango-row').length <= 1){
-      alert('Cada día activo necesita al menos una franja de horario.');
-      return;
-    }
-    row.remove();
-  });
-}
-document.getElementById('btn-save-horario').addEventListener('click', ()=>{
-  const out = {
-    duracionMin: Number(document.getElementById('a-duracion').value),
-    velocidadKmH: Number(document.getElementById('a-velocidad').value) || 25,
-    bufferMin: Number(document.getElementById('a-buffer').value) || 10
-  };
-  DAY_KEYS.forEach(dk=>{
-    const activo = document.querySelector(`.h-activo[data-day="${dk}"]`).checked;
-    const rangos = [...document.querySelectorAll(`.rango-row[data-day="${dk}"]`)].map(row=>({
-      inicio: row.querySelector('.h-inicio').value,
-      fin: row.querySelector('.h-fin').value
-    }));
-    out[dk] = { activo, rangos };
-  });
-  db.ref('disponibilidad/horarios').set(out).then(()=>{
-    alert('Horario guardado.');
-  });
-});
 
 /* ---------- Carga de datos del panel ---------- */
 function loadAdminData(){
@@ -1527,6 +1521,30 @@ function loadAdminData(){
   });
 }
 
+
+/* ---------- Identidad operativa de propiedades ---------- */
+function propiedadNombreOperativo(p){
+  if(!p) return '';
+
+  const propertyName = String(p.propertyName || '').trim();
+  const unitNumber = String(p.unitNumber || '').trim();
+  const unitType = String(p.unitType || '').trim();
+
+  if(propertyName && unitNumber){
+    let tipo = unitType;
+
+    if(unitType.toLowerCase() === 'departamento'){
+      tipo = 'Depto';
+    }
+
+    return `${propertyName} · ${tipo ? tipo + ' ' : ''}${unitNumber}`;
+  }
+
+  return p.nombre || '(sin nombre)';
+}
+
+for(const id of ['inventory-filter','inventory-search'])document.getElementById(id).addEventListener(id==='inventory-search'?'input':'change',()=>renderPropiedadesAdmin(propiedades));
+
 /* ---------- Propiedad de interés dentro de la ficha del lead ---------- */
 function renderPropiedadLeadSelect(){
   const sel = document.getElementById('f-propiedad-lead');
@@ -1534,7 +1552,7 @@ function renderPropiedadLeadSelect(){
   const prevValue = sel.value;
   const activas = Object.entries(propiedades||{}).filter(([id,p])=>p.activo!==false);
   sel.innerHTML = `<option value="">Sin propiedad asignada</option>` +
-    activas.map(([id,p])=>`<option value="${id}">${propiedadFaltantes(p).length?'⚠ ':''}${escapeHtml(p.nombre||'(sin nombre)')}${p.precio?' · $'+Number(p.precio).toLocaleString('es-MX'):''}</option>`).join('');
+    activas.map(([id,p])=>`<option value="${id}">${propiedadFaltantes(p).length?'⚠ ':''}${escapeHtml(propiedadNombreOperativo(p))}${p.precio?' · $'+Number(p.precio).toLocaleString('es-MX'):''}</option>`).join('');
   if(prevValue && propiedades[prevValue]) sel.value = prevValue;
   renderPropiedadLeadPreview();
 }
@@ -1707,28 +1725,8 @@ function renderReservationRadar(citasObj){
   list.querySelectorAll('[data-radar-action="wa"]').forEach(btn=>btn.addEventListener('click',()=>{
     const c = arr.find(x=>x.id===btn.dataset.id); if(c) abrirWhatsAppParaCita(c);
   }));
-  list.querySelectorAll('[data-radar-action="convert-hold"]').forEach(btn=>btn.addEventListener('click',()=>{
-    const c = arr.find(x=>x.id===btn.dataset.id); if(!c || !confirm('¿El cliente confirmó? Este HOLD se convertirá en reserva registrada.')) return;
-    const clean = String(c.id||'').replace(/[^a-z0-9]/gi,'').toUpperCase();
-    const folio = 'RSV-' + clean.slice(-8);
-    const trace = registrarTraceCita(c.id,{tipo:'estado',anterior:'hold',nuevo:'pendiente',origen:'synapse'});
-    const updates={};
-    updates['citas/'+c.id+'/estado']='pendiente';
-    updates['citas/'+c.id+'/folio']=folio;
-    updates['citas/'+c.id+'/nextAction']='Confirmar reserva con el cliente';
-    updates['citas/'+c.id+'/historial/'+trace.traceId]=trace.entry;
-    updates['citas_publicas/'+c.fecha+'_'+c.hora+'/folio']=folio;
-    db.ref().update(updates).catch(err=>alert('No se pudo convertir el HOLD.\n\nError: '+err.message));
-  }));
-  list.querySelectorAll('[data-radar-action="release-hold"]').forEach(btn=>btn.addEventListener('click',()=>{
-    const c = arr.find(x=>x.id===btn.dataset.id); if(!c || !confirm('¿Liberar este HOLD? El horario volverá a estar disponible.')) return;
-    const trace = registrarTraceCita(c.id,{tipo:'estado',anterior:'hold',nuevo:'cancelada',origen:'synapse'});
-    const updates={};
-    updates['citas/'+c.id+'/estado']='cancelada';
-    updates['citas/'+c.id+'/nextAction']='HOLD liberado';
-    updates['citas/'+c.id+'/historial/'+trace.traceId]=trace.entry;
-    updates['citas_publicas/'+c.fecha+'_'+c.hora]=null;
-    db.ref().update(updates).catch(err=>alert('No se pudo liberar el HOLD.\n\nError: '+err.message));
+  for(const action of ['convert-hold','release-hold']) list.querySelectorAll('[data-radar-action="'+action+'"]').forEach(btn=>btn.addEventListener('click',()=>{
+    const c=arr.find(x=>x.id===btn.dataset.id); if(c) abrirEventoAgenda(c);
   }));
   list.querySelectorAll('[data-radar-action="citas"]').forEach(btn=>btn.addEventListener('click',()=>{
     const tab = document.querySelector('.admin-tab-btn[data-tab="citas"]'); if(tab) tab.click();
@@ -1769,7 +1767,7 @@ function propiedadFaltantes(p){
 
 function propertyPublicUrl(p){
   if(!p || !p.unitId) return null;
-  return 'https://gestor-leads-zapien.web.app/reservar.html?unidad='+encodeURIComponent(p.unitId);
+  return 'https://synapse-core.web.app/reservar?unidad='+encodeURIComponent(p.unitId);
 }
 function propertyShareMessage(p){
   const url=propertyPublicUrl(p);
@@ -1787,6 +1785,7 @@ function propertyShareMessage(p){
 }
 async function copyPropertyShare(p){
   if(!p || !p.unitId){ alert('Esta propiedad todavía no tiene un ID de unidad para generar su enlace directo.'); return; }
+  if(!SynapsePropertyInventory.canVisit(p)){alert('Este inmueble figura '+SynapsePropertyInventory.labels[SynapsePropertyInventory.state(p)].toLowerCase()+'. Revisa su estado antes de ofrecerlo.');return;}
   const confirmed = window.confirm('¿Confirmas que '+p.nombre+' está disponible actualmente?\n\nAceptar = copiar respuesta confirmando disponibilidad.\nCancelar = no copiar ni afirmar disponibilidad.');
   if(!confirmed) return;
   const msg=propertyShareMessage(p);
@@ -1796,9 +1795,12 @@ async function copyPropertyShare(p){
 }
 function renderPropiedadesAdmin(obj){
   const list = document.getElementById('propiedades-list');
-  const arr = Object.entries(obj).map(([id,p])=>({id,...p}));
+  const all = Object.entries(obj).map(([id,p])=>({id,...p}));
+  const filter=document.getElementById('inventory-filter').value,query=document.getElementById('inventory-search').value.trim().toLocaleLowerCase('es');
+  const arr=all.filter(p=>(!filter||SynapsePropertyInventory.state(p)===filter)&&(!query||[p.nombre,p.direccion,p.unitId,p.propertyName].filter(Boolean).join(' ').toLocaleLowerCase('es').includes(query)));
+  const overview=document.getElementById('inventory-overview');overview.replaceChildren();for(const [value,label]of Object.entries(SynapsePropertyInventory.labels)){const button=document.createElement('button');button.type='button';button.className='inventory-count';button.setAttribute('aria-pressed',String(filter===value));const count=all.filter(p=>SynapsePropertyInventory.state(p)===value).length;const strong=document.createElement('strong');strong.textContent=count;const copy=document.createElement('span');copy.textContent=label;button.append(strong,copy);button.addEventListener('click',()=>{document.getElementById('inventory-filter').value=filter===value?'':value;renderPropiedadesAdmin(propiedades);});overview.append(button);}
   if(arr.length === 0){
-    list.innerHTML = `<div class="empty">Sin propiedades registradas.</div>`;
+    list.innerHTML = `<div class="empty">${all.length?'No hay inmuebles para este filtro.':'Sin propiedades registradas.'}</div>`;
     actualizarAvisoPropiedadesIncompletas(0);
     return;
   }
@@ -1810,21 +1812,22 @@ function renderPropiedadesAdmin(obj){
     return `
     <div class="cita-item">
       <div>
-        <b>${escapeHtml(p.nombre)}</b> ${p.activo===false?'<span class="cita-meta">(inactiva)</span>':''}
+        <b>${escapeHtml(propiedadNombreOperativo(p))}</b> <span class="inventory-badge inventory-${SynapsePropertyInventory.state(p)}">${SynapsePropertyInventory.labels[SynapsePropertyInventory.state(p)]}</span><div class="cita-meta">${p.activo===false?'Sin publicar en Reservar':'Publicada en Reservar'}</div>
         <div class="cita-meta">${escapeHtml(p.direccion||'')}${(p.lat!=null&&p.lng!=null)?' · '+p.lat+', '+p.lng:' · sin coordenadas'}</div>
         <div class="cita-meta">${p.operacion?p.operacion+' · ':''}${p.precio ? '$' + escapeHtml(String(p.precio)) : 'Sin precio'}</div>
         ${faltantes.length ? `<div class="cita-meta" style="color:var(--amber);">⚠ Falta: ${faltantes.join(', ')}</div>` : `<div class="cita-meta" style="color:var(--green);">✓ Ficha completa</div>`}
       </div>
-      <div style="display:flex;gap:6px;">
+      <div class="inventory-actions"><label>Estado operativo<select data-inventory-id="${p.id}">${Object.entries(SynapsePropertyInventory.labels).map(([value,label])=>`<option value="${value}" ${value===SynapsePropertyInventory.state(p)?'selected':''}>${label}</option>`).join('')}</select></label><button type="button" class="btn btn-sm" data-action="save-inventory" data-id="${p.id}">Guardar estado</button>
         ${p.unitId?`<button class="btn btn-sm" data-action="share-prop" data-id="${p.id}">↗ Compartir</button>`:""}
         <button class="btn btn-sm" data-action="edit-prop" data-id="${p.id}">✏️ Editar</button>
-        <button class="btn btn-sm" data-action="toggle-prop" data-id="${p.id}">${p.activo===false?'Activar':'Desactivar'}</button>
+        <button class="btn btn-sm" data-action="toggle-prop" data-id="${p.id}">${p.activo===false?'Publicar':'Retirar publicación'}</button>
         <button class="btn btn-sm" data-action="del-prop" data-id="${p.id}" style="color:var(--red);">Eliminar</button>
       </div>
     </div>
   `;
   }).join('');
 
+  list.querySelectorAll('[data-action="save-inventory"]').forEach(button=>button.addEventListener('click',async()=>{const property=arr.find(p=>p.id===button.dataset.id),uid=auth.currentUser?.uid;if(!property||!uid)return;const picker=[...list.querySelectorAll('[data-inventory-id]')].find(p=>p.dataset.inventoryId===property.id);button.disabled=true;try{await SynapsePropertyInventory.save(db.ref('propiedades/'+property.id),property.inventario??null,picker.value,{uid,getUid:()=>auth.currentUser?.uid});document.getElementById('inventory-message').textContent='Estado guardado. El inmueble permanece en inventario.';}catch(error){document.getElementById('inventory-message').textContent=error.message||'No se pudo guardar el estado.';}finally{button.disabled=false;}}));
   list.querySelectorAll('[data-action="share-prop"]').forEach(btn=>{
     btn.addEventListener('click', ()=>{
       const p=arr.find(x=>x.id===btn.dataset.id);
@@ -2027,6 +2030,8 @@ function syncAdnPhotoMetaButton(){
 
 
 function cargarPropiedadEnFormulario(p){
+  document.getElementById('property-editor').open = true;
+  document.getElementById('property-editor-title').textContent = 'Editar ficha del inmueble';
   propEditingSnapshot = p;
   document.getElementById('p-edit-id').value = p.id;
   document.getElementById('p-nombre').value = p.nombre || '';
@@ -2065,6 +2070,7 @@ function cargarPropiedadEnFormulario(p){
 }
 
 function resetPropiedadForm(){
+  document.getElementById('property-editor-title').textContent = '＋ Agregar inmueble';
   propEditingSnapshot = null;
   document.getElementById('p-edit-id').value = '';
   document.getElementById('p-nombre').value = '';
@@ -2131,7 +2137,7 @@ function renderManualLeadSelect(){
   if(!sel) return;
   const prevVal = sel.value;
   const arr = Object.entries(leads||{})
-    .filter(([id,l])=>!['ganado','perdido'].includes(l.etapa))
+    .filter(([id,l])=>isCommercialContact(l))
     .sort((a,b)=>(a[1].nombre||'').localeCompare(b[1].nombre||''));
   sel.innerHTML = `<option value="">Cliente nuevo (sin lead existente)</option>` +
     arr.map(([id,l])=>`<option value="${id}">${escapeHtml(l.nombre||'(sin nombre)')}${l.telefono?' · '+escapeHtml(l.telefono):''}</option>`).join('');
@@ -2152,12 +2158,21 @@ function renderManualPropiedadSelect(){
   const prevVal = sel.value;
   const activas = Object.entries(propiedades).filter(([id,p])=>p.activo!==false);
   sel.innerHTML = `<option value="">Sin propiedad</option>` +
-    activas.map(([id,p])=>`<option value="${id}">${propiedadFaltantes(p).length?'⚠ ':''}${escapeHtml(p.nombre)}</option>`).join('');
+    activas.map(([id,p])=>{
+      const etiqueta = propiedadNombreOperativo(p) +
+        (p.precio ? ' · $' + Number(p.precio).toLocaleString('es-MX') : '');
+      return `<option value="${id}">${propiedadFaltantes(p).length?'⚠ ':''}${escapeHtml(etiqueta)}</option>`;
+    }).join('');
   if(activas.some(([id])=>id===prevVal)) sel.value = prevVal;
   const holdSel = document.getElementById('h-propiedad');
   if(holdSel){
     const holdPrev = holdSel.value;
-    holdSel.innerHTML = '<option value="">Sin propiedad</option>' + activas.map(([id,p])=>'<option value="'+id+'">'+(propiedadFaltantes(p).length?'⚠ ':'')+escapeHtml(p.nombre)+'</option>').join('');
+    holdSel.innerHTML = '<option value="">Sin propiedad</option>' +
+      activas.map(([id,p])=>{
+        const etiqueta = propiedadNombreOperativo(p) +
+          (p.precio ? ' · $' + Number(p.precio).toLocaleString('es-MX') : '');
+        return '<option value="'+id+'">'+(propiedadFaltantes(p).length?'⚠ ':'')+escapeHtml(etiqueta)+'</option>';
+      }).join('');
     if(activas.some(([id])=>id===holdPrev)) holdSel.value=holdPrev;
   }
 }
@@ -2195,6 +2210,18 @@ async function crearLeadDesdeCitaManual({nombre, telefono, fecha, hora, propieda
   return newLeadId;
 }
 
+async function apartarIntervaloManual(citaId,fecha,hora,marker){
+  const [hours,blocks]=await Promise.all([db.ref('disponibilidad/horarios').get(),db.ref('disponibilidad/bloqueos').get()]);
+  const cfg=hours.val();if(!cfg)throw Error('AVAILABILITY_UNAVAILABLE');
+  const start=SynapseWorkspace.minutes(hora),duration=Number(cfg.duracionMin)||30,end=start+duration;
+  if(end>=1440)throw Error('DURATION_REQUIRED');
+  const interval={date:fecha,start,end};
+  if((blocks.val()?.[fecha]||[]).some(t=>SynapseWorkspace.overlap(interval,{date:fecha,start:SynapseWorkspace.minutes(t),end:SynapseWorkspace.minutes(t)+duration})))throw Error('SLOT_NOT_AVAILABLE');
+  const keys=SynapseWorkspace.slotKeys({id:citaId,fecha,hora,horaFin:SynapseWorkspace.time(end),estado:'programado',bloqueaDisponibilidad:true},cfg);
+  await SynapsePublicSlot.claimInterval(db.ref('citas_publicas'),keys,marker,interval,duration);
+  return{duracionMin:duration,horaFin:SynapseWorkspace.time(end)};
+}
+
 document.getElementById('btn-add-hold')?.addEventListener('click', ()=>{
   const nombre=document.getElementById('h-nombre').value.trim();
   const origen=document.getElementById('h-origen').value;
@@ -2212,13 +2239,13 @@ document.getElementById('btn-add-hold')?.addEventListener('click', ()=>{
   const holdFolio='HLD-'+clean.slice(-8), creado=new Date().toISOString();
   const trace=registrarTraceCita(citaId,{tipo:'creacion',fecha:creado,origen:'synapse-hold'});
   const updates={};
-  updates['citas_publicas/'+slotFlagKey]={propiedadId:propiedadId||null,citaId,holdFolio,estado:'hold'};
   updates['citas/'+citaId]={holdFolio,nombre,telefono:'',notas,origen,propiedadId,propiedadNombre,fecha,hora,leadId:null,estado:'hold',nextAction:'Esperar / solicitar confirmación',manual:true,creado,historial:{[trace.traceId]:trace.entry}};
+  let apartadoRegistrado=false;
   const btn=document.getElementById('btn-add-hold'); btn.disabled=true; btn.textContent='Apartando…';
-  db.ref().update(updates).then(()=>{
+  apartarIntervaloManual(citaId,fecha,hora,{propiedadId:propiedadId||null,citaId,holdFolio,estado:'hold'}).then(interval=>{Object.assign(updates['citas/'+citaId],interval);return db.ref().update(updates).then(()=>{apartadoRegistrado=true;});}).then(()=>{
     ['h-nombre','h-fecha','h-hora','h-notas'].forEach(id=>document.getElementById(id).value='');
     document.getElementById('h-propiedad').value='';
-  }).catch(err=>alert('No se pudo crear el HOLD.\n\nError: '+err.message)).finally(()=>{btn.disabled=false;btn.textContent='🟠 Apartar temporalmente';});
+  }).catch(async err=>{if(apartadoRegistrado){alert('El apartado sí quedó registrado con folio '+holdFolio+'. No lo repitas.');return;}try{await SynapsePublicSlot.releaseInterval(db.ref('citas_publicas'),citaId);}catch{}alert('No se pudo crear el apartado. Revisa el horario.\n\n'+err.message);}).finally(()=>{btn.disabled=false;btn.textContent='🟠 Apartar temporalmente';});
 });
 
 document.getElementById('btn-add-manual').addEventListener('click', ()=>{
@@ -2237,14 +2264,18 @@ document.getElementById('btn-add-manual').addEventListener('click', ()=>{
 
   const slotFlagKey = `${fecha}_${hora}`;
   if(ocupados[slotFlagKey]){
-    if(!confirm('Ya hay una cita agendada en ese horario exacto. ¿Quieres agendar de todos modos (se guardará junto a la existente)?')) return;
+    alert('Ese horario ya está ocupado. Elige otro horario.'); return;
   }
 
   const btn = document.getElementById('btn-add-manual');
   btn.disabled = true; btn.textContent = 'Agendando…';
 
-  db.ref('citas_publicas/'+slotFlagKey).set({ propiedadId: propiedadId || null })
-    .then(()=>{
+  const citaId=db.ref('citas').push().key;
+  const folio=SynapseReservationReference.fromCitaId(citaId);
+  let intervalo, citaRegistrada=false;
+  apartarIntervaloManual(citaId,fecha,hora,{propiedadId:propiedadId||null,citaId,folio})
+    .then(result=>{
+      intervalo=result;
       // Si no eligió un lead existente, crea uno nuevo automáticamente (mismo criterio que la agenda pública).
       if(!leadId){
         return crearLeadDesdeCitaManual({nombre, telefono, fecha, hora, propiedadId, propiedadNombre, notas})
@@ -2252,11 +2283,11 @@ document.getElementById('btn-add-manual').addEventListener('click', ()=>{
       }
     })
     .then(()=>{
-      const citaId = db.ref('citas').push().key;
       const creado = new Date().toISOString();
       const trace = registrarTraceCita(citaId, { tipo: 'creacion', fecha: creado, origen: 'synapse' });
       const updates = {};
       updates['citas/'+citaId] = {
+        ...intervalo, folio,
         nombre, telefono, notas,
         propiedadId, propiedadNombre,
         fecha, hora,
@@ -2266,7 +2297,7 @@ document.getElementById('btn-add-manual').addEventListener('click', ()=>{
         creado,
         historial: { [trace.traceId]: trace.entry }
       };
-      return db.ref().update(updates);
+      return db.ref().update(updates).then(()=>{citaRegistrada=true;});
     })
     .then(()=> leadId ? sincronizarLeadPorNuevaCita(leadId, fecha, hora, propiedadNombre) : null)
     .then(()=>{
@@ -2278,8 +2309,10 @@ document.getElementById('btn-add-manual').addEventListener('click', ()=>{
       document.getElementById('m-hora').value = '';
       document.getElementById('m-notas').value = '';
     })
-    .catch(err=>{
-      alert('No se pudo agendar la cita manual.\n\nError: ' + err.message);
+    .catch(async err=>{
+      if(citaRegistrada){alert('La cita sí quedó registrada con folio '+folio+'. Revisa el seguimiento del contacto; no repitas la reserva.');return;}
+      try{await SynapsePublicSlot.releaseInterval(db.ref('citas_publicas'),citaId);}catch{}
+      alert('No se pudo agendar la cita manual. Revisa el horario.\n\n' + err.message);
     })
     .finally(()=>{
       btn.disabled = false; btn.textContent = '+ Agendar manualmente';
@@ -2335,11 +2368,12 @@ document.getElementById('p-fotos').addEventListener('input', ()=>{ normalizePhot
 document.getElementById('p-fotos-file').addEventListener('change', async (e)=>{
   const files = Array.from(e.target.files || []);
   if(!files.length) return;
-  if(!storage){ alert('Firebase Storage no está disponible.'); return; }
-  if(!auth.currentUser){ alert('Tu sesión se cerró, vuelve a iniciar sesión.'); return; }
   const statusEl = document.getElementById('p-fotos-upload-status');
+  if(!storage){ statusEl.textContent='No se pueden cargar fotos: el almacenamiento no está disponible. Recarga la página e inténtalo de nuevo.'; e.target.value=''; return; }
+  if(!auth.currentUser){ statusEl.textContent='Tu sesión se cerró. Vuelve a iniciar sesión para cargar fotos.'; e.target.value=''; return; }
   const existing = document.getElementById('p-fotos').value.split('\n').map(s=>s.trim()).filter(Boolean);
-  let done = 0;
+  let done = 0, failed = 0;
+  const errors=[];
   statusEl.textContent = `Subiendo 0/${files.length}…`;
   for(const file of files){
     try{
@@ -2355,10 +2389,11 @@ document.getElementById('p-fotos-file').addEventListener('change', async (e)=>{
       document.getElementById('p-fotos').value = existing.join('\n');
       renderFotosThumbs();
     }catch(err){
-      alert(`No se pudo subir "${file.name}".\n\nError: ${err.message}`);
+      failed++;
+      errors.push(`No se pudo subir "${file.name}": ${err.message || 'revisa tu conexión o permisos de carga'}`);
     }
   }
-  statusEl.textContent = done ? `${done} foto(s) subida(s) ✓` : '';
+  statusEl.textContent = [done ? `${done} de ${files.length} foto(s) cargadas. Pulsa Guardar cambios para agregarlas a la ficha.` : 'No se cargó ninguna foto.',failed ? errors.join(' · ') : ''].filter(Boolean).join(' ');
   e.target.value = '';
 });
 
@@ -2447,7 +2482,7 @@ function renderHorariosFantasma(){
   const el = document.getElementById('horarios-fantasma');
   if(!card || !el) return;
   const citasKeys = new Set(Object.values(ultimasCitas||{}).map(c=>`${c.fecha}_${c.hora}`));
-  const fantasmas = Object.keys(ocupados||{}).filter(k=> !citasKeys.has(k));
+  const fantasmas = Object.keys(ocupados||{}).filter(k=> /^\d{4}-\d{2}-\d{2}_\d{2}:\d{2}$/.test(k) && !ocupados[k]?.agenda && !citasKeys.has(k));
   card.style.display = fantasmas.length ? 'block' : 'none';
   if(fantasmas.length === 0) return;
   el.innerHTML = fantasmas.map(k=>{
@@ -2457,7 +2492,8 @@ function renderHorariosFantasma(){
   el.querySelectorAll('[data-action="liberar-fantasma"]').forEach(btn=>{
     btn.addEventListener('click', ()=>{
       if(!confirm('¿Liberar este horario? Vuelve a quedar disponible para agendar.')) return;
-      db.ref('citas_publicas/'+btn.dataset.key).remove();
+      alert('Revisa este bloqueo en Synapse Agenda. No se liberó automáticamente porque no tiene una referencia verificable.');
+      window.location.assign('/agenda');
     });
   });
 }
@@ -2485,7 +2521,9 @@ function buildContext(cita){
       id: cita.propiedadId || null,
       // Preferimos el nombre VIVO de la propiedad (por si se editó/renombró después);
       // si ya no existe (borrada) o nunca hubo propiedadId, caemos al nombre cacheado en la cita.
-      nombre: (propiedadViva && propiedadViva.nombre) || cita.propiedadNombre || null
+      nombre: propiedadViva
+        ? propiedadNombreOperativo(propiedadViva)
+        : (cita.propiedadNombre || null)
     },
     cita: { id: cita.id || null, fecha: cita.fecha, hora: cita.hora },
     estado: cita.estado || 'pendiente',
@@ -2513,6 +2551,8 @@ function abrirWhatsAppParaCita(cita){
   window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`,'_blank');
 }
 
+// Las mutaciones de agenda se concentran en el formulario con versión y control de ocupación.
+function abrirEventoAgenda(cita){window.location.assign('/agenda?event='+encodeURIComponent(cita.id));}
 function renderCitasList(citasObj){
   const list = document.getElementById('citas-list');
   const today = dateKey(new Date());
@@ -2542,22 +2582,9 @@ function renderCitasList(citasObj){
   `;
   }).join('');
 
-  list.querySelectorAll('[data-action="del"]').forEach(btn=>{
-    btn.addEventListener('click', ()=>{
-      const c = arr.find(x=>x.id===btn.dataset.id);
-      if(!confirm('¿Cancelar esta cita?')) return;
-      const estadoAnterior = c.estado || 'pendiente';
-      const trace = registrarTraceCita(c.id, { tipo: 'estado', anterior: estadoAnterior, nuevo: 'cancelada', origen: 'synapse' });
-      const updates = {};
-      updates['citas/'+c.id+'/estado'] = 'cancelada';
-      updates['citas/'+c.id+'/nextAction'] = NEXT_ACTION_POR_ESTADO.cancelada || 'Reprogramar';
-      updates['citas/'+c.id+'/historial/'+trace.traceId] = trace.entry;
-      updates['citas_publicas/'+c.fecha+'_'+c.hora] = null;
-      db.ref().update(updates)
-        .then(()=> sincronizarLeadPorEstadoCita(c, 'cancelada'))
-        .catch(err=> alert('No se pudo cancelar la cita.\n\nError: ' + err.message));
-    });
-  });
+  list.querySelectorAll('[data-action="del"]').forEach(btn=>btn.addEventListener('click',()=>{
+    const c=arr.find(x=>x.id===btn.dataset.id); if(c) abrirEventoAgenda(c);
+  }));
   list.querySelectorAll('[data-action="wa"]').forEach(btn=>{
     btn.addEventListener('click', ()=>{
       const c = arr.find(x=>x.id===btn.dataset.id);
@@ -2588,12 +2615,49 @@ function citaSeguimientoItemHtml(c){
           ${c.origen ? `<div class="cita-meta"><b>Origen:</b> ${escapeHtml(c.origen)}</div>` : ''}
           ${c.notas ? `<div class="cita-meta"><b>Solicitud:</b> ${escapeHtml(c.notas)}</div>` : ''}
           <div class="cita-meta" style="color:var(--amber);">→ Siguiente: ${escapeHtml(ctx.nextAction)}</div>
+          ${estadoActual === 'realizada' ? `
+            <div class="cita-meta" style="margin-top:8px;">
+              <b>Resultado de la visita:</b>
+              <select data-action="seg-resultado" data-id="${c.id}" style="margin-left:6px;">
+                <option value="">Pendiente de registrar</option>
+                ${Object.entries(RESULTADOS_VISITA).map(([val,label])=>`<option value="${val}" ${c.resultado===val?'selected':''}>${label}</option>`).join('')}
+              </select>
+            </div>
+          ` : ''}
         </div>
+        <button type="button" class="btn btn-sm" data-action="seg-reprogramar" data-id="${c.id}" style="margin:6px 0;">↻ Reprogramar</button>
         <select class="seg-estado est-${estadoActual}" data-action="seg-estado" data-id="${c.id}">
           ${Object.entries(ESTADOS_CITA).map(([val,label])=>`<option value="${val}" ${val===estadoActual?'selected':''}>${label}</option>`).join('')}
         </select>
       </div>
       ${telefonoValidoParaWhatsApp(ctx.persona.telefono) ? `<div style="margin-top:6px;"><button class="btn btn-sm" data-action="seg-wa" data-id="${c.id}">WhatsApp</button></div>` : ''}
+      <div class="cita-meta" style="margin-top:10px;">
+        <b>Inmueble:</b>
+        <div style="margin-top:6px;">
+          <select data-action="seg-propiedad" data-id="${c.id}" style="width:100%; max-width:100%; min-height:36px;">
+          <option value="">Sin inmueble</option>
+          ${Object.entries(propiedades)
+            .sort((a,b)=>propiedadNombreOperativo(a[1]).localeCompare(propiedadNombreOperativo(b[1])))
+            .map(([pid,p])=>{
+              const etiqueta = [
+                propiedadNombreOperativo(p) || pid,
+                p.precio ? '$' + Number(p.precio).toLocaleString('es-MX') : ''
+              ].filter(Boolean).join(' · ');
+              return `<option value="${pid}" ${c.propiedadId===pid?'selected':''}>${escapeHtml(etiqueta)}</option>`;
+            })
+            .join('')}
+          </select>
+        </div>
+        ${ctx.propiedad.id && propiedades[ctx.propiedad.id] ? `
+          <div style="margin-top:6px; line-height:1.45;">
+            <b>🏠 ${escapeHtml(propiedadNombreOperativo(propiedades[ctx.propiedad.id]))}</b>
+            ${propiedades[ctx.propiedad.id].category ? ` · ${escapeHtml(propiedades[ctx.propiedad.id].category)}` : ''}
+            ${propiedades[ctx.propiedad.id].precio ? ` · $${Number(propiedades[ctx.propiedad.id].precio).toLocaleString('es-MX')}` : ''}
+            ${propiedades[ctx.propiedad.id].direccion ? `<br>📍 ${escapeHtml(propiedades[ctx.propiedad.id].direccion)}` : ''}
+          </div>
+        ` : ''}
+      </div>
+
       <div class="seg-notas">
         ${notas.length ? notas.map(([nid,n])=>`<div class="seg-nota-item">🗒️ ${new Date(n.fecha).toLocaleString('es-MX',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})} — ${escapeHtml(n.texto)}</div>`).join('') : ''}
       </div>
@@ -2606,24 +2670,110 @@ function citaSeguimientoItemHtml(c){
 }
 
 function attachSeguimientoHandlers(container){
-  container.querySelectorAll('[data-action="seg-estado"]').forEach(sel=>{
+  container.querySelectorAll('[data-action="seg-resultado"]').forEach(sel=>{
     sel.addEventListener('change', ()=>{
       const id = sel.dataset.id;
       const cita = ultimasCitas[id];
-      const estadoAnterior = cita.estado || 'pendiente';
-      const estadoNuevo = sel.value;
-      if(estadoAnterior === estadoNuevo) return;
-      const trace = registrarTraceCita(id, { tipo: 'estado', anterior: estadoAnterior, nuevo: estadoNuevo, origen: 'synapse' });
+      if(!cita) return;
+      if(cita.origen==='synapse-agenda'||cita._agenda){sel.value=cita.resultado||'';abrirEventoAgenda({id,...cita});return;}
+
+      const resultadoAnterior = cita.resultado || '';
+      const resultadoNuevo = sel.value;
+      if(!resultadoNuevo || resultadoAnterior === resultadoNuevo) return;
+
+      const nextAction = NEXT_ACTION_POR_RESULTADO[resultadoNuevo] || '';
+      const trace = registrarTraceCita(id, {
+        tipo: 'resultado',
+        resultadoAnterior,
+        resultadoNuevo,
+        origen: 'synapse'
+      });
+
       const updates = {};
-      updates['citas/'+id+'/estado'] = estadoNuevo;
-      updates['citas/'+id+'/nextAction'] = NEXT_ACTION_POR_ESTADO[estadoNuevo] || '';
+      updates['citas/'+id+'/resultado'] = resultadoNuevo;
+      updates['citas/'+id+'/nextAction'] = nextAction;
       updates['citas/'+id+'/historial/'+trace.traceId] = trace.entry;
+
+      sel.disabled = true;
       db.ref().update(updates)
         .then(()=>{
-          sel.className = 'seg-estado est-' + estadoNuevo;
-          return sincronizarLeadPorEstadoCita(cita, estadoNuevo);
+          cita.resultado = resultadoNuevo;
+          cita.nextAction = nextAction;
+          return sincronizarLeadPorResultadoCita(cita, resultadoNuevo)
+            .catch(err=>{
+              console.error('Resultado guardado, pero falló sincronización con Lead:', err);
+              alert('El resultado quedó registrado, pero Synapse no pudo actualizar el Lead.\n\nError: ' + err.message);
+            });
         })
-        .catch(err=> alert('No se pudo actualizar el estado.\n\nError: ' + err.message));
+        .catch(err=>{
+          sel.value = resultadoAnterior;
+          alert('No se pudo registrar el resultado.\n\nError: ' + err.message);
+        })
+        .finally(()=>{ sel.disabled = false; });
+    });
+  });
+
+  container.querySelectorAll('[data-action="seg-reprogramar"]').forEach(btn=>btn.addEventListener('click',()=>{
+    const cita=ultimasCitas[btn.dataset.id]; if(cita) abrirEventoAgenda({id:btn.dataset.id,...cita});
+  }));
+  container.querySelectorAll('[data-action="seg-estado"]').forEach(sel=>sel.addEventListener('change',()=>{
+    const cita=ultimasCitas[sel.dataset.id]; if(!cita)return;
+    sel.value=cita.estado||'pendiente'; abrirEventoAgenda({id:sel.dataset.id,...cita});
+  }));
+
+  container.querySelectorAll('[data-action="seg-propiedad"]').forEach(sel=>{
+    sel.addEventListener('change', ()=>{
+      const id = sel.dataset.id;
+      const cita = ultimasCitas[id];
+      if(!cita) return;
+      if(cita.origen==='synapse-agenda'||cita._agenda){sel.value=cita.propiedadId||'';abrirEventoAgenda({id,...cita});return;}
+
+      const propiedadIdAnterior = cita.propiedadId || null;
+      const propiedadNombreAnterior = cita.propiedadNombre || '';
+      const propiedadIdNuevo = sel.value || null;
+      const propiedadNueva = propiedadIdNuevo ? propiedades[propiedadIdNuevo] : null;
+      const propiedadNombreNuevo = propiedadNueva ? (propiedadNueva.nombre || '') : '';
+
+      if(propiedadIdAnterior === propiedadIdNuevo) return;
+
+      const ok = confirm(
+        '¿Cambiar inmueble de esta cita?\n\n' +
+        'Anterior: ' + (propiedadNombreAnterior || 'Sin inmueble') + '\n' +
+        'Nuevo: ' + (propiedadNombreNuevo || 'Sin inmueble') + '\n\n' +
+        'Se conservarán cliente, fecha, hora y estado.'
+      );
+
+      if(!ok){
+        sel.value = propiedadIdAnterior || '';
+        return;
+      }
+
+      const trace = registrarTraceCita(id, {
+        tipo: 'propiedad',
+        anterior: propiedadNombreAnterior || null,
+        nuevo: propiedadNombreNuevo || null,
+        origen: 'synapse'
+      });
+
+      const updates = {};
+      updates['citas/'+id+'/propiedadId'] = propiedadIdNuevo;
+      updates['citas/'+id+'/propiedadNombre'] = propiedadNombreNuevo || null;
+      updates['citas/'+id+'/historial/'+trace.traceId] = trace.entry;
+
+      sel.disabled = true;
+
+      db.ref().update(updates)
+        .then(()=>{
+          cita.propiedadId = propiedadIdNuevo;
+          cita.propiedadNombre = propiedadNombreNuevo || null;
+        })
+        .catch(err=>{
+          sel.value = propiedadIdAnterior || '';
+          alert('No se pudo cambiar el inmueble.\n\nError: ' + err.message);
+        })
+        .finally(()=>{
+          sel.disabled = false;
+        });
     });
   });
 
@@ -2877,5 +3027,6 @@ function addCitaToGoogleCalendar(c){
   });
 }
 </script>
+<script src="assets/js/reprogramar-ui.v1.js"></script>
 </body>
 </html>

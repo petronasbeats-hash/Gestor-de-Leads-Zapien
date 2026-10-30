@@ -1,0 +1,29 @@
+{
+  "rules": {
+    "leads": {
+      ".read": "auth != null && auth.uid == 'owner-test'",
+      ".write": "auth != null && auth.uid == 'owner-test'",
+      "$leadId": {
+        ".write": "!data.exists() && newData.child('fixtureSource').val() == 'fictional-public-form'"
+      }
+    },
+    "citas": {
+      ".read": "auth != null && auth.uid == 'owner-test'",
+      "$citaId": {".write": "(auth != null && auth.uid == 'owner-test') || !data.exists()"}
+    },
+    "citas_publicas": {
+      ".read": true,
+      "$slotKey": {".write": "(auth != null && auth.uid == 'owner-test') || !data.exists()"}
+    },
+    "telefonos_index": {
+      ".read": false,
+      "$telefono": {
+        ".read": true,
+        ".write": "(auth != null && auth.uid == 'owner-test') || !data.exists()"
+      }
+    },
+    "propiedades": {".read": true,".write": "auth != null && auth.uid == 'owner-test'"},
+    "disponibilidad": {".read": true,".write": "auth != null && auth.uid == 'owner-test'"},
+    "unrelated_private_fixture": {".read": false,".write": false}
+  }
+}

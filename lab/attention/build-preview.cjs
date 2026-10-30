@@ -1,0 +1,16 @@
+'use strict';
+const fs=require('node:fs');
+const path=require('node:path');
+const template=fs.readFileSync(path.join(__dirname,'preview.fragment.html'),'utf8');
+const core=fs.readFileSync(path.join(__dirname,'continuity-contract.js'),'utf8');
+const data=fs.readFileSync(path.join(__dirname,'fixtures/public-snapshot.json'),'utf8');
+const leaseCore=fs.readFileSync(path.join(__dirname,'../../shared/lease-continuity.js'),'utf8');
+const leaseConfig=fs.readFileSync(path.join(__dirname,'fixtures/lease-config.json'),'utf8');
+const manifest=process.argv[3]?JSON.parse(fs.readFileSync(process.argv[3],'utf8')):{};
+const photos=Object.fromEntries(Object.entries(manifest).map(([key,files])=>[key,files.map(file=>'data:image/jpeg;base64,'+fs.readFileSync(file).toString('base64'))]));
+const fragment=template.replace('/* CONTINUITY_CORE */',core).replace('/* LEASE_CORE */',leaseCore).replace('/* LEASE_CONFIG */',leaseConfig).replace('/* PREVIEW_PHOTOS */',JSON.stringify(photos)).replace('/* PUBLIC_SNAPSHOT */',data.replace(/</g,'\\u003c'));
+if(/\/\* (CONTINUITY_CORE|PUBLIC_SNAPSHOT|LEASE_CORE|LEASE_CONFIG|PREVIEW_PHOTOS) \*\//.test(fragment))throw Error('UNRESOLVED_PREVIEW_MARKER');
+if(Buffer.byteLength(fragment)>=1000000)throw Error('PREVIEW_TOO_LARGE');
+const output=process.argv[2];if(!output)throw Error('OUTPUT_REQUIRED');
+fs.writeFileSync(output,fragment);
+console.log('Prepared continuity preview: '+Buffer.byteLength(fragment)+' bytes.');

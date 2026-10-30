@@ -1,0 +1,33 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+    "leads": {
+      ".read": "auth != null && auth.uid == 'owner-test'",
+      ".write": "auth != null && auth.uid == 'owner-test'"
+    },
+    "citas": {
+      ".read": "auth != null && auth.uid == 'owner-test'",
+      ".write": "auth != null && auth.uid == 'owner-test'"
+    },
+    "citas_publicas": {
+      ".read": true,
+      ".write": "auth != null && auth.uid == 'owner-test'",
+      "$slot": {
+        ".write": "auth == null && !data.exists() && newData.exists() && $slot.matches(/^[0-9]{4}-[0-9]{2}-[0-9]{2}_[0-9]{2}:[0-9]{2}$/) && newData.child('citaId').isString()"
+      }
+    },
+    "telefonos_index": {
+      ".read": "auth != null && auth.uid == 'owner-test'",
+      ".write": "auth != null && auth.uid == 'owner-test'"
+    },
+    "disponibilidad": {
+      ".read": true,
+      ".write": "auth != null && auth.uid == 'owner-test'"
+    },
+    "propiedades": {
+      ".read": true,
+      ".write": "auth != null && auth.uid == 'owner-test'"
+    }
+  }
+}

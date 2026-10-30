@@ -1,0 +1,271 @@
+# Candidato de captura y continuidad V0.1
+
+La siguiente mejora de interfaz está descrita en `operador-compacto-v01.md`:
+monitor por pestañas, formularios en diálogos y combo de respuestas preparadas
+por inmueble. Está implementada y requiere publicar el paquete de Hosting para
+su comprobación visual; no modifica el servicio de invitado ya validado.
+
+Este cambio agrega una aplicación de atención y su servicio persistente. El 27 de
+octubre de 2026 el operador desplegó `attentionApi` en el proyecto
+`gestor-leads-zapien` y el canal Hosting `atencion-validacion` de `synapse-core`,
+desde el commit `fb6a564e747abfcbb0662cc2290aced4372df877`. El canal principal no se
+actualizó. No confundir este despliegue ni las pruebas de contrato con reservas
+realizadas por clientes o con una validación completa de producción.
+
+La primera lectura autenticada de `/atencion_acl` devolvió `null`. Posteriormente,
+el operador ejecutó la activación desde `1dd4555` y recibió `applied:true` tras la
+verificación de lectura: organización `synapse-core`, nombre Synapse Core, 11
+publicaciones y un asesor con rol `agent`. Las capturas recibidas a las 11:48–11:49
+muestran acceso al monitor, una atención PRUEBA INTERNA, ficha de 16 Norte, cambio
+de contacto y eventos de creación de enlaces en la bitácora leída desde el
+servicio. No muestran todavía un resumen manual guardado ni una recuperación
+del chat por el cliente. La comprobación HTTP del
+canal respondió 200 para el monitor y health, y 401 para sesión sin credenciales;
+health conserva `booking:false` y `reminders:false`.
+
+### Activación inicial del acceso
+
+`scripts/activate-attention-access.cjs` utiliza la sesión local existente del CLI;
+no exporta usuarios ni solicita claves. Lee las reglas y requiere que una sola
+cuenta sea la administradora explícita de leads y propiedades. Lee el catálogo
+actual, excluye publicaciones con `activo:false` y prepara una organización con
+ese administrador como único asesor. No incluye publicaciones futuras de forma
+automática. Sin `--apply` solamente prepara un resumen sin escribir.
+
+Con `--apply`, comprueba que la ACL siga ausente, escribe exclusivamente un PATCH
+en `/atencion_acl/orgs` y verifica el resultado. Conserva otras organizaciones en
+ese PATCH; cualquier ACL ya existente obliga a revisar el acceso por otro flujo.
+Es una inicialización de un solo administrador, no un gestor concurrente de ACL.
+Las lecturas previas y el PATCH del CLI no constituyen una transacción condicional.
+No modifica reglas, leads, citas, bitácoras existentes ni proveedores Auth. Los
+archivos temporales privados se eliminan al terminar y no se imprime el UID.
+
+Ejemplo autorizado para la operación actual:
+
+```bash
+node scripts/activate-attention-access.cjs \
+  --project gestor-leads-zapien \
+  --instance gestor-leads-zapien-default-rtdb \
+  --organization synapse-core \
+  --name 'Synapse Core' \
+  --apply
+```
+
+## Comportamiento implementado
+
+- Asesor: iniciar con alias/nombre y teléfono opcionales, seleccionar fuente y
+  canal de entrada por separado, elegir publicación activa y registrar la atención.
+- Captura, mensaje o cambio de contexto y su evento de bitácora se confirman en
+  una sola transacción por organización; el requestId protege reintentos.
+- El cambio de inmueble usa versión esperada y conserva fuente, canal de entrada
+  e inmueble original. Se valida el alcance del asesor por organización/unidad.
+- El catálogo se vuelve a consultar al iniciar e inspeccionar una atención; no
+  se sustituye una lectura fallida con un fixture. La interfaz abre Reservar para
+  consultar horarios; todavía no crea una cita desde la conversación.
+- Enlace con 256 bits aleatorios, almacenado como hash, con vigencia de 24 horas,
+  rotación y revocación. Su preparación no envía mensajes a Marketplace/WhatsApp.
+- Los enlaces nuevos de Synapse Attention by HYPE Business abren una conversación
+  de invitado sin teléfono, SMS, registro ni dependencia de un proveedor Auth.
+  El acceso por enlace no verifica identidad. Los enlaces anteriores conservan
+  su requisito de teléfono y no se convierten silenciosamente en accesos de invitado.
+- Requisitos y condiciones permanecen separados de la ficha pública hasta que
+  el asesor los comparte. Se conserva unidad y versión; una ficha distinta no
+  hereda requisitos ADN ni condiciones de CL. Los textos libres heredados no se
+  copian a la vista pública sin una descripción pública revisada.
+- Resúmenes privados, acciones pendientes y reporte diario en America/Mexico_City.
+  Importar una interacción sin fecha conserva la fecha desconocida. Eventos sin
+  siguiente acción no eliminan el pendiente anterior. No hay reporte programado.
+
+## Identidad y persistencia
+
+Para las rutas de asesor y recuperación verificada, `server/attention-service.cjs`
+recibe una autoridad ya verificada: no confía en UID, organización, permisos o
+catálogo enviados por el navegador. Para el invitado verifica una capacidad
+temporal de enlace y navegador, descrita a continuación; no la trata como una
+identidad personal verificada ni como una cuenta HYPE.
+`server/attention-firebase-authority.cjs` es el adaptador candidato de Firebase
+Auth existente: verifica el ID token y revocación con Admin SDK y resuelve la ACL
+privada de Atención. No constituye integración con Zap Auth ni autorización para
+modificar esa aplicación. El contrato permite sustituir el adaptador por Zap Auth
+cuando su verificación de servidor se haya integrado y probado.
+
+### Synapse Attention by HYPE Business: invitado por enlace
+
+La petición del usuario es que el vínculo sea una puerta de continuidad sin
+fricción, y una entrada opcional posterior a HYPE. Los enlaces nuevos contienen
+una capacidad aleatoria de 256 bits y habilitan un hilo nuevo dirigido al
+invitado. El navegador genera otro secreto de 256 bits y lo conserva localmente.
+Cuando el visitante envía su primer mensaje, lo presenta por HTTPS y el servidor
+vincula de forma transaccional su hash al enlace vigente. Abrir o previsualizar
+la página sin escribir no consume la sesión del destinatario. Una recarga en ese navegador
+recupera el hilo; otro secreto o navegador no reclama la sesión ya abierta.
+No hay SMS, CAPTCHA, cuenta anónima Firebase ni alta de proveedor Auth en esta ruta.
+
+La persona que envíe primero un mensaje desde el enlace obtiene esa capacidad de invitado; esto no
+prueba que sea el destinatario esperado. La interfaz del asesor indica identidad
+sin verificar. Los enlaces deben compartirse por el canal de atención del cliente.
+Si el destinatario cambia de navegador, pierde sus datos locales o el vínculo
+vence, el asesor puede rotarlo. La rotación crea otro hilo de invitado: no abre
+automáticamente los mensajes anteriores. El historial queda conservado para el
+asesor. Vencimiento, revocación y cambio de teléfono invalidan el enlace anterior.
+
+El invitado solo recibe ficha pública, requisitos expresamente compartidos y
+mensajes del hilo de su enlace. No recibe nombre/contacto capturados por el
+asesor, bitácora, mensajes anteriores protegidos, hashes ni catálogo interno.
+Las respuestas del asesor se dirigen explícitamente al hilo del enlace actual;
+el historial verificado mantiene sus mensajes separados. Cambiar de atención
+limpia el enlace compartible anterior para evitar enviarlo a otra persona.
+Los secretos planos no se guardan en eventos ni recibos de comandos. La sesión
+de invitado no modifica `customerUid` ni `identityStatus` del contacto existente.
+
+Este cambio implementa la entrada y conversación de invitado con esa identidad
+de producto. No crea perfiles Hyper, no registra una cuenta HYPE real ni integra
+todavía Zap Auth. La vinculación de perfil opcional mostrada en la demo era una
+simulación; `health` y el manifiesto declaran `hypeProfiles:false`. No se incluyen
+botones de registro que aparenten crear una cuenta real.
+
+Validación del cambio: ocho pruebas de invitado y once de servicio/release pasan.
+Incluyen carrera de primer acceso, reintentos, fallo sin mensaje parcial, secretos
+equivocados, rotación/revocación/vencimiento, aislamiento de historial, requisitos
+por unidad y rutas HTTP. El script real del cliente se ejecutó contra el handler
+con almacenamiento simulado y sin SDK Firebase, validando apertura automática,
+envío y recuperación tras recarga, sin consumir la sesión al previsualizar. Esto no sustituye una prueba de navegador de
+producción. Despliegue de esta versión y prueba cliente/asesor reales pendientes.
+
+ACL propuesta, configurada únicamente mediante un administrador autenticado:
+
+```
+atencion_acl/orgs/{organizationId}/name
+atencion_acl/orgs/{organizationId}/propertyIds/{publicationId}: true
+atencion_acl/orgs/{organizationId}/members/{uid}/enabled: true
+atencion_acl/orgs/{organizationId}/members/{uid}/role: "agent"
+```
+
+Un miembro puede tener además `propertyIds/{publicationId}: true` para restringir
+su alcance dentro del catálogo de su organización. No se usa un UID incrustado en
+el motor ni se deduce la pertenencia organizacional del nombre de un inmueble.
+
+Datos nuevos: `atencion_v1/orgs/{organizationId}` (conversations/messages/journal/
+commands) e índice privado `atencion_invites/{tokenHash}`. Las reglas reales
+recibidas deniegan acceso directo a estas rutas; el servicio Admin verifica cada
+operación. No es necesario abrirlas a navegadores para activar esta arquitectura.
+No se guardan aquí documentos de arrendamiento: corresponden a BUNKER.
+
+La transacción por organización es un límite de V0.1: antes de una operación de
+gran volumen se requiere particionar por conversación, índices/paginación y un
+outbox con retención. El índice de invitaciones puede dejar una referencia privada
+huérfana si falla la transacción: no concede acceso sin el hash vigente de la
+conversación. Su limpieza por vencimiento queda pendiente de un worker de retención.
+
+## Preparación del release
+
+Construir desde el candidato, con un destino nuevo y el directorio original del
+Mac como proveedor de dependencias estáticas. No editar ni limpiar la carpeta
+original. Ejemplo para el sitio que indica la configuración local recibida:
+
+```bash
+node scripts/build-attention-release.cjs \
+  --site synapse-core \
+  --legacy-root "$HOME/Downloads/Gestor-de-Leads-Zapien" \
+  --out "$HOME/Downloads/synapse-atencion-candidato-v01"
+```
+
+El generador crea un directorio público acotado, un paquete de funciones separado,
+un manifiesto y parámetros de proyecto/dominio. No publica ni cambia reglas.
+Rechaza un directorio de salida existente y exige `404.html`, `leia.html` y
+`assets/js/reprogramar-ui.v1.js`. El ZIP de estáticos recibido el 27 de octubre
+completó esas dependencias. Se verificó la construcción con sus bytes reales;
+no se sustituyeron por stubs. `static-source-manifest.json` conserva sus hashes.
+La página personal de `/leia` se conserva como entrada del directorio original
+para el paquete, sin añadir su contenido al repositorio de Atención.
+
+### Invitaciones durante la validación
+
+La prueba interna mostró que la configuración inicial generaba invitaciones en
+el dominio principal, donde `/atencion` aún no estaba publicado. El generador
+acepta ahora `--attention-origin` para apuntar las invitaciones al canal publicado
+de validación. Solo permite HTTPS en el sitio indicado o en sus canales Firebase
+Hosting; rechaza sitios ajenos, credenciales, puertos, rutas y parámetros. El
+origen de Reservar se mantiene separado y ambos quedan en el manifiesto.
+
+```bash
+node scripts/build-attention-release.cjs \
+  --site synapse-core \
+  --legacy-root "$HOME/Downloads/Gestor-de-Leads-Zapien" \
+  --attention-origin https://synapse-core--atencion-validacion-thf4730i.web.app \
+  --out "$HOME/Downloads/synapse-atencion-validacion-v02"
+```
+
+Cambiar ese parámetro exige desplegar la función construida; el ajuste de ancho
+de columnas/galería y del texto para contactos sin teléfono exige actualizar el
+canal Hosting. Ambos cambios están preparados y probados, pendientes de ese
+despliegue. Crear otra invitación tras actualizar produce el nuevo destino y
+revoca la anterior mediante el control de versión existente. La versión de
+invitado descrita arriba requiere igualmente crear una invitación nueva; las
+anteriores conservan su política. No se redirigen URLs recibidas del navegador.
+
+La vista previa tiene vencimiento: no debe utilizarse como dominio permanente
+de atención a clientes. Al publicar el monitor definitivo se debe volver a
+construir/desplegar con el origen definitivo y probar las invitaciones.
+
+Antes de desplegar: validar el paquete real completo, cuenta y ACL del asesor y
+regresión de Admin/Agenda/Reservar. El proyecto ya confirmó plan Blaze. El nuevo
+flujo de invitado no exige SMS; los proveedores/dominios de Authentication siguen
+siendo relevantes para el asesor y los enlaces antiguos con verificación. No se
+activaron proveedores telefónicos ni se dieron por autorizados sus costos.
+
+## Pendientes que impiden anunciar el flujo completo
+
+- Gateway de reservas de producción compartido por portal y atención, con
+  disponibilidad autoritativa, exclusión de horario y folio único. Se conservaron
+  los guardas de laboratorio de los módulos recibidos; no se retiraron para
+  convertir pruebas de laboratorio en escrituras de producción.
+- Vinculación autorizada de atención/lead/cita y evento duradero de reserva.
+  La captura de Atención no afirma haber creado un lead o una cita legacy.
+- Recordatorios realmente enviados, visita realizada autoritativa, seguimiento
+  posterior y solicitud de contrato integrados con la persistencia real.
+- Integración de Zap Auth/BUNKER y prueba de navegador de extremo a extremo.
+- Validación de producción. `health` y el manifiesto anuncian reservas y avisos
+  deshabilitados; las pruebas del prototipo no cambian esas capacidades.
+
+El contrato puro de requisitos, recordatorios y solicitud de arrendamiento y su
+prototipo anterior siguen disponibles para integrar esas etapas. No son botones
+operativos de producción por el solo hecho de que sus pruebas de simulación pasen.
+
+## Validación ejecutada del candidato
+
+- 192 pruebas unitarias/de contrato pasan, incluidas las 147 pruebas recibidas
+  en el archivo del Mac, el servicio nuevo y el generador del release.
+- BCG37 (4 comprobaciones) y BCG39 (5) pasan con los módulos originales.
+- Sintaxis de Admin/Agenda/Reservar y de los archivos nuevos comprobada; los
+  módulos importados conservan exactamente sus hashes del archivo recibido.
+- E1–E5 pasan con Admin SDK 14.5.0 contra RTDB Emulator 4.11.2: persistencia de
+  captura/journal, ocho reintentos, carrera de versión, aislamiento organizacional
+  y rechazo de lectura/escritura directas sin autorización.
+- Ese emulador se ejecutó con CLI 14.22.0 y Java 17, porque el CLI 15.34.1 exige
+  Java 21 y este entorno tenía Java 17. No se alteró el runtime del Mac. El test
+  exige proyecto `demo-synapse-attention` y loopback 127.0.0.1:19020. Respeta la
+  exclusión NO_PROXY de loopback, que el transporte WebSocket del SDK no aplica
+  automáticamente. No contacta la base de producción.
+- El paquete completo se construyó con los estáticos reales recibidos el 27 de
+  octubre. Su función exporta `attentionApi` con metadatos gcfv2/us-central1 y
+  sus rutas relativas resuelven en el paquete. Las referencias locales de los
+  HTML publicados y los hashes de dependencias se verificaron.
+- El wrapper de la función empaquetada pasó una prueba HTTP local: `health`
+  responde 200 con reservas deshabilitadas; sesión y captura sin credenciales
+  responden 401. Esta prueba no abrió sesiones ni escribió datos de producción.
+- Se añadió una entrada a Atención en el Admin. El asesor reutiliza la sesión
+  Firebase del Admin y el cliente tiene una sesión independiente; la recuperación
+  de sesión del cliente espera a que Firebase termine de restaurarla.
+- No se ha ejecutado la prueba completa de navegador ni la verificación SMS.
+- E6–E8 pasan con RTDB Emulator: entrada de invitado sin teléfono, persistencia
+  de mensaje y respuesta, secreto no almacenado en texto plano, rechazo de otro
+  navegador y revocación efectiva. El script real de cliente se comprobó también
+  sin Firebase SDK contra el handler, con envío y recuperación del hilo tras recarga.
+
+Las pruebas anteriores usaron datos sintéticos separados de clientes reales. El
+despliegue del servicio y del canal de vista previa se recibió después mediante
+la Terminal del operador. La escritura de ACL y su verificación de lectura se
+confirmaron después con el recibo `applied:true`. Hay evidencia visual de una
+atención interna y su bitácora, todavía no de un cliente real atendido, una
+reserva nueva o envío de recordatorios. No se desplegaron reglas.

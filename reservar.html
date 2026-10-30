@@ -1,148 +1,47 @@
 <!DOCTYPE html>
-<html lang="es">
-<head>
+<html lang="es" data-theme="light">
+<head><script src="/web/theme/theme-engine.js"></script>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-<title>Habitat — Reserva tu conexión | Synapse Core</title>
-<style>
-  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600;700&display=swap');
-  :root{
-    --bg:#0a0d0c; --bg-panel:#111613; --line:#223028;
-    --green:#00ffa3; --green-dim:#0a3d2b; --amber:#ffb020;
-    --red:#ff5c5c; --red-dim:#3a1414; --grey:#8a8a8a;
-    --text:#eaf5ee; --muted:#7c9188; --muted-2:#4d5f57;
-  }
-  *{box-sizing:border-box;}
-  html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;-webkit-font-smoothing:antialiased;}
-  .mono{font-family:'JetBrains Mono',monospace;}
-  button{font-family:inherit;cursor:pointer;}
-  input,select,textarea{font-family:inherit;}
-  .wrap{max-width:720px;margin:0 auto;padding:0 16px 60px;}
-  header{padding:28px 0 20px;border-bottom:1px solid var(--line);margin-bottom:22px;}
-  .eyebrow{font-family:'JetBrains Mono',monospace;font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--green);margin-bottom:10px;display:flex;align-items:center;gap:8px;}
-  .eyebrow .dot{width:6px;height:6px;border-radius:50%;background:var(--green);box-shadow:0 0 8px var(--green);animation:pulse 2s infinite;}
-  @keyframes pulse{0%,100%{opacity:1;}50%{opacity:.35;}}
-  h1{font-family:'JetBrains Mono',monospace;font-size:clamp(20px,4vw,26px);font-weight:700;margin:0 0 4px;}
-  header .sub{color:var(--muted);font-size:13px;}
-  .btn{background:var(--bg-panel);border:1px solid var(--line);color:var(--text);padding:9px 14px;border-radius:7px;font-size:13px;font-weight:500;white-space:nowrap;transition:all .15s;}
-  .btn:hover{border-color:var(--muted);}
-  .btn-primary{background:var(--green-dim);border-color:var(--green);color:var(--green);font-weight:600;}
-  .btn-primary:hover{box-shadow:0 0 12px rgba(0,255,163,.25);}
-  .btn-sm{padding:6px 10px;font-size:11.5px;}
-  .btn:disabled{opacity:.4;cursor:not-allowed;}
-  .card{background:var(--bg-panel);border:1px solid var(--line);border-radius:10px;padding:16px;margin-bottom:14px;}
-  .field{margin-bottom:12px;}
-  .field label{display:block;font-size:11px;color:var(--muted);margin-bottom:5px;font-family:'JetBrains Mono',monospace;letter-spacing:.03em;text-transform:uppercase;}
-  .field input,.field select{width:100%;background:var(--bg);border:1px solid var(--line);color:var(--text);padding:9px 11px;border-radius:6px;font-size:13.5px;}
-  .day-block{margin-bottom:16px;}
-  .day-title{font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px;}
-  .slots{display:flex;flex-wrap:wrap;gap:8px;}
-  .slot-btn{background:var(--bg);border:1px solid var(--line);color:var(--text);padding:9px 13px;border-radius:7px;font-size:13px;font-family:'JetBrains Mono',monospace;}
-  .slot-btn:hover{border-color:var(--green);color:var(--green);}
-  .slot-btn.selected{background:var(--green-dim);border-color:var(--green);color:var(--green);}
-  .empty{color:var(--muted-2);text-align:center;padding:30px 0;font-size:13px;}
-  .overlay{position:fixed;inset:0;background:rgba(0,0,0,.65);display:none;align-items:center;justify-content:center;padding:16px;z-index:60;}
-  .overlay.open{display:flex;}
-  .modal{background:var(--bg-panel);border:1px solid var(--line);border-radius:12px;max-width:420px;width:100%;padding:22px;}
-  .modal h2{font-family:'JetBrains Mono',monospace;font-size:15px;color:var(--green);margin:0 0 14px;}
-  .confirm-box{background:var(--bg);border:1px solid var(--green);border-radius:8px;padding:14px;font-size:13px;line-height:1.6;margin-bottom:10px;}
-  #toggle-admin{position:fixed;bottom:14px;right:14px;font-size:10.5px;opacity:.35;}
-  #toggle-admin:hover{opacity:1;}
-  .admin-tabs{position:sticky;top:0;z-index:40;display:flex;gap:6px;background:var(--bg);padding:10px 0;margin-bottom:14px;border-bottom:1px solid var(--line);overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;}
-  .admin-tabs::-webkit-scrollbar{display:none;}
-  .admin-tab-btn{flex:0 0 auto;background:transparent;border:1px solid var(--line);color:var(--muted);padding:8px 14px;border-radius:20px;font-size:12.5px;font-weight:600;font-family:'JetBrains Mono',monospace;white-space:nowrap;transition:all .15s;}
-  .admin-tab-btn .tab-icon{margin-right:5px;}
-  .admin-tab-btn.active{background:var(--green-dim);border-color:var(--green);color:var(--green);}
-  .tab-panel{display:none;}
-  .tab-panel.active{display:block;}
-  .resumen-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px;}
-  .resumen-stat{background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:12px;text-align:center;}
-  .resumen-stat .num{font-family:'JetBrains Mono',monospace;font-size:22px;font-weight:700;color:var(--green);}
-  .resumen-stat .label{font-size:10.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin-top:2px;}
-  @media(max-width:480px){.admin-tab-btn{padding:8px 11px;font-size:11.5px;}}
-  .admin-wrap{display:none;}
-  .row2{display:grid;grid-template-columns:auto 1fr 1fr;gap:8px;align-items:center;margin-bottom:8px;}
-  .cita-item{border-bottom:1px solid var(--line);padding:10px 0;font-size:13px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;}
-  .cita-item:last-child{border-bottom:none;}
-  .cita-meta{color:var(--muted);font-size:11.5px;}
-  #login-error, #sync-msg{font-size:12px;color:var(--red);min-height:14px;margin-top:4px;}
-  .status-line{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--muted-2);margin-top:6px;}
-  .status-line.ok{color:var(--green);}
-  .prop-fotos{display:flex;gap:8px;overflow-x:auto;margin-bottom:12px;}
-  .prop-fotos img{height:120px;width:170px;object-fit:cover;border-radius:8px;border:1px solid var(--line);flex-shrink:0;background:var(--bg);}
-  .prop-precio{font-family:'JetBrains Mono',monospace;font-size:18px;color:var(--green);font-weight:700;margin-bottom:6px;}
-  .prop-ficha{display:flex;gap:14px;flex-wrap:wrap;font-size:12.5px;color:var(--muted);margin-bottom:8px;}
-  .prop-enlace-externo{display:block;background:var(--green-dim);border:1px solid var(--green);color:var(--green);text-align:center;padding:11px;border-radius:8px;font-weight:600;font-size:13.5px;text-decoration:none;margin-bottom:12px;}
-  .prop-enlace-externo:hover{opacity:.85;}
-  .prop-ficha span{background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:4px 9px;}
-  .prop-desc{font-size:13px;color:var(--text);line-height:1.5;}
-  .seg-item{border:1px solid var(--line);border-radius:8px;padding:12px;margin-bottom:10px;}
-  .seg-top{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap;}
-  .seg-estado{background:var(--bg);border:1px solid var(--line);color:var(--text);padding:6px 9px;border-radius:6px;font-size:12.5px;}
-  .seg-estado.est-confirmada{border-color:var(--green);color:var(--green);}
-  .seg-estado.est-realizada{border-color:var(--green);color:var(--green);}
-  .seg-estado.est-no_asistio{border-color:var(--red);color:var(--red);}
-  .seg-estado.est-cancelada{border-color:var(--red);color:var(--red);}
-  .seg-notas{margin-top:8px;display:flex;flex-direction:column;gap:4px;}
-  .seg-nota-item{font-size:12px;color:var(--muted);background:var(--bg);border-radius:6px;padding:6px 9px;}
-  .seg-add-row{display:flex;gap:6px;margin-top:8px;}
-  .seg-add-row input{flex:1;background:var(--bg);border:1px solid var(--line);color:var(--text);padding:8px 10px;border-radius:6px;font-size:13px;}
-  .cal-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;}
-  .cal-weekdays{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;font-size:11px;color:var(--muted);text-align:center;margin-bottom:4px;}
-  .cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;}
-  .cal-day{min-height:64px;border:1px solid var(--line);border-radius:6px;padding:5px;cursor:pointer;background:var(--bg);transition:border-color .15s;}
-  .cal-day:hover{border-color:var(--green);}
-  .cal-day.empty{visibility:hidden;pointer-events:none;}
-  .cal-day.today{border-color:var(--green);}
-  .cal-day.selected{background:rgba(0,200,120,0.08);border-color:var(--green);}
-  .cal-day-num{font-size:12px;color:var(--text);font-family:'JetBrains Mono',monospace;}
-  .cal-dots{display:flex;flex-wrap:wrap;gap:3px;margin-top:5px;}
-  .cal-dot{width:7px;height:7px;border-radius:50%;background:var(--muted);}
-  .cal-dot.est-confirmada,.cal-dot.est-realizada{background:var(--green);}
-  .cal-dot.est-no_asistio,.cal-dot.est-cancelada{background:var(--red);}
-  .cal-more{font-size:10px;color:var(--muted);margin-top:2px;}
-</style>
-</head>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Reservar · Encuentra tu espacio | Synapse Experience</title>
+<meta name="description" content="Explora espacios en Tehuacán, conoce sus características y elige un horario para tu visita con Iré Inmobiliaria y Synapse Experience.">
+<meta name="theme-color" content="#f5f5fa">
+<link rel="stylesheet" href="/web/reservar/experience.css">
+<link rel="stylesheet" href="/web/theme/theme.css"></head>
 <body>
 
-<div class="wrap">
-  <header>
-    <div class="eyebrow"><span class="dot"></span>IRÉ INMOBILIARIA · TEHUACÁN, PUE.</div>
-    <h1 id="page-title">Habitat</h1>
-
-    <div class="sub" id="page-sub">Elige el día y hora que mejor te acomode.</div>
+<div class="public-topbar"><a href="/reservar" class="reserve-brand" aria-label="Synapse Experience · Reservar"><span class="brand-symbol" aria-hidden="true">◉</span><span>SYNAPSE<small>EXPERIENCE · RESERVAR</small></span></a><span class="topbar-location">IRÉ INMOBILIARIA · TEHUACÁN</span></div>
+<main class="wrap" id="main-content">
+  <header class="reserve-hero">
+    <div><p class="eyebrow">TU ESPACIO. TU SIGUIENTE ETAPA.</p><h1 id="page-title">Un lugar que se sienta como tú.</h1><p class="sub" id="page-sub">Explora nuestros espacios en Tehuacán. Conoce los detalles y elige cuándo venir a visitarlos.</p></div>
+    <div class="hero-note"><span class="note-symbol" aria-hidden="true">↗</span><strong>Te acompañamos a elegir.</strong><p>Primero conoce el espacio. Después, conversemos en tu visita.</p></div>
   </header>
-
-  <!-- ============ VISTA PÚBLICA ============ -->
+  <ol class="reserve-steps" aria-label="Pasos para reservar"><li id="step-space" aria-current="step"><span>01</span> Elige tu espacio</li><li id="step-visit"><span>02</span> Encuentra tu horario</li><li id="step-confirm"><span>03</span> Registra tu visita</li></ol>
+  <div id="public-status" class="public-status" role="status" aria-live="polite">Estamos preparando el catálogo…</div>
   <div id="public-view">
-    <div class="card" id="propiedad-picker-card" style="display:none;">
-      <div class="field" style="margin-bottom:0;">
-        <label>¿Qué propiedad quieres visitar?</label>
-        <select id="f-propiedad-publico"></select>
-      </div>
-      <div class="sub" id="propiedad-direccion-hint" style="margin-top:8px;"></div>
+    <section id="catalog-section" aria-labelledby="catalog-title"><div class="section-heading"><div><p class="eyebrow">EXPLORA A TU RITMO</p><h2 id="catalog-title">Encuentra tu próximo espacio</h2></div><p id="catalog-count" class="muted"></p></div><div class="catalog-tools"><div class="field"><label for="catalog-search">Busca un espacio</label><input id="catalog-search" type="search" placeholder="Studio, suite, colonia o nombre…"></div><div class="field"><label for="catalog-operation">¿Qué buscas?</label><select id="catalog-operation"><option value="">Todos los espacios</option><option value="Renta">En renta</option><option value="Venta">En venta</option></select></div></div><div id="catalog-grid" class="catalog-grid"><div class="empty">Cargando espacios…</div></div><p class="catalog-note">Los espacios mostrados están publicados en nuestro catálogo. Revisaremos su disponibilidad contigo.</p></section>
+    <div class="card property-picker" id="propiedad-picker-card" style="display:none;"><button id="back-catalog" class="text-button" type="button">← Explorar otros espacios</button><div class="field"><label for="f-propiedad-publico">Tu espacio elegido</label><select id="f-propiedad-publico"></select></div><div class="sub" id="propiedad-direccion-hint"></div></div>
+    <div id="property-experience" class="property-experience" hidden>
+      <article class="card property-detail" id="propiedad-detalle-card" style="display:none;">
+        <div class="prop-fotos" id="propiedad-fotos"></div><div class="property-copy"><p class="eyebrow" id="property-category"></p><div class="prop-precio" id="propiedad-precio"></div><div class="prop-ficha" id="propiedad-ficha"></div><h2>Así es este espacio</h2><div class="prop-desc" id="propiedad-desc"></div><a id="propiedad-enlace-externo" href="#" target="_blank" rel="noopener noreferrer" style="display:none;"></a><div id="property-services"></div><details id="property-conditions" class="conditions"><summary>Requisitos y condiciones de alquiler</summary><div id="property-conditions-content"></div></details></div>
+      </article>
+      <aside class="visit-panel" aria-labelledby="visit-title"><p class="eyebrow">EL SIGUIENTE PASO, A TU RITMO</p><h2 id="visit-title">Ven a conocerlo</h2><p class="muted">Elige un día y un horario para registrar tu visita.</p><p class="visit-meta">Horarios de Tehuacán · Ciudad de México</p><div id="slots-container"></div><button id="refresh-availability" class="text-button" type="button">↻ Actualizar horarios</button><p class="booking-explanation">Volvemos a revisar el horario al registrar tu visita. Tu asesor dará seguimiento por el canal de contacto que compartas.</p></aside>
     </div>
-    <div class="card" id="propiedad-detalle-card" style="display:none;">
-      <a id="propiedad-enlace-externo" href="#" target="_blank" rel="noopener" style="display:none;"></a>
-      <div class="prop-fotos" id="propiedad-fotos"></div>
-      <div class="prop-precio" id="propiedad-precio"></div>
-      <div class="prop-ficha" id="propiedad-ficha"></div>
-      <div class="prop-desc" id="propiedad-desc"></div>
-    </div>
-    <div id="slots-container"></div>
   </div>
-
-</div>
+  <footer class="reserve-footer"><strong>SYNAPSE EXPERIENCE</strong><span>Una atención cercana. Un siguiente paso claro.</span><span>Iré Inmobiliaria · Tehuacán, Puebla.</span></footer>
+</main>
+<div id="mobile-booking" class="mobile-booking" hidden><div><small>Tu espacio elegido</small><strong id="mobile-price"></strong></div><button type="button" class="btn btn-primary" id="mobile-calendar">Elegir día y hora ↗</button></div>
+<dialog id="photo-dialog" class="photo-dialog" aria-labelledby="photo-title"><div class="photo-toolbar"><h2 id="photo-title">Fotografías del espacio</h2><button id="close-photos" type="button" class="btn">Cerrar ✕</button></div><img id="photo-large" alt=""><div class="photo-controls"><button id="photo-prev" type="button" class="btn" aria-label="Fotografía anterior">←</button><p id="photo-caption"></p><button id="photo-next" type="button" class="btn" aria-label="Fotografía siguiente">→</button></div></dialog>
 
 <!-- ============ MODAL DE CONFIRMACIÓN ============ -->
 <div class="overlay" id="overlay">
-  <div class="modal" id="modal-content">
-    <h2>Confirma tu cita</h2>
-    <div class="field"><label>Nombre</label><input type="text" id="f-nombre"></div>
-    <div class="field"><label>Apellido (opcional)</label><input type="text" id="f-apellido"></div>
-    <div class="field"><label>Teléfono (WhatsApp)</label><input type="text" id="f-telefono"></div>
+  <div class="modal" id="modal-content" role="dialog" aria-modal="true" aria-labelledby="booking-title" tabindex="-1">
+    <p class="eyebrow">TU VISITA, A UN PASO</p><h2 id="booking-title">¿A nombre de quién la registramos?</h2><p class="muted">Te pedimos solo lo necesario para dar seguimiento a tu visita.</p><div class="confirm-box" id="booking-preview"></div>
+    <div class="field"><label for="f-nombre">Nombre</label><input type="text" id="f-nombre" autocomplete="given-name" maxlength="100" required></div>
+    <div class="field"><label for="f-apellido">Apellidos · opcional</label><input type="text" id="f-apellido" autocomplete="family-name" maxlength="150"></div>
+    <div class="field"><label for="f-telefono">Teléfono de contacto</label><input type="tel" id="f-telefono" inputmode="tel" autocomplete="tel" maxlength="25" placeholder="10 dígitos" required></div>
    <div class="field">
-  <label>¿Qué estás buscando?</label>
+  <label for="f-intencion">¿Qué estás buscando? · opcional</label>
   <select id="f-intencion">
     <option value="">Selecciona una opción</option>
     <option value="hogar">🏠 Encontrar un hogar</option>
@@ -152,16 +51,22 @@
   </select>
 </div>
 
-<div class="field"><label>Notas (opcional)</label><input type="text" id="f-notas" placeholder="Ej. propiedad de interés"></div>
+<div class="field"><label for="f-notas">¿Algo que debamos saber? · opcional</label><input type="text" id="f-notas" maxlength="1000" placeholder="Cuéntanos cómo podemos ayudarte"></div>
     <input type="hidden" id="f-propiedad-id"><input type="hidden" id="f-propiedad-nombre">
     <div class="confirm-box mono" id="confirm-summary"></div>
     <div style="display:flex;gap:8px;justify-content:flex-end;">
       <button class="btn" id="btn-cancel-modal">Cancelar</button>
-      <button class="btn btn-primary" id="btn-confirm-booking">Confirmar cita</button>
+      <button class="btn btn-primary" id="btn-confirm-booking">Registrar mi visita</button>
     </div>
   </div>
 </div>
 
+<script src="/shared/lease-continuity.js"></script>
+<script src="/web/reservar/terms.js"></script>
+<script src="/web/reservar/experience.js"></script>
+<script src="shared/reservation-reference.js"></script>
+<script src="/shared/property-inventory.js"></script><script src="/shared/workspace-model.js"></script><script src="/shared/visit-availability.js"></script>
+<script src="/shared/public-slot-claim.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
@@ -215,6 +120,11 @@ let propiedades = {}; // { id: {nombre, direccion, lat, lng, activo} }
 let selectedPropiedadId = null;
 let unidadParamEncontrada = null;
 let ultimasCitas = {};
+let visitDateKey = '';
+let initialLinkApplied = false;
+const publicLoaded = new Set(), publicErrors = new Set();
+function publicReadOk(key){ publicLoaded.add(key); publicErrors.delete(key); if(publicLoaded.size===4&&!publicErrors.size) SynapseReserveUI.status('Catálogo y horarios actualizados. Al registrar tu visita revisamos el horario otra vez.'); }
+function publicReadFailed(key){ publicErrors.add(key); if(key==='properties'){propiedades={};selectedPropiedadId=null;renderPropiedadPicker();} SynapseReserveUI.status('No pudimos actualizar la información. Intenta nuevamente antes de reservar.',true); renderSlots(); }
 
 /* =========================================================
    CARGAR DISPONIBILIDAD (público)
@@ -222,28 +132,35 @@ let ultimasCitas = {};
 function loadPublicAvailability(){
   db.ref('disponibilidad/horarios').on('value', snap=>{
     horario = snap.val();
-    renderSlots();
-  });
+    publicReadOk('schedule');renderSlots();
+  },()=>publicReadFailed('schedule'));
   db.ref('disponibilidad/bloqueos').on('value', snap=>{
     bloqueos = snap.val() || {};
-    renderSlots();
-  });
+    publicReadOk('blocks');renderSlots();
+  },()=>publicReadFailed('blocks'));
   db.ref('citas_publicas').on('value', snap=>{
     ocupados = snap.val() || {};
-    renderSlots();
-  });
+    publicReadOk('occupancy');renderSlots();
+  },()=>publicReadFailed('occupancy'));
   db.ref('propiedades').on('value', snap=>{
     propiedades = snap.val() || {};
-    unidadParamEncontrada = null;
-    if(unidadParam){
-      const match = Object.entries(propiedades).find(([id,p])=>p && String(p.unitId||'').toLowerCase()===unidadParam && p.activo!==false);
-      if(match){ selectedPropiedadId = match[0]; unidadParamEncontrada = match[0]; }
-      else selectedPropiedadId = null;
+    unidadParamEncontrada = unidadParam
+      ? (Object.entries(propiedades).find(([id,p]) =>
+          p && String(p.unitId||'').toLowerCase()===unidadParam &&
+          p.activo!==false
+        ) || [null])[0]
+      : null;
+    if(!initialLinkApplied){
+      const propertyParam=params.get('inmueble');
+      if(unidadParamEncontrada) selectedPropiedadId=unidadParamEncontrada;
+      else if(!unidadParam&&propertyParam&&propiedades[propertyParam]?.activo!==false&&propiedades[propertyParam]) selectedPropiedadId=propertyParam;
+      initialLinkApplied=true;
     }
+    publicReadOk('properties');
     renderPropiedadPicker();
-    renderManualPropiedadSelect();
+
     renderSlots();
-  });
+  },()=>publicReadFailed('properties'));
 }
 
 /* =========================================================
@@ -256,26 +173,33 @@ function renderPropiedadPicker(){
   if(activas.length === 0){
     card.style.display = 'none';
     selectedPropiedadId = null;
+    SynapseReserveUI.renderCatalog(propiedades,null);renderPropiedadDetalle(null);
     return;
   }
   card.style.display = 'block';
-  if(unidadParam && !unidadParamEncontrada){
+  if(unidadParam && !unidadParamEncontrada && !selectedPropiedadId){
     selectedPropiedadId = null;
     document.getElementById('page-title').textContent = 'Unidad no disponible';
     document.getElementById('page-sub').textContent = 'El enlace de esta unidad no está disponible. Puedes elegir otro espacio activo para reservar una visita.';
   }
-  if(!selectedPropiedadId || !propiedades[selectedPropiedadId]){
-    selectedPropiedadId = activas[0][0];
+  if(!selectedPropiedadId ||
+     !propiedades[selectedPropiedadId] ||
+     propiedades[selectedPropiedadId].activo === false){
+    selectedPropiedadId = null;
   }
   if(unidadParam && unidadParamEncontrada && propiedades[selectedPropiedadId]){
     const up = propiedades[selectedPropiedadId];
     document.getElementById('page-title').textContent = up.nombre || 'ADN Suites & Studios';
     document.getElementById('page-sub').textContent = 'Conoce este espacio y reserva el horario que mejor te acomode para visitarlo.';
   }
-  sel.innerHTML = activas.map(([id,p])=>`<option value="${id}" ${id===selectedPropiedadId?'selected':''}>${escapeHtml(p.nombre)}</option>`).join('');
+  sel.innerHTML =
+    '<option value="">Selecciona el inmueble que deseas visitar</option>' +
+    activas.map(([id,p])=>`<option value="${escapeHtml(id)}" ${id===selectedPropiedadId?'selected':''}>${escapeHtml(p.nombre)}</option>`).join('');
+  sel.value = selectedPropiedadId || '';
   const p = propiedades[selectedPropiedadId];
   document.getElementById('propiedad-direccion-hint').textContent = publicLocationLabel(p);
   renderPropiedadDetalle(p);
+  SynapseReserveUI.renderCatalog(propiedades,selectedPropiedadId);
 }
 
 function publicLocationLabel(p){
@@ -290,34 +214,17 @@ function renderPropiedadDetalle(p){
   const card = document.getElementById('propiedad-detalle-card');
   if(!p){ card.style.display = 'none'; return; }
 
-  const tieneFicha = p.enlaceExterno || p.precio || p.recamaras || p.banos || p.m2c || p.m2t || p.descripcion || (p.fotos && p.fotos.length);
-  if(!tieneFicha){ card.style.display = 'none'; return; }
   card.style.display = 'block';
 
   const enlaceEl = document.getElementById('propiedad-enlace-externo');
-  if(p.enlaceExterno){
+  const externalUrl=SynapseReserveUI.https(p.enlaceExterno);
+  if(externalUrl){
     enlaceEl.style.display = 'block';
     enlaceEl.className = 'prop-enlace-externo';
-    enlaceEl.href = p.enlaceExterno;
-    enlaceEl.textContent = '🔗 Ver ficha completa de la propiedad →';
+    enlaceEl.href = externalUrl;
+    enlaceEl.textContent = 'Consultar ficha ampliada ↗';
   } else {
     enlaceEl.style.display = 'none';
-  }
-
-  const fotosEl = document.getElementById('propiedad-fotos');
-  if(p.fotos && p.fotos.length){
-    fotosEl.style.display = 'flex';
-    const meta = Array.isArray(p.photoMeta) ? p.photoMeta : [];
-    fotosEl.innerHTML = p.fotos.map((url,i)=>{
-      const m = meta[i] || {};
-      return `<figure style="margin:0;min-width:220px;max-width:280px;">
-        <img src="${escapeHtml(url)}" loading="lazy" onerror="this.style.display='none'" style="width:100%;">
-        ${m.caption?`<figcaption style="font-size:12px;line-height:1.45;color:var(--muted);margin-top:6px;">${escapeHtml(m.caption)}</figcaption>`:''}
-      </figure>`;
-    }).join('');
-  } else {
-    fotosEl.style.display = 'none';
-    fotosEl.innerHTML = '';
   }
 
   const precioEl = document.getElementById('propiedad-precio');
@@ -355,17 +262,23 @@ function renderPropiedadDetalle(p){
 
   const descEl = document.getElementById('propiedad-desc');
   descEl.style.display = p.descripcion ? 'block' : 'none';
-  descEl.textContent = p.descripcion || '';
+  descEl.textContent = p.descripcionPublica || p.descripcion || 'Conoce los detalles de este espacio con tu asesor durante la visita.';
+  descEl.style.display='block';
+  SynapseReserveUI.renderDetails(p,selectedPropiedadId);
 }
 document.getElementById('f-propiedad-publico').addEventListener('change', (e)=>{
-  selectedPropiedadId = e.target.value;
-  const p = propiedades[selectedPropiedadId];
+  selectedPropiedadId = e.target.value || null;
+  selectedSlot = null;visitDateKey='';
+  const p = selectedPropiedadId ? propiedades[selectedPropiedadId] : null;
   if(p){
     document.getElementById('page-title').textContent = p.nombre || 'ADN Suites & Studios';
     document.getElementById('page-sub').textContent = 'Conoce este espacio y reserva el horario que mejor te acomode para visitarlo.';
   }
-  document.getElementById('propiedad-direccion-hint').textContent = p && p.direccion ? '📍 ' + p.direccion : '';
+  document.getElementById('propiedad-direccion-hint').textContent = publicLocationLabel(p);
+  if(!p){document.getElementById('page-title').textContent='Un lugar que se sienta como tú.';document.getElementById('page-sub').textContent='Explora nuestros espacios en Tehuacán. Conoce los detalles y elige cuándo venir a visitarlos.';}
   renderPropiedadDetalle(p);
+  SynapseReserveUI.renderCatalog(propiedades,selectedPropiedadId);
+  const url=new URL(location.href);url.searchParams.delete('unidad');url.searchParams.delete('inmueble');if(p?.unitId)url.searchParams.set('unidad',p.unitId);else if(p)url.searchParams.set('inmueble',selectedPropiedadId);history.replaceState(null,'',url);
   renderSlots();
 });
 
@@ -376,135 +289,59 @@ function mapsLinkFor(p){
   return null;
 }
 
-function haversineKm(lat1,lng1,lat2,lng2){
-  const R = 6371;
-  const dLat = (lat2-lat1)*Math.PI/180;
-  const dLng = (lng2-lng1)*Math.PI/180;
-  const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLng/2)**2;
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-}
-
-// Minutos estimados de traslado entre dos propiedades (línea recta + velocidad promedio + margen)
-function travelMinutes(propA, propB){
-  if(!propA || !propB || propA===propB) return 0;
-  if(propA.lat==null || propA.lng==null || propB.lat==null || propB.lng==null) return 0; // sin coordenadas, no se valida
-  const km = haversineKm(Number(propA.lat), Number(propA.lng), Number(propB.lat), Number(propB.lng));
-  const speed = (horario && horario.velocidadKmH) || 25;
-  const buffer = (horario && horario.bufferMin) || 10;
-  return Math.ceil((km / speed) * 60 + buffer);
-}
-
 function pad(n){ return n<10 ? '0'+n : ''+n; }
-function dateKey(d){ return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`; }
+function dateKey(d){ return `${d.getUTCFullYear()}-${pad(d.getUTCMonth()+1)}-${pad(d.getUTCDate())}`; }
 
-// Normaliza un día a formato { activo, rangos:[{inicio,fin},...] }
-// (compatible con el formato viejo que solo tenía un rango inicio/fin)
-function normalizarDia(cfg){
-  if(!cfg) return { activo:false, rangos:[{inicio:'09:00', fin:'18:00'}] };
-  if(cfg.rangos) return cfg;
-  return { activo: cfg.activo, rangos: [{inicio: cfg.inicio || '09:00', fin: cfg.fin || '18:00'}] };
-}
-
+// Shared with the advisor's visit panel: the same published hours, blocks,
+// occupied intervals and property-to-property travel margin.
 function generateSlotsForDay(date){
-  const dayKey = DAY_KEYS[date.getDay()];
-  const cfgRaw = horario && horario[dayKey];
-  const cfg = normalizarDia(cfgRaw);
-  if(!cfg.activo) return [];
-  const dur = (horario.duracionMin) || 30;
-  const dKey = dateKey(date);
-  const blocked = bloqueos[dKey] || [];
-  const slots = [];
-  const now = new Date();
-
-  // Citas ya agendadas ese día (con su propiedad), para validar traslado
-  const citasDelDia = Object.entries(ocupados)
-    .filter(([k])=>k.startsWith(dKey+'_'))
-    .map(([k,v])=>{
-      const hora = k.split('_')[1];
-      const [h,m] = hora.split(':').map(Number);
-      const propId = (v && typeof v === 'object') ? v.propiedadId : null;
-      return { startMin: h*60+m, endMin: h*60+m+dur, propId };
-    });
-
-  const propiedadElegida = selectedPropiedadId ? propiedades[selectedPropiedadId] : null;
-
-  (cfg.rangos || []).forEach(rango=>{
-    if(!rango.inicio || !rango.fin) return;
-    const [hI,mI] = rango.inicio.split(':').map(Number);
-    const [hF,mF] = rango.fin.split(':').map(Number);
-    let startMin = hI*60+mI;
-    const endMin = hF*60+mF;
-    while(startMin + dur <= endMin){
-      const h = Math.floor(startMin/60), m = startMin%60;
-      const timeLabel = `${pad(h)}:${pad(m)}`;
-      const slotDate = new Date(date); slotDate.setHours(h,m,0,0);
-      const isPast = slotDate <= now;
-      const isBlocked = blocked.includes(timeLabel);
-      const isTaken = ocupados[`${dKey}_${timeLabel}`];
-
-      let isBlockedByTravel = false;
-      if(propiedadElegida){
-        const candStart = startMin, candEnd = startMin + dur;
-        for(const c of citasDelDia){
-          if(c.startMin === candStart) continue; // ya cubierto por isTaken
-          const otraProp = c.propId ? propiedades[c.propId] : null;
-          const t = travelMinutes(propiedadElegida, otraProp);
-          if(t <= 0) continue;
-          if(c.endMin <= candStart){
-            if(candStart - c.endMin < t){ isBlockedByTravel = true; break; }
-          } else if(candEnd <= c.startMin){
-            if(c.startMin - candEnd < t){ isBlockedByTravel = true; break; }
-          }
-        }
-      }
-
-      if(!isPast && !isBlocked && !isTaken && !isBlockedByTravel && !slots.includes(timeLabel)){
-        slots.push(timeLabel);
-      }
-      startMin += dur;
-    }
-  });
-  slots.sort();
-  return slots;
+  try{return SynapseVisitAvailability.slots({horario,bloqueos,ocupados,propiedades},selectedPropiedadId,dateKey(date));}
+  catch{SynapseReserveUI.status('No pudimos interpretar los horarios. Consulta con tu asesor antes de reservar.',true);return [];}
 }
 
 function renderSlots(){
   const container = document.getElementById('slots-container');
-  if(!horario){
-    container.innerHTML = `<div class="empty">Cargando disponibilidad…</div>`;
+  if(!selectedPropiedadId ||
+     !propiedades[selectedPropiedadId] ||
+     propiedades[selectedPropiedadId].activo === false){
+    container.innerHTML = '<div class="empty">Selecciona primero el inmueble que deseas visitar.</div>';
+    return;
+  }
+  if(!SynapsePropertyInventory.canVisit(propiedades[selectedPropiedadId])){container.replaceChildren(Object.assign(document.createElement('p'),{className:'empty',textContent:SynapsePropertyInventory.labels[SynapsePropertyInventory.state(propiedades[selectedPropiedadId])]+' · Por ahora no se ofrecen visitas para este inmueble. Consulta otras opciones con tu asesor.'}));return;}
+  if(!horario||publicLoaded.size!==4||publicErrors.size){
+    container.innerHTML = `<div class="empty">Estamos consultando los horarios…</div>`;
     return;
   }
   const days = [];
-  const today = new Date();
+  const today = new Date(SynapseWorkspace.calendarDate()+'T12:00:00Z');
   // Anticipación mínima: 1 día (no se muestran horarios de hoy, solo de mañana en adelante)
   for(let i=1;i<=14;i++){
     const d = new Date(today);
-    d.setDate(today.getDate()+i);
+    d.setUTCDate(today.getUTCDate()+i);
     const slots = generateSlotsForDay(d);
     if(slots.length > 0) days.push({date:d, slots});
   }
   if(days.length === 0){
-    container.innerHTML = `<div class="empty">No hay horarios disponibles en los próximos días. Escríbenos directo por WhatsApp.</div>`;
+    container.innerHTML = `<div class="empty">Por ahora no encontramos horarios en los próximos 14 días. Puedes actualizar o retomar la conversación con tu asesor por el canal de origen.</div>`;
     return;
   }
-  container.innerHTML = days.map(({date,slots})=>{
-    const dKey = dateKey(date);
-    const label = date.toLocaleDateString('es-MX', {weekday:'long', day:'numeric', month:'long'});
-    return `
-    <div class="day-block">
-      <div class="day-title">${label}</div>
-      <div class="slots">
-        ${slots.map(t=>`<button class="slot-btn" data-date="${dKey}" data-time="${t}">${t}</button>`).join('')}
-      </div>
-    </div>`;
-  }).join('');
+  if(!days.some(({date})=>dateKey(date)===visitDateKey))visitDateKey=dateKey(days[0].date);
+  const month=visitDateKey.slice(0,7),first=new Date(month+'-01T12:00:00Z'),offset=(first.getUTCDay()+6)%7,lastDay=new Date(Date.UTC(first.getUTCFullYear(),first.getUTCMonth()+1,0)).getUTCDate();
+  const monthLabel=first.toLocaleDateString('es-MX',{month:'long',year:'numeric',timeZone:'UTC'}),available=new Set(days.map(({date})=>dateKey(date)));
+  const adjacentMonth=delta=>{const date=new Date(first);date.setUTCMonth(date.getUTCMonth()+delta);return dateKey(date).slice(0,7);};
+  let calendar='<div class="visit-calendar"><div class="calendar-header"><button type="button" class="month-nav" data-month="'+adjacentMonth(-1)+'" aria-label="Mes anterior" '+(!days.some(({date})=>dateKey(date).startsWith(adjacentMonth(-1)))?'disabled':'')+'>←</button><h3 id="visit-month">'+escapeHtml(monthLabel)+'</h3><button type="button" class="month-nav" data-month="'+adjacentMonth(1)+'" aria-label="Mes siguiente" '+(!days.some(({date})=>dateKey(date).startsWith(adjacentMonth(1)))?'disabled':'')+'>→</button></div><div class="calendar-weekdays" aria-hidden="true">'+['L','M','M','J','V','S','D'].map(day=>'<span>'+day+'</span>').join('')+'</div><div class="visit-calendar-grid" role="group" aria-label="Días para tu visita">';
+  for(let cell=0;cell<Math.ceil((offset+lastDay)/7)*7;cell++){const day=cell-offset+1;if(day<1||day>lastDay){calendar+='<span aria-hidden="true"></span>';continue;}const key=month+'-'+pad(day),date=new Date(key+'T12:00:00Z'),label=date.toLocaleDateString('es-MX',{weekday:'long',day:'numeric',month:'long',timeZone:'UTC'}),enabled=available.has(key);calendar+='<button class="calendar-day" type="button" data-visit-day="'+key+'" aria-label="'+escapeHtml(label+(enabled?' · ver horarios':' · sin horarios disponibles'))+'" aria-pressed="'+(key===visitDateKey)+'" '+(!enabled?'disabled':'')+'>'+day+'</button>';}
+  calendar+='</div><p class="calendar-legend"><span aria-hidden="true"></span> Días con horarios para visitar</p><p class="calendar-window">Agenda abierta para los próximos 14 días.</p></div>';
+  container.innerHTML=calendar+days.map(({date,slots})=>{const dKey=dateKey(date),label=date.toLocaleDateString('es-MX',{weekday:'long',day:'numeric',month:'long',timeZone:'UTC'});return `<section class="day-block" aria-label="Agenda del ${escapeHtml(label)}" data-visit-panel="${dKey}" ${dKey!==visitDateKey?'hidden':''}><h3 class="day-title">${escapeHtml(label)}</h3><p class="day-slot-count">${slots.length} horarios para elegir</p><div class="slots">${slots.map(t=>`<button type="button" class="slot-btn" data-date="${dKey}" data-time="${t}" aria-label="Visitar a las ${t}">${t}</button>`).join('')}</div></section>`;}).join('');
+  container.querySelectorAll('[data-visit-day]:not(:disabled)').forEach(button=>button.addEventListener('click',()=>{visitDateKey=button.dataset.visitDay;container.querySelectorAll('[data-visit-day]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.visitDay===visitDateKey)));container.querySelectorAll('[data-visit-panel]').forEach(panel=>panel.hidden=panel.dataset.visitPanel!==visitDateKey);}));
+  container.querySelectorAll('[data-month]:not(:disabled)').forEach(button=>button.addEventListener('click',()=>{visitDateKey=dateKey(days.find(({date})=>dateKey(date).startsWith(button.dataset.month)).date);renderSlots();}));
 
   container.querySelectorAll('.slot-btn').forEach(btn=>{
     btn.addEventListener('click', ()=>{
       const dKey = btn.dataset.date;
       const t = btn.dataset.time;
-      const d = new Date(dKey+'T00:00:00');
-      const label = d.toLocaleDateString('es-MX', {weekday:'long', day:'numeric', month:'long'}) + ' — ' + t;
+      const d = new Date(dKey+'T12:00:00Z');
+      const label = d.toLocaleDateString('es-MX', {weekday:'long', day:'numeric', month:'long',timeZone:'UTC'}) + ' — ' + t;
       openBookingModal(dKey, t, label);
     });
   });
@@ -515,6 +352,12 @@ function renderSlots(){
    ========================================================= */
 const overlay = document.getElementById('overlay');
 function openBookingModal(dateKey_, timeKey, label){
+  if(!selectedPropiedadId ||
+     !propiedades[selectedPropiedadId] ||
+     propiedades[selectedPropiedadId].activo === false){
+    alert('Selecciona primero un inmueble disponible.');
+    return;
+  }
   selectedSlot = {dateKey: dateKey_, timeKey, label};
   document.getElementById('f-nombre').value = prefillNombre;
   document.getElementById('f-apellido').value = '';
@@ -525,9 +368,11 @@ function openBookingModal(dateKey_, timeKey, label){
   document.getElementById('f-propiedad-nombre').value = p ? p.nombre : '';
   document.getElementById('confirm-summary').innerHTML = p ? `📅 ${escapeHtml(label)}<br>🏠 ${escapeHtml(p.nombre)}` : `📅 ${escapeHtml(label)}`;
   overlay.classList.add('open');
+  SynapseReserveUI.bookingOpened();
 }
-document.getElementById('btn-cancel-modal').addEventListener('click', ()=> overlay.classList.remove('open'));
-overlay.addEventListener('click', e=>{ if(e.target===overlay) overlay.classList.remove('open'); });
+function closeBooking(){const confirmButton=document.getElementById('btn-confirm-booking');if(!confirmButton||confirmButton.disabled)return;overlay.classList.remove('open');SynapseReserveUI.bookingClosed();}
+document.getElementById('btn-cancel-modal').addEventListener('click',closeBooking);
+overlay.addEventListener('click', e=>{ if(e.target===overlay)closeBooking(); });
 
 function bitacoraKey(){
   return new Date().toISOString().slice(0,16).replace('T',' ') + '__' + Math.random().toString(36).slice(2,6);
@@ -593,7 +438,7 @@ intencion: document.getElementById('f-intencion')?.value || '',
     notas: notas || '',
     
 etapa: 'visita_programada',
-    fechaCreacion: dateKey(new Date()),
+    fechaCreacion: SynapseWorkspace.calendarDate(),
     fechaCierre: null,
     checklist: {},
     bitacora: { [bitacoraKey()]: `Nodo creado desde agenda pública. Intención: ${document.getElementById('f-intencion')?.value || 'No especificada'}. Cita: ${selectedSlot.label}${propTxt}.` }
@@ -620,9 +465,8 @@ async function detectarReservaPendienteMismaPersona(telefono, propiedadId){
     .sort((a,b)=>String(a.fecha+a.hora).localeCompare(String(b.fecha+b.hora)))[0] || null;
 }
 
-function folioReserva(citaId){
-  const clean = String(citaId||'').replace(/[^a-z0-9]/gi,'').toUpperCase();
-  return 'RSV-' + clean.slice(-8);
+function folioReserva(citaId, existingFolio){
+  return SynapseReservationReference.fromCitaId(citaId, existingFolio);
 }
 
 document.getElementById('btn-confirm-booking').addEventListener('click', async ()=>{
@@ -630,9 +474,15 @@ document.getElementById('btn-confirm-booking').addEventListener('click', async (
   const apellido = document.getElementById('f-apellido').value.trim();
   const telefono = document.getElementById('f-telefono').value.trim();
   const notas = document.getElementById('f-notas').value.trim();
-  const propiedadId = document.getElementById('f-propiedad-id').value || null;
-  const propiedadNombre = document.getElementById('f-propiedad-nombre').value || null;
-  if(!nombre || !telefono){ alert('Pon tu nombre y teléfono para poder confirmarte la cita.'); return; }
+  const propiedadId = selectedPropiedadId;
+  const propiedadActual = propiedadId ? propiedades[propiedadId] : null;
+  if(!propiedadActual || propiedadActual.activo === false){
+    alert('Selecciona un inmueble disponible antes de reservar.');
+    return;
+  }
+  const propiedadNombre = propiedadActual.nombre || '';
+  if(!nombre || !telefono){ alert('Comparte tu nombre y teléfono para registrar tu visita.'); return; }
+  try{if(!SynapseWorkspace.phone(telefono))throw Error('PHONE_INVALID');}catch{alert('Revisa tu teléfono: necesitamos diez dígitos para dar seguimiento a tu visita.');return;}
   if(!selectedSlot) return;
 
   try{
@@ -657,19 +507,26 @@ document.getElementById('btn-confirm-booking').addEventListener('click', async (
   const slotFlagKey = `${selectedSlot.dateKey}_${selectedSlot.timeKey}`;
   const btn = document.getElementById('btn-confirm-booking');
   btn.disabled = true; btn.textContent = 'Agendando…';
+  let claimedReference, claimedId, bookingReceipt;
 
   try{
+    // Re-check the four live public sources immediately before registration.
+    const latest = await Promise.all(['propiedades','disponibilidad/horarios','disponibilidad/bloqueos','citas_publicas'].map(path=>db.ref(path).get()));
+    propiedades = latest[0].val() || {}; horario = latest[1].val(); bloqueos = latest[2].val() || {}; ocupados = latest[3].val() || {};
+    const wantedDate = new Date(selectedSlot.dateKey+'T12:00:00Z');
+    if(!horario || !propiedades[propiedadId] || propiedades[propiedadId].activo===false || !generateSlotsForDay(wantedDate).includes(selectedSlot.timeKey)) throw Error('SLOT_NOT_AVAILABLE');
     // 1. crear/actualizar el lead PRIMERO — si esto falla, no se toca el horario todavía
     const nombreCompleto = apellido ? `${nombre} ${apellido}` : nombre;
     const leadIdFinal = await upsertLeadParaCita({nombre, apellido, telefono, notas, propiedadId, propiedadNombre});
 
-    // 2. marcar el horario ocupado Y guardar la cita como UNA sola operación atómica:
-    // o se guardan las dos juntas, o no se guarda ninguna — así no puede quedar
-    // un horario "fantasma" ocupado sin que exista su cita.
+    // Claim the slot conditionally: never overwrite an Agenda event or another reservation.
+    // The subsequent private write may fail; release only our own claim in that case.
     const citaId = db.ref('citas').push().key;
     const folio = folioReserva(citaId);
+    const slotReference = db.ref('citas_publicas/'+slotFlagKey);
+    await SynapsePublicSlot.claim(slotReference,{propiedadId: propiedadId || null,citaId,folio});
+    claimedReference = slotReference; claimedId = citaId;
     const updates = {};
-    updates['citas_publicas/'+slotFlagKey] = { propiedadId: propiedadId || null, citaId, folio };
     updates['citas/'+citaId] = {
       folio,
       nombre: nombreCompleto, telefono, notas,
@@ -683,26 +540,28 @@ document.getElementById('btn-confirm-booking').addEventListener('click', async (
       creado: new Date().toISOString()
     };
     await db.ref().update(updates);
+    bookingReceipt = {folio,citaId};
 
     const propObj = propiedadId ? propiedades[propiedadId] : null;
-    const mapsLink = mapsLinkFor(propObj);
-    const direccionBlock = (propObj && (propObj.direccion || mapsLink)) ? `
+    const direccionBlock = propObj ? `
       <div class="sub" style="margin:10px 0;text-align:left;">
-        ${propObj.direccion ? '📍 ' + escapeHtml(propObj.direccion) + '<br>' : ''}
-        ${mapsLink ? `<a href="${mapsLink}" target="_blank" style="color:var(--green);">Ver ubicación en Google Maps →</a>` : ''}
+        ${escapeHtml(publicLocationLabel(propObj))}
       </div>` : '';
     document.getElementById('modal-content').innerHTML = `
-      <h2>🔗 Conexión creada</h2>
-      <div class="confirm-box mono">📅 ${selectedSlot.label}${propiedadNombre?'<br>🏠 '+escapeHtml(propiedadNombre):''}<br>👤 ${escapeHtml(nombreCompleto)}<br>🎟️ FOLIO · ${escapeHtml(folio)}</div>
-      ${direccionBlock}
-      <div class="sub" style="margin-bottom:14px;">Tu reserva quedó registrada con el folio <strong>${escapeHtml(folio)}</strong>. Conserva este folio como referencia. Ahora validaremos la agenda y te acompañaremos en el siguiente paso por WhatsApp.</div>
-      <button class="btn btn-primary" onclick="location.reload()">Listo</button>
+      <div class="receipt-symbol" aria-hidden="true">✓</div><p class="eyebrow">Conexión creada</p><h2 id="booking-title">Tu visita quedó registrada</h2><p class="receipt-note">Pendiente de confirmación por tu asesor.</p>
+      <div class="confirm-box">📅 ${escapeHtml(selectedSlot.label)}${propiedadNombre?'<br>🏠 '+escapeHtml(propiedadNombre):''}<br>👤 ${escapeHtml(nombreCompleto)}<hr><small>Tu folio Synapse</small><div class="receipt-folio">${escapeHtml(folio)}</div></div>
+      ${direccionBlock}<p class="receipt-note">Conserva este folio para dar seguimiento. Tu asesor revisará la visita y se pondrá en contacto contigo.</p>
+      <div class="receipt-actions"><button type="button" class="btn btn-primary" id="copy-confirmation">Copiar confirmación</button><button type="button" class="btn" onclick="location.reload()">Volver al catálogo</button></div><p id="receipt-copy-status" role="status" class="receipt-note"></p>
     `;
+    SynapseReserveUI.receipt(['Solicitud de visita · Synapse Experience','📅 '+selectedSlot.label,'🏠 '+propiedadNombre,'👤 '+nombreCompleto,'Folio: '+folio,'Estado: pendiente de confirmación por tu asesor.'].join('\n'));
+    document.getElementById('copy-confirmation').focus();
   }catch(err){
+    if(bookingReceipt){alert('Tu reserva quedó registrada. Folio: '+bookingReceipt.folio+'. Conserva esta referencia.');btn.disabled=true;btn.textContent='Reserva registrada';return;}
+    if(claimedReference){try{await SynapsePublicSlot.release(claimedReference,claimedId);}catch{ /* Remain unavailable until the advisor reviews the incomplete claim. */ }}
     console.error(err);
-    alert('Ese horario ya no está disponible, elige otro.');
-    btn.disabled = false; btn.textContent = 'Confirmar cita';
-    overlay.classList.remove('open');
+    alert(err.message === 'SLOT_NOT_AVAILABLE' ? 'Ese horario ya no está disponible, elige otro.' : 'No se pudo completar la reserva. Vuelve a intentar o escríbenos para revisar el horario.');
+    btn.disabled = false; btn.textContent = 'Registrar mi visita';
+    overlay.classList.remove('open');SynapseReserveUI.bookingClosed();renderSlots();
   }
 });
 
@@ -715,6 +574,7 @@ function escapeHtml(s){
 /* =========================================================
    INIT
    ========================================================= */
+document.getElementById('refresh-availability').addEventListener('click',async()=>{const button=document.getElementById('refresh-availability');button.disabled=true;try{const paths=['propiedades','disponibilidad/horarios','disponibilidad/bloqueos','citas_publicas'],latest=await Promise.all(paths.map(path=>db.ref(path).get()));propiedades=latest[0].val()||{};horario=latest[1].val();bloqueos=latest[2].val()||{};ocupados=latest[3].val()||{};['properties','schedule','blocks','occupancy'].forEach(publicReadOk);renderPropiedadPicker();renderSlots();}catch{publicReadFailed('schedule');}finally{button.disabled=false;}});
 loadPublicAvailability();
 </script>
 </body>

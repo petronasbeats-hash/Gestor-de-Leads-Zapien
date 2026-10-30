@@ -1,0 +1,293 @@
+<div id="synapse-continuidad-v01">
+<style>
+#synapse-continuidad-v01{color-scheme:light dark;--sc-bg:light-dark(#f4f5ef,#151914);--sc-panel:light-dark(#fff,#1d221b);--sc-text:light-dark(#283125,#edf2e7);--sc-muted:light-dark(#626e5c,#b2bea8);--sc-line:light-dark(#dfe5d9,#3b4434);--sc-soft:light-dark(#ebf1e4,#2b3524);--sc-main:light-dark(#3b522e,#c3d8ad);--sc-on:light-dark(#fff,#1f2e16);--sc-warm:light-dark(#a04e25,#eeb28d);font:14px/1.5 system-ui,-apple-system,sans-serif;background:var(--sc-bg);color:var(--sc-text);border:1px solid var(--sc-line);border-radius:15px;overflow:hidden}
+#synapse-continuidad-v01 *{box-sizing:border-box}
+#synapse-continuidad-v01 button,#synapse-continuidad-v01 input,#synapse-continuidad-v01 select,#synapse-continuidad-v01 textarea{font:inherit;min-width:0}
+#synapse-continuidad-v01 .sc-header{padding:20px 24px;padding-right:100px;background:var(--sc-panel);display:flex;gap:13px;align-items:center;flex-wrap:wrap}
+#synapse-continuidad-v01 .sc-mark{color:var(--sc-warm);font-size:28px}
+#synapse-continuidad-v01 .sc-title{font-size:19px;font-weight:500;letter-spacing:-.5px}
+#synapse-continuidad-v01 .sc-small{font-size:12px;color:var(--sc-muted)}
+#synapse-continuidad-v01 .sc-tabs{display:flex;gap:8px;flex-wrap:wrap;padding:0 24px 18px;background:var(--sc-panel);border-bottom:1px solid var(--sc-line)}
+#synapse-continuidad-v01 .sc-button{padding:10px 12px;min-height:44px;border:1px solid var(--sc-line);border-radius:8px;background:var(--sc-panel);color:var(--sc-text)}
+#synapse-continuidad-v01 .sc-primary,#synapse-continuidad-v01 button[aria-pressed=true]{background:var(--sc-main);color:var(--sc-on);border-color:var(--sc-main)}
+#synapse-continuidad-v01 button:disabled{opacity:.55;cursor:not-allowed}
+#synapse-continuidad-v01 .sc-shell{display:grid;grid-template-columns:245px minmax(0,1fr) 220px;align-items:stretch}
+#synapse-continuidad-v01 .sc-aside{padding:20px 17px;background:var(--sc-panel);border-right:1px solid var(--sc-line);min-width:0}
+#synapse-continuidad-v01 .sc-property-pane{border-left:1px solid var(--sc-line);border-right:0}
+#synapse-continuidad-v01 .sc-heading{font-weight:500;margin-bottom:14px}
+#synapse-continuidad-v01 .sc-field{margin:0 0 14px}
+#synapse-continuidad-v01 label{display:block;font-size:12px;color:var(--sc-muted);margin-bottom:6px}
+#synapse-continuidad-v01 input,#synapse-continuidad-v01 select,#synapse-continuidad-v01 textarea{display:block;width:100%;border:1px solid var(--sc-line);border-radius:7px;padding:10px;background:var(--sc-bg);color:var(--sc-text)}
+#synapse-continuidad-v01 textarea{resize:vertical;min-height:80px}
+#synapse-continuidad-v01 .sc-share{border-top:1px solid var(--sc-line);padding-top:17px;margin-top:18px}
+#synapse-continuidad-v01 .sc-link{font-size:12px;overflow-wrap:anywhere;margin:12px 0;color:var(--sc-muted)}
+#synapse-continuidad-v01 .sc-thread{min-width:0;display:flex;flex-direction:column}
+#synapse-continuidad-v01 .sc-thread-head{padding:18px;background:var(--sc-panel);border-bottom:1px solid var(--sc-line)}
+#synapse-continuidad-v01 .sc-thread-title{font-weight:500;font-size:16px;margin-bottom:4px}
+#synapse-continuidad-v01 .sc-messages{padding:20px 18px;display:flex;flex-direction:column;gap:12px;min-height:170px;flex:1}
+#synapse-continuidad-v01 .sc-message{padding:12px 14px;background:var(--sc-panel);border-radius:11px 11px 11px 3px;max-width:95%;overflow-wrap:anywhere;white-space:pre-wrap}
+#synapse-continuidad-v01 .sc-agent{align-self:flex-end;background:var(--sc-soft);border-radius:11px 11px 3px 11px}
+#synapse-continuidad-v01 .sc-author{color:var(--sc-muted);font-size:12px;margin-bottom:5px}
+#synapse-continuidad-v01 .sc-context-message{font-size:12px;color:var(--sc-muted);background:transparent;padding:0}
+#synapse-continuidad-v01 .sc-compose{padding:18px;background:var(--sc-panel);border-top:1px solid var(--sc-line)}
+#synapse-continuidad-v01 .sc-actions{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-top:10px}
+#synapse-continuidad-v01 .sc-status{color:var(--sc-muted);font-size:12px;overflow-wrap:anywhere}
+#synapse-continuidad-v01 .sc-faq{display:flex;gap:7px;flex-wrap:wrap;margin-top:14px}
+#synapse-continuidad-v01 .sc-faq button{padding:7px 9px;font-size:12px}
+#synapse-continuidad-v01 .sc-description{font-size:12px;color:var(--sc-muted);margin-top:14px;overflow-wrap:anywhere}
+#synapse-continuidad-v01 .sc-price{font-size:23px;font-weight:500;margin-top:16px;letter-spacing:-.5px}
+#synapse-continuidad-v01 .sc-rule{border:0;border-top:1px solid var(--sc-line);margin:19px 0}
+#synapse-continuidad-v01 .sc-context-field{margin-bottom:15px;overflow-wrap:anywhere}
+#synapse-continuidad-v01 .sc-context-field span{display:block;font-size:12px;color:var(--sc-muted);margin-bottom:3px}
+#synapse-continuidad-v01 .sc-booking{padding:18px;background:var(--sc-soft);border-top:1px solid var(--sc-line)}
+#synapse-continuidad-v01 .sc-times{display:flex;gap:7px;flex-wrap:wrap;margin:12px 0}
+#synapse-continuidad-v01 .sc-times button{min-width:64px;padding:8px 10px}
+#synapse-continuidad-v01 .sc-identity{border-top:1px solid var(--sc-line);margin-top:16px;padding-top:16px}
+#synapse-continuidad-v01 .sc-pair{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+#synapse-continuidad-v01 .sc-receipt{padding:18px;background:var(--sc-soft);border-top:1px solid var(--sc-line)}
+#synapse-continuidad-v01 .sc-folio{font-size:19px;font-weight:500;overflow-wrap:anywhere;margin:8px 0}
+#synapse-continuidad-v01 .sc-photo{display:block;width:100%;aspect-ratio:4/3;object-fit:contain;background:var(--sc-bg);border-radius:9px;margin:12px 0}
+#synapse-continuidad-v01 .sc-photo-viewer,#synapse-continuidad-v01 .sc-requirements,#synapse-continuidad-v01 .sc-contract{padding:18px;background:var(--sc-panel);border-top:1px solid var(--sc-line)}
+#synapse-continuidad-v01 .sc-photo-viewer img{aspect-ratio:auto;max-height:420px}
+#synapse-continuidad-v01 .sc-facts{margin:10px 0 16px;padding-left:18px;font-size:12px}
+#synapse-continuidad-v01 .sc-check{display:flex;align-items:flex-start;gap:9px;font-size:14px;color:var(--sc-text);margin:12px 0}
+#synapse-continuidad-v01 .sc-check input{width:auto;flex:0 0 auto;margin-top:4px;min-height:18px}
+#synapse-continuidad-v01 .sc-stage{padding:18px;background:var(--sc-soft);border-top:1px solid var(--sc-line)}
+#synapse-continuidad-v01 .sc-footer{padding:12px 18px;font-size:12px;color:var(--sc-muted);border-top:1px solid var(--sc-line);background:var(--sc-panel)}
+#synapse-continuidad-v01 [hidden]{display:none!important}
+#synapse-continuidad-v01.sc-customer .sc-shell{grid-template-columns:minmax(0,1fr) 245px}
+@media(max-width:900px){#synapse-continuidad-v01 .sc-shell{grid-template-columns:235px minmax(0,1fr)}#synapse-continuidad-v01 .sc-property-pane{grid-column:1/-1;border-left:0;border-top:1px solid var(--sc-line)}#synapse-continuidad-v01.sc-customer .sc-shell{grid-template-columns:minmax(0,1fr) 225px}#synapse-continuidad-v01.sc-customer .sc-property-pane{grid-column:auto;border-left:1px solid var(--sc-line);border-top:0}}
+@media(max-width:600px){#synapse-continuidad-v01 .sc-shell,#synapse-continuidad-v01.sc-customer .sc-shell{grid-template-columns:minmax(0,1fr)}#synapse-continuidad-v01 .sc-aside{border-right:0;border-bottom:1px solid var(--sc-line)}#synapse-continuidad-v01.sc-customer .sc-property-pane{border-left:0;border-top:1px solid var(--sc-line)}#synapse-continuidad-v01 .sc-pair{grid-template-columns:1fr}#synapse-continuidad-v01 input,#synapse-continuidad-v01 select,#synapse-continuidad-v01 textarea{font-size:16px}}
+</style>
+<header class="sc-header"><span class="sc-mark" aria-hidden="true">⭕</span><div><div class="sc-title">Synapse Attention Experience</div><div class="sc-small">Continuidad desde cualquier origen · prototipo sin reservas reales</div></div></header>
+<nav class="sc-tabs" aria-label="Vista de atención"><button type="button" class="sc-button cursor-interaction" id="sc-agent-view" aria-pressed="true">Panel de continuidad</button><button type="button" class="sc-button cursor-interaction" id="sc-client-view" aria-pressed="false">Monitor del cliente</button></nav>
+<div class="sc-shell">
+  <aside class="sc-aside" id="sc-entry-pane">
+    <form id="sc-start-form">
+      <div class="sc-heading">Iniciar atención</div>
+      <div class="sc-field"><label for="sc-name">Nombre o nombre de Facebook</label><input id="sc-name" placeholder="Como aparece en el contacto" autocomplete="off" maxlength="180"></div>
+      <div class="sc-field"><label for="sc-surname">Apellidos · si se conocen</label><input id="sc-surname" autocomplete="off" maxlength="180"></div>
+      <div class="sc-field"><label for="sc-phone">Número de contacto · si se tiene</label><input id="sc-phone" type="tel" inputmode="tel" autocomplete="off" placeholder="10 dígitos" maxlength="30"></div>
+      <div class="sc-field"><label for="sc-source">Fuente del lead</label><select id="sc-source"></select></div>
+      <div class="sc-field"><label for="sc-channel">Canal de entrada</label><select id="sc-channel"></select></div>
+      <div class="sc-field"><label for="sc-initial-question">Pregunta inicial</label><select id="sc-initial-question"><option>¿Sigue disponible?</option><option>¿Qué servicios incluye?</option><option>¿Piden depósito?</option><option>¿Cuáles son los requisitos?</option><option>Quiero agendar una visita</option></select></div>
+      <button class="sc-button sc-primary cursor-interaction" type="submit">Generar enlace · demo</button>
+    </form>
+    <div class="sc-share" id="sc-invite" hidden><div class="sc-heading">Continuar con el cliente</div><label for="sc-share-message">Mensaje para compartir</label><textarea id="sc-share-message" readonly></textarea><div class="sc-link" id="sc-link-label"></div><button type="button" class="sc-button cursor-interaction" id="sc-open-invite">Abrir monitor · demo</button></div>
+    <div class="sc-status" id="sc-start-status" role="status" aria-live="polite"></div>
+  </aside>
+  <section class="sc-thread" aria-label="Conversación de atención">
+    <header class="sc-thread-head"><div class="sc-thread-title" id="sc-person-label">Nueva atención</div><div class="sc-small" id="sc-attribution">Marketplace Facebook → Messenger → Synapse Atención</div><div class="sc-faq" id="sc-faq" role="group" aria-label="Preguntas frecuentes"></div></header>
+    <div class="sc-messages" id="sc-messages" role="log" aria-live="polite" aria-label="Mensajes de demostración"></div>
+    <section class="sc-photo-viewer" id="sc-photo-viewer" hidden aria-label="Fotografías del inmueble"><div class="sc-heading" id="sc-photo-title">Fotografías</div><img class="sc-photo" id="sc-large-photo" alt="Fotografía del inmueble seleccionado"><div class="sc-actions"><button class="sc-button cursor-interaction" id="sc-photo-previous" type="button">Anterior</button><span class="sc-small" id="sc-photo-position"></span><button class="sc-button cursor-interaction" id="sc-photo-next" type="button">Siguiente</button></div></section>
+    <form class="sc-booking" id="sc-booking-form" hidden>
+      <div class="sc-heading">Elige tu visita</div><div class="sc-small">Horarios consultados en Reservar · copia de esta revisión</div><div class="sc-small">Lunes a domingo · 09:00 a 20:00 · cada 30 minutos</div>
+      <div class="sc-field" style="margin-top:14px"><label for="sc-day">Día · hora de Tehuacán</label><select id="sc-day"></select></div>
+      <div id="sc-times" class="sc-times" role="group" aria-label="Horas disponibles para elegir"></div>
+      <div id="sc-slot-label" class="sc-status" role="status" aria-live="polite">Selecciona una hora.</div>
+      <div class="sc-identity" id="sc-identity" hidden>
+        <div class="sc-small" style="margin-bottom:12px">Confirma tus datos para registrar la reserva.</div>
+        <div class="sc-pair"><div class="sc-field"><label for="sc-book-name">Nombre</label><input id="sc-book-name" required maxlength="180" autocomplete="off"></div><div class="sc-field"><label for="sc-book-surname">Apellidos · opcionales</label><input id="sc-book-surname" maxlength="180" autocomplete="off"></div></div>
+        <div class="sc-field"><label for="sc-book-phone">Número de contacto</label><input id="sc-book-phone" type="tel" inputmode="tel" required maxlength="30" autocomplete="off" placeholder="10 dígitos"></div>
+        <button class="sc-button sc-primary cursor-interaction" id="sc-register" type="submit">Probar registro de reserva</button>
+      </div>
+      <div id="sc-book-status" class="sc-status" role="status" aria-live="polite"></div>
+    </form>
+    <section class="sc-receipt" id="sc-receipt" hidden aria-label="Reserva de demostración"><div class="sc-heading">Reserva simulada registrada</div><div class="sc-small">Folio de demostración</div><div class="sc-folio" id="sc-folio"></div><div id="sc-receipt-detail"></div><div class="sc-small">Cita pendiente de validación · sin escritura en la agenda real</div><div class="sc-small">Recordatorios previstos: 48 h, 24 h y 1 h antes, cuando apliquen.</div></section>
+    <section class="sc-stage" id="sc-visit-tools" hidden><div class="sc-heading">Continuidad de la visita</div><div class="sc-status" id="sc-visit-status">Visita pendiente de realizar</div><div class="sc-actions"><button class="sc-button cursor-interaction" id="sc-complete-visit" type="button">Registrar visita realizada · demo</button><button class="sc-button cursor-interaction" id="sc-prepare-followup" type="button" hidden>Preparar seguimiento</button></div></section>
+    <section class="sc-stage" id="sc-client-continue" hidden><div class="sc-heading">¿Te gustaría continuar?</div><div class="sc-small">Podemos preparar tu expediente y revisar la solicitud de arrendamiento.</div><button class="sc-button sc-primary cursor-interaction" id="sc-request-contract" type="button">Quiero continuar con mi contrato de arrendamiento</button></section>
+    <section class="sc-requirements" id="sc-requirements" hidden aria-label="Requisitos y condiciones del inmueble"><div class="sc-heading">Requisitos y condiciones</div><div id="sc-conditions-summary"></div><ul id="sc-requirement-list" class="sc-facts"></ul><div class="sc-small">La documentación se entrega en un espacio privado. Marcar que cuentas con un requisito no equivale a entregarlo ni validarlo.</div></section>
+    <form class="sc-contract" id="sc-contract-form" hidden>
+      <div class="sc-heading">Solicitar preparación de contrato</div><div id="sc-contract-property"></div>
+      <label class="sc-check"><input id="sc-confirm-property" type="checkbox" required><span>Confirmo que estos son el inmueble y las condiciones que deseo solicitar.</span></label>
+      <div class="sc-field"><label for="sc-contract-name">Nombre para la solicitud</label><input id="sc-contract-name" required maxlength="180" autocomplete="off"></div>
+      <div class="sc-field"><label for="sc-contract-phone">Número de contacto</label><input id="sc-contract-phone" type="tel" required maxlength="30" autocomplete="off"></div>
+      <div class="sc-small">Indica los requisitos con los que ya cuentas:</div><div id="sc-contract-checklist"></div>
+      <div class="sc-field"><label for="sc-signing-date">Fecha de firma propuesta · opcional</label><input id="sc-signing-date" type="date"></div>
+      <button class="sc-button sc-primary cursor-interaction" id="sc-submit-contract" type="submit">Enviar solicitud · demo</button>
+      <div class="sc-status" id="sc-contract-status" role="status" aria-live="polite"></div>
+    </form>
+    <form class="sc-compose" id="sc-message-form"><label for="sc-message" id="sc-compose-label">Respuesta del asesor</label><textarea id="sc-message" placeholder="Prepara tu respuesta con el contexto del inmueble…" maxlength="2000" required></textarea><div class="sc-actions"><button class="sc-button cursor-interaction" id="sc-toggle-booking" type="button" aria-expanded="false">Agendar visita</button><button class="sc-button sc-primary cursor-interaction" type="submit">Enviar en demo</button></div><div class="sc-status" id="sc-chat-status" role="status" aria-live="polite"></div></form>
+  </section>
+  <aside class="sc-aside sc-property-pane">
+    <div class="sc-field" id="sc-property-picker"><label for="sc-property">Propiedades publicadas en Reservar</label><select id="sc-property"></select></div>
+    <div class="sc-heading" id="sc-property-name"></div><div class="sc-price" id="sc-price"></div><img class="sc-photo" id="sc-property-photo" alt="Fotografía del inmueble seleccionado" hidden><button class="sc-button cursor-interaction" id="sc-show-photos" type="button" hidden>Ampliar fotografías</button><div class="sc-small" id="sc-photo-note"></div><div class="sc-description" id="sc-description"></div>
+    <div class="sc-description" id="sc-service-facts"></div><div class="sc-small" style="margin-top:10px">Publicación activa · disponibilidad del inmueble por confirmar</div>
+    <div class="sc-actions"><button class="sc-button cursor-interaction" id="sc-share-requirements" type="button">Compartir requisitos y condiciones</button><button class="sc-button cursor-interaction" id="sc-view-requirements" type="button" hidden>Consultar requisitos y condiciones</button></div>
+    <hr class="sc-rule"><div class="sc-context-field"><span>Fuente original</span><div id="sc-origin"></div></div><div class="sc-context-field"><span>Canal de entrada</span><div id="sc-origin-channel"></div></div><div class="sc-context-field"><span>Canal actual</span>Synapse Atención</div><div class="sc-context-field"><span>Inmueble de origen</span><div id="sc-original-property"></div></div><div class="sc-context-field"><span>Siguiente acción</span><div id="sc-next">Preparar la atención</div></div>
+  </aside>
+</div>
+<footer class="sc-footer">Datos públicos consultados durante esta revisión · mensajes en memoria · enlace y folio de demostración · sin conexión de registro real</footer>
+</div>
+<script>
+/* CONTINUITY_CORE */
+/* LEASE_CORE */
+(() => {
+  'use strict';
+  const root=document.getElementById('synapse-continuidad-v01');
+  const el=id=>root.querySelector('#'+id);
+  const data=/* PUBLIC_SNAPSHOT */;
+  const leaseConfig=/* LEASE_CONFIG */;
+  const previewPhotos=/* PREVIEW_PHOTOS */;
+  const core=SynapseContinuity;
+  const leaseCore=SynapseLeaseContinuity;
+  const publications=data.propiedades;
+  const messages=[];
+  const taken=new Set();
+  const ledger=new Map();
+  const drafts={agent:'',customer:''};
+  let perspective='agent';
+  let context=null;
+  let selectedTime=null;
+  let booking=null;
+  let requestId='';
+  let packet=null;
+  let appointment=null;
+  let leaseRequest=null;
+  let photoIndex=0;
+  const randomId=()=>Array.from(crypto.getRandomValues(new Uint8Array(18)),n=>n.toString(16).padStart(2,'0')).join('');
+  const propertyId=()=>el('sc-property').value;
+  const property=()=>publications[propertyId()];
+  const sheet=()=>leaseCore.propertySheet(propertyId(),property(),leaseConfig);
+  const dateLabel=key=>new Date(key+'T12:00:00Z').toLocaleDateString('es-MX',{weekday:'long',day:'numeric',month:'long',timeZone:'America/Mexico_City'});
+  const money=value=>new Intl.NumberFormat('es-MX',{style:'currency',currency:'MXN',maximumFractionDigits:0}).format(value);
+  const errorText=code=>({NAME_REQUIRED:'Completa tu nombre para registrar la reserva.',PHONE_REQUIRED:'Completa tu número de contacto.',PHONE_INVALID:'Revisa el número: utiliza 10 dígitos de México.',SLOT_TAKEN:'Ese horario se acaba de ocupar. Elige otro.',PROPERTY_SCOPE_MISMATCH:'Vuelve a seleccionar el inmueble.',IDEMPOTENCY_CONFLICT:'Esta solicitud ya tiene otros datos. Conserva tu folio y consulta al asesor.'}[code]||'No se pudo completar el registro de demostración. Revisa los datos.');
+  function addOption(select,value,text){const option=document.createElement('option');option.value=value;option.textContent=text;select.append(option);}
+  Object.entries(core.sources).forEach(([key,label])=>addOption(el('sc-source'),key,label));
+  Object.entries(core.channels).forEach(([key,label])=>addOption(el('sc-channel'),key,label));
+  Object.entries(publications).forEach(([key,p])=>addOption(el('sc-property'),key,p.nombre));
+  el('sc-source').value='marketplace_facebook';el('sc-channel').value='messenger';
+  el('sc-property').value=Object.keys(publications).find(key=>publications[key].unitId==='yin-05')||Object.keys(publications)[0];
+  function readContext(){return core.prepareContext({displayName:el('sc-name').value,surname:el('sc-surname').value,phone:el('sc-phone').value,source:el('sc-source').value,entryChannel:el('sc-channel').value,propertyId:propertyId(),question:el('sc-initial-question').value},publications);}
+  function renderAttribution(){
+    const source=context?.source||el('sc-source').value;const channel=context?.entryChannel||el('sc-channel').value;
+    el('sc-origin').textContent=core.sources[source];el('sc-origin-channel').textContent=core.channels[channel];
+    el('sc-attribution').textContent=core.sources[source]+' → '+core.channels[channel]+' → Synapse Atención';
+    el('sc-original-property').textContent=publications[context?.originalPropertyId||propertyId()].nombre;
+    el('sc-person-label').textContent=perspective==='customer'?'Monitor de Atención':(context?.displayName||'Nueva atención');
+  }
+  function renderMessages(){
+    const box=el('sc-messages');box.replaceChildren();
+    if(!messages.length){const empty=document.createElement('div');empty.className='sc-status';empty.textContent=perspective==='agent'?'Prepara el contexto y genera la invitación para continuar.':'Continúa tu solicitud aquí. El inmueble ya está seleccionado.';box.append(empty);}
+    messages.forEach(item=>{const bubble=document.createElement('div');bubble.className='sc-message'+(item.role==='agent'?' sc-agent':'')+(item.role==='context'?' sc-context-message':'');const author=document.createElement('div');author.className='sc-author';author.textContent=item.role==='context'?'Contexto capturado por el asesor':(item.role==='agent'?'Asesor · demo':'Cliente · demo');const text=document.createElement('div');text.textContent=item.text;bubble.append(author,text);box.append(bubble);});
+  }
+  function updateProperty(){
+    const p=property();el('sc-property-name').textContent=p.nombre;el('sc-price').textContent=money(p.precio)+' / mes';el('sc-description').textContent=p.descripcion||'Consulta las características con el asesor.';
+    if(context)context=core.changeInterest(context,propertyId(),publications);
+    packet=null;photoIndex=0;el('sc-requirements').hidden=true;el('sc-contract-form').hidden=true;el('sc-photo-viewer').hidden=true;
+    selectedTime=null;requestId=randomId();renderDays();renderAttribution();renderPropertyDetails();renderJourney();
+  }
+  function renderPropertyDetails(){
+    const s=sheet();const assets=previewPhotos[propertyId()]||[];
+    el('sc-property-photo').hidden=!assets.length;el('sc-show-photos').hidden=!assets.length;
+    if(assets.length){el('sc-property-photo').src=assets[0];el('sc-property-photo').alt=s.name+' · fotografía de catálogo';}
+    el('sc-photo-note').textContent=assets.length?'Muestra: '+assets.length+' fotos reales de '+s.photos.length+' publicadas.':s.photos.length?'Fotos disponibles en el catálogo; no incorporadas a esta vista de revisión.':'Fotografías por incorporar.';
+    const box=el('sc-service-facts');box.replaceChildren();
+    for(const [heading,items] of [['Incluye',s.included],['No incluye',s.excluded],['Costo adicional',s.additional],['Por confirmar',s.pending]]){
+      if(!items.length)continue;const title=document.createElement('div');title.textContent=heading;title.className='sc-heading';const list=document.createElement('ul');list.className='sc-facts';for(const item of items){const li=document.createElement('li');li.textContent=item;list.append(li);}box.append(title,list);
+    }
+    el('sc-share-requirements').disabled=!s.conditionsVersion;
+  }
+  function renderGallery(){const photos=previewPhotos[propertyId()]||[];if(!photos.length)return;photoIndex=(photoIndex+photos.length)%photos.length;el('sc-large-photo').src=photos[photoIndex];el('sc-large-photo').alt=sheet().name+' · fotografía '+(photoIndex+1);el('sc-photo-title').textContent=sheet().name;el('sc-photo-position').textContent=(photoIndex+1)+' de '+photos.length+' · muestra del catálogo';}
+  function renderRequirements(){
+    const s=sheet();if(!s.conditionsVersion)return false;packet=leaseCore.sharePacket(s);
+    el('sc-conditions-summary').textContent=s.name+' · renta '+money(s.rent)+' al mes · depósito '+money(s.deposit)+' · plazo '+s.termMonths+' meses.';
+    el('sc-requirement-list').replaceChildren();for(const item of s.requirements){const li=document.createElement('li');li.textContent=item.label;el('sc-requirement-list').append(li);}el('sc-requirements').hidden=false;return true;
+  }
+  function renderJourney(){
+    const client=perspective==='customer';const completed=appointment?.estado==='realizada';
+    el('sc-share-requirements').hidden=client;el('sc-view-requirements').hidden=!client||(!booking&&!packet);el('sc-view-requirements').disabled=!sheet().conditionsVersion;
+    el('sc-visit-tools').hidden=client||!booking;el('sc-complete-visit').hidden=Boolean(completed);el('sc-prepare-followup').hidden=!completed;
+    el('sc-client-continue').hidden=!client||!completed||Boolean(leaseRequest);
+    el('sc-visit-status').textContent=completed?'Visita registrada como realizada · seguimiento pendiente':'Visita pendiente de realizar';
+  }
+  function slotsForDay(){const entry=(data.slotsByProperty[propertyId()]||[]).find(day=>day.dateKey===el('sc-day').value);return (entry?.slots||[]).filter(time=>!taken.has(el('sc-day').value+'_'+time));}
+  function renderDays(){const old=el('sc-day').value;el('sc-day').replaceChildren();(data.slotsByProperty[propertyId()]||[]).forEach(day=>addOption(el('sc-day'),day.dateKey,dateLabel(day.dateKey)));if((data.slotsByProperty[propertyId()]||[]).some(day=>day.dateKey===old))el('sc-day').value=old;renderTimes();}
+  function renderTimes(){
+    const box=el('sc-times');box.replaceChildren();const times=slotsForDay();
+    times.forEach(time=>{const button=document.createElement('button');button.type='button';button.className='sc-button cursor-interaction';button.textContent=time;button.disabled=Boolean(booking);button.setAttribute('aria-pressed',String(selectedTime===time));button.addEventListener('click',()=>{selectedTime=time;renderTimes();});box.append(button);});
+    if(!times.length){const note=document.createElement('div');note.className='sc-status';note.textContent='No hay horarios disponibles para este día.';box.append(note);}
+    el('sc-slot-label').textContent=selectedTime?dateLabel(el('sc-day').value)+' · '+selectedTime:'Selecciona una hora.';
+    el('sc-identity').hidden=!selectedTime||Boolean(booking);
+  }
+  function showView(next){
+    drafts[perspective]=el('sc-message').value;perspective=next;const client=next==='customer';
+    root.classList.toggle('sc-customer',client);el('sc-entry-pane').hidden=client;el('sc-property-picker').hidden=client;
+    el('sc-agent-view').setAttribute('aria-pressed',String(!client));el('sc-client-view').setAttribute('aria-pressed',String(client));
+    el('sc-compose-label').textContent=client?'Tu mensaje':'Respuesta del asesor';el('sc-message').value=drafts[next];renderAttribution();renderMessages();renderJourney();
+  }
+  const questions=['¿Sigue disponible?','Servicios','Depósito y contrato','Requisitos','Agendar visita'];
+  questions.forEach(question=>{const button=document.createElement('button');button.type='button';button.className='sc-button cursor-interaction';button.textContent=question;button.addEventListener('click',()=>{
+    if(question==='Agendar visita'){el('sc-booking-form').hidden=false;el('sc-toggle-booking').setAttribute('aria-expanded','true');return;}
+    const p=property();const s=sheet();
+    const reply=question==='¿Sigue disponible?'?'La publicación de '+p.nombre+' está activa. Podemos revisar su disponibilidad y coordinar una visita.':question==='Requisitos'?(s.requirementsConfigured?'Para '+s.name+' se requiere: '+s.requirements.map(item=>item.label).join('; ')+'.':'Voy a confirmar contigo los requisitos de ingreso de '+p.nombre+'.'):question==='Servicios'?'Incluye: '+(s.included.join(', ')||'servicios por confirmar')+'. Costo adicional: '+(s.additional.join('; ')||'por confirmar')+'. No incluye: '+(s.excluded.join(', ')||'consultar ficha')+'.':question==='Depósito y contrato'&&s.conditionsVersion?'Renta de '+money(s.rent)+' al mes; depósito de '+money(s.deposit)+' y contrato de '+s.termMonths+' meses.':p.nombre+': '+(p.descripcion||'Voy a consultar esa información para responderte con precisión.');
+    el('sc-message').value=perspective==='customer'?(question==='Servicios'?'¿Qué servicios incluye?':question==='Depósito y contrato'?'¿Piden depósito y de cuánto tiempo es el contrato?':question):reply;
+    drafts[perspective]=el('sc-message').value;el('sc-chat-status').textContent=perspective==='agent'?'Respuesta preparada para tu revisión.':'Pregunta preparada; puedes editarla antes de enviar.';
+  });el('sc-faq').append(button);});
+  el('sc-source').addEventListener('change',()=>{el('sc-channel').value=({marketplace_facebook:'messenger',facebook:'messenger',whatsapp:'whatsapp',casa_login:'web',hype_synapse_experience:'hype',directa:'web'})[el('sc-source').value];renderAttribution();});
+  el('sc-channel').addEventListener('change',renderAttribution);
+  el('sc-property').addEventListener('change',updateProperty);
+  el('sc-day').addEventListener('change',()=>{selectedTime=null;renderTimes();});
+  el('sc-start-form').addEventListener('submit',event=>{
+    event.preventDefault();try{
+      context=readContext();booking=null;appointment=null;leaseRequest=null;packet=null;requestId=randomId();messages.length=0;messages.push({role:'context',text:context.question});selectedTime=null;
+      el('sc-property').disabled=false;el('sc-day').disabled=false;el('sc-receipt').hidden=true;el('sc-register').disabled=false;
+      el('sc-book-name').value=context.displayName;el('sc-book-surname').value=context.surname;el('sc-book-phone').value=context.phone;
+      el('sc-invite').hidden=false;const token=randomId();
+      el('sc-link-label').textContent='Invitación de demostración: atencion#DEMO_'+token+' · aún no es un enlace público';
+      el('sc-share-message').value='Para continuar con tu solicitud sobre '+property().nombre+', abre tu enlace personal. Ahí puedes consultar información, conversar y elegir un horario de visita.\n[Enlace personal de Synapse · pendiente de publicación]';
+      el('sc-start-status').textContent='Contexto preparado. Abre el monitor para probar la continuidad.';el('sc-next').textContent='Continuar la atención';el('sc-book-status').textContent='';el('sc-contract-form').hidden=true;el('sc-requirements').hidden=true;el('sc-submit-contract').disabled=false;renderAttribution();renderMessages();renderTimes();renderJourney();
+    }catch(error){el('sc-start-status').textContent=errorText(error.message);}
+  });
+  el('sc-agent-view').addEventListener('click',()=>showView('agent'));
+  el('sc-client-view').addEventListener('click',()=>showView('customer'));
+  el('sc-open-invite').addEventListener('click',()=>showView('customer'));
+  el('sc-toggle-booking').addEventListener('click',()=>{const open=el('sc-booking-form').hidden;el('sc-booking-form').hidden=!open;el('sc-toggle-booking').setAttribute('aria-expanded',String(open));});
+  el('sc-message-form').addEventListener('submit',event=>{event.preventDefault();const text=el('sc-message').value.trim();if(!text)return;messages.push({role:perspective,text});el('sc-message').value='';drafts[perspective]='';el('sc-next').textContent=booking?'Dar seguimiento al folio':perspective==='customer'?'Responder al cliente':'Esperar respuesta del cliente';renderMessages();el('sc-chat-status').textContent='Mensaje de demostración; no se envió fuera de esta vista.';});
+  const demoGateway={book:async command=>{
+    const fingerprint=JSON.stringify(command);const previous=ledger.get(command.requestId);
+    if(previous){if(previous.fingerprint!==fingerprint)throw Error('IDEMPOTENCY_CONFLICT');return {...previous.result,replayed:true};}
+    const key=command.dateKey+'_'+command.timeKey;
+    const allowed=(data.slotsByProperty[command.propertyId]||[]).find(day=>day.dateKey===command.dateKey)?.slots||[];
+    if(taken.has(key)||!allowed.includes(command.timeKey))throw Error('SLOT_TAKEN');
+    const id=randomId();const result={status:'registered',citaId:'DEMO-CITA-'+id,leadId:'DEMO-LEAD-'+id,folio:'DEMO-RSV-'+id.slice(-8).toUpperCase(),propertyId:command.propertyId,dateKey:command.dateKey,timeKey:command.timeKey};
+    taken.add(key);ledger.set(command.requestId,{fingerprint,result});return result;
+  }};
+  el('sc-booking-form').addEventListener('submit',async event=>{
+    event.preventDefault();if(!selectedTime||booking)return;el('sc-register').disabled=true;
+    try{
+      if(!context)context=readContext();
+      booking=await core.registerVisit(context,{requestId:requestId||randomId(),conversationId:'DEMO-CONVERSATION',name:el('sc-book-name').value,surname:el('sc-book-surname').value,phone:el('sc-book-phone').value,propertyId:propertyId(),dateKey:el('sc-day').value,timeKey:selectedTime},demoGateway);
+      appointment={id:booking.citaId,folio:booking.folio,propertyId:booking.propertyId,estado:'pendiente'};
+      el('sc-folio').textContent=booking.folio;el('sc-receipt-detail').textContent=property().nombre+' · '+dateLabel(booking.dateKey)+' · '+booking.timeKey;
+      el('sc-receipt').hidden=false;el('sc-booking-form').hidden=true;el('sc-property').disabled=true;el('sc-day').disabled=true;
+      el('sc-next').textContent='Dar seguimiento al folio '+booking.folio;
+      messages.push({role:'context',text:'Reserva simulada registrada · '+booking.folio+' · cita pendiente de validación.'});renderMessages();renderJourney();
+      el('sc-chat-status').textContent='Demostración completada. No se ha creado una reserva real.';
+    }catch(error){el('sc-book-status').textContent=errorText(error.message);if(error.message==='SLOT_TAKEN'){selectedTime=null;renderTimes();}}
+    finally{el('sc-register').disabled=Boolean(booking);}
+  });
+  el('sc-show-photos').addEventListener('click',()=>{el('sc-photo-viewer').hidden=false;renderGallery();});
+  el('sc-photo-previous').addEventListener('click',()=>{photoIndex--;renderGallery();});
+  el('sc-photo-next').addEventListener('click',()=>{photoIndex++;renderGallery();});
+  el('sc-share-requirements').addEventListener('click',()=>{if(perspective!=='agent'||!renderRequirements())return;messages.push({role:'agent',text:'Te comparto los requisitos y las condiciones de '+sheet().name+'. Puedes consultarlos aquí cuando lo necesites.'});renderMessages();renderJourney();el('sc-next').textContent='Resolver dudas sobre requisitos y condiciones';});
+  el('sc-view-requirements').addEventListener('click',renderRequirements);
+  el('sc-complete-visit').addEventListener('click',()=>{if(perspective!=='agent'||!appointment)return;appointment.estado='realizada';messages.push({role:'context',text:'Visita marcada como realizada por el asesor · demostración.'});el('sc-next').textContent='Conocer su interés y ofrecer continuar con el arrendamiento';renderJourney();renderMessages();});
+  el('sc-prepare-followup').addEventListener('click',()=>{el('sc-message').value='Gracias por visitar '+sheet().name+'. ¿Qué te pareció el espacio? Si deseas continuar, puedes solicitar aquí la preparación de tu contrato. También puedo ayudarte a resolver las dudas que te hayan quedado.';drafts.agent=el('sc-message').value;});
+  el('sc-request-contract').addEventListener('click',()=>{
+    if(appointment?.estado!=='realizada'||!renderRequirements())return;
+    const s=sheet();el('sc-contract-property').textContent=s.name+' · renta '+money(s.rent)+' · depósito '+money(s.deposit)+' · '+s.termMonths+' meses';
+    el('sc-contract-name').value=el('sc-book-name').value;el('sc-contract-phone').value=el('sc-book-phone').value;el('sc-confirm-property').checked=false;el('sc-signing-date').min=data.referenceDate;
+    el('sc-contract-checklist').replaceChildren();s.requirements.forEach(item=>{const label=document.createElement('label');label.className='sc-check';const checkbox=document.createElement('input');checkbox.type='checkbox';checkbox.id='sc-declared-'+item.id;const text=document.createElement('span');text.textContent=item.label;label.append(checkbox,text);el('sc-contract-checklist').append(label);});el('sc-contract-form').hidden=false;
+  });
+  el('sc-contract-form').addEventListener('submit',event=>{
+    event.preventDefault();if(leaseRequest)return;try{
+      const declarations=Object.fromEntries(sheet().requirements.map(item=>[item.id,el('sc-declared-'+item.id).checked]));
+      leaseRequest=leaseCore.prepareLeaseRequest({appointment,sheet:sheet(),packet,today:data.referenceDate,input:{propertyId:propertyId(),propertyConfirmed:el('sc-confirm-property').checked,name:el('sc-contract-name').value,phone:el('sc-contract-phone').value,proposedSigningDate:el('sc-signing-date').value,declarations}});
+      el('sc-contract-status').textContent='Solicitud simulada recibida · expediente '+(leaseRequest.documentsStatus==='incomplete'?'incompleto':'declarado disponible')+' · fecha de firma '+(leaseRequest.proposedSigningDate||'por proponer')+' pendiente de confirmar.';
+      el('sc-submit-contract').disabled=true;el('sc-next').textContent='Revisar expediente y confirmar disponibilidad y fecha de firma';messages.push({role:'context',text:'Cliente solicitó preparar su contrato · pendiente de revisión. No se ha generado ni firmado un contrato.'});renderMessages();renderJourney();
+    }catch(error){el('sc-contract-status').textContent=error.message==='PROPERTY_CONFIRMATION_REQUIRED'?'Confirma el inmueble y las condiciones que deseas solicitar.':error.message==='INVALID_SIGNING_PROPOSAL'?'Revisa la fecha de firma propuesta.':'Revisa los datos y las condiciones antes de continuar.';}
+  });
+  updateProperty();renderMessages();
+})();
+</script>

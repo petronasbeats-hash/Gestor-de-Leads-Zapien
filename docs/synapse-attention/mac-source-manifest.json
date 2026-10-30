@@ -1,0 +1,293 @@
+{
+  "source": "User-supplied working tree archive 2026-10-26",
+  "files": [
+    {
+      "path": "core-contracts/property/commercial-identity-resolver.v0.1.js",
+      "sha256": "7246324ad301979d87f7e43f20231a54dbd9cdf8788f576ab8a653a2d117b343"
+    },
+    {
+      "path": "core-contracts/property/catalog-identity-audit.v0.5.js",
+      "sha256": "6ca65817d019184b285c2ceb90104945574822b9df85f65a7f821766ee48be82"
+    },
+    {
+      "path": "core-contracts/property/booking-commit-gate.v0.1.js",
+      "sha256": "2266cfe4873ed2273f9e3b7e87396e49db7397d13472194a2f3a2b568166801d"
+    },
+    {
+      "path": "core-contracts/property/unit-event-store.v0.1.js",
+      "sha256": "232446828156159ced5f634db503cd8a1b825386a54a8ffe3341e7f59560bbad"
+    },
+    {
+      "path": "core-contracts/property/booking-availability-evaluator.v0.1.js",
+      "sha256": "e133e7eb83cf56e22eae8a5a3298fe3e41851e6b996a345b8e958adfc9db2487"
+    },
+    {
+      "path": "core-contracts/property/booking-rtdb-adapter.v0.1.js",
+      "sha256": "2c9fc02180d4a7ebbb727283e797a4ad2e7a1a2455da70bf600d373546312d5f"
+    },
+    {
+      "path": "core-contracts/property/unit-identity-bridge.v0.1.js",
+      "sha256": "f5c299155d4ead7e1e529ad752d27a855f3e90ad431cbfcd46e2a4b8fa37a564"
+    },
+    {
+      "path": "core-contracts/property/unit-event-transactional.v0.2.js",
+      "sha256": "e3c906570478b021d68f2f49b1f362244e988ab1efe542cc3e61d313274f973f"
+    },
+    {
+      "path": "core-contracts/property/booking-operational-slot.v0.3.js",
+      "sha256": "4d66d42affdc606969a853bbead624899c22e01a1951570918e1d5c27aee9472"
+    },
+    {
+      "path": "core-contracts/property/booking-identity-guard.v0.1.js",
+      "sha256": "2907ab4a28931141f636cb07047cf9aec10f823b69c3e33d610b5d6613a5dedb"
+    },
+    {
+      "path": "core-contracts/property/booking-commit-gate.v0.2.js",
+      "sha256": "a638152b8ae86084ba990bad61e778aa392b6c46291d47ec938f841211671ab6"
+    },
+    {
+      "path": "core-contracts/property/booking-global-slot-adapter.v0.3.js",
+      "sha256": "7f9dbac6333a2b7751efb5dfba103185645243a988ecdc325ce4c9211a975369"
+    },
+    {
+      "path": "core-contracts/property/booking-confirmation-adapter.v0.3.js",
+      "sha256": "a6f5312a6f93f2a539f324a8403257ddb2e551a7848df586bb38723560e611af"
+    },
+    {
+      "path": "core-contracts/property/booking-rtdb-adapter.v0.2.js",
+      "sha256": "6267de78835c36160a319f869969fd0a04af14d7d3aac2cd356cfee207626899"
+    },
+    {
+      "path": "core-contracts/property/booking-trust-boundary.v0.1.js",
+      "sha256": "f7395e948c46e804bf2effe2ecb59f93761acc592424788d3d1c334026e1a1ae"
+    },
+    {
+      "path": "core-contracts/property/commercial-identity-resolver.v0.1.1.js",
+      "sha256": "986976152ee39e243b485fec4b7ca01087dd656be72d8fb233d8ed61b1a6ba61"
+    },
+    {
+      "path": "core-contracts/property/booking-commit-gate.v0.1.1.js",
+      "sha256": "7b45cf82e81fb081e58d425755be34f4ba38c68e13b166580994115b9beb90e9"
+    },
+    {
+      "path": "core-contracts/property/booking-identity-guard.v0.1.1.js",
+      "sha256": "7bf30d419d629043597f823bf0974d7fc715fd026ed1ad751c6628b3cc1d6472"
+    },
+    {
+      "path": "core-contracts/property/unit-operational-status.v0.1.js",
+      "sha256": "3f76539629ab4fbd79083d2fc7f09e2a6607a1e9ee6d43cbf80e96274148a9e9"
+    },
+    {
+      "path": "core-contracts/property/unit-event-rtdb.v0.3.js",
+      "sha256": "46abfebff30088164bd8840fdf94c94f61dbc80b735da366597d2e249714a2b2"
+    },
+    {
+      "path": "core-contracts/property/unit-event-log.v0.1.js",
+      "sha256": "716485cf0596d4686564ed3e968d9a7970eb03aa88ef16ac1fbfa27d24e5dfe9"
+    },
+    {
+      "path": "core-contracts/property/catalog-identity-audit.v0.5.1.js",
+      "sha256": "f6fee01bb96d937d8ccf2b934bfc7b508436bea18d2c2fcbe5032af62357e8ae"
+    },
+    {
+      "path": "core-contracts/reservations/reschedule-request.v1.cjs",
+      "sha256": "5a43841afd5368b8ce95b524da068f483837a97b05dd1f4b5dfd43b716fb7ee6"
+    },
+    {
+      "path": "core-contracts/reservations/booking-lifecycle-rtdb.v0.4.cjs",
+      "sha256": "c1dc9dfaa1c6b7a554bb9cd2d885c6683a4daf8dd29106ddad5aeddd46d166bb"
+    },
+    {
+      "path": "core-contracts/emulator-lab/test-booking-rtdb-v01.js",
+      "sha256": "db0d9e05a9c4e9466c9100b5c37d59117fc758ad2569f065bce9f3d5fbc5ba36"
+    },
+    {
+      "path": "core-contracts/emulator-lab/test-booking-authorization-scope-v01.js",
+      "sha256": "f4df76fa0fee7b77329572ec7f613623358895bf6e49926c697a6a750467341a"
+    },
+    {
+      "path": "core-contracts/emulator-lab/package.json",
+      "sha256": "03aaae4aa539b354589a903317318d265915d72a2a6907d1bf0d8db5c20043d6"
+    },
+    {
+      "path": "core-contracts/emulator-lab/test-booking-http-negative-v02.js",
+      "sha256": "d8b24ecb2444aa40a10a822fe06f7443cbd6a2a742e2a0525071362914d40a93"
+    },
+    {
+      "path": "core-contracts/emulator-lab/package-lock.json",
+      "sha256": "1ce481f5293cae4ef2ba1f31b991ef12d747939690a32c3c47a6adc83dff33ec"
+    },
+    {
+      "path": "core-contracts/emulator-lab/test-booking-http-smoke-v02.js",
+      "sha256": "98638f42a20fce8927e6408bb32c5d812b58bca2c22fdc28f59d9aba4cc40da5"
+    },
+    {
+      "path": "core-contracts/emulator-lab/test-booking-rtdb-v02.js",
+      "sha256": "87e71265158dced8cc2644f3c98934dff9007aed53f433d87a53072e822a25c3"
+    },
+    {
+      "path": "core-contracts/emulator-lab/firebase.json",
+      "sha256": "e8e36a650f286d99b7c60cf005d949e2d7955aae6dd63c7cb6d68ea541b274a9"
+    },
+    {
+      "path": "core-contracts/emulator-lab/booking-http-lab.v0.1.js",
+      "sha256": "219b5185a9d37f2b1c4618921e44b27f1bf651cdbba98e7cf43ed11d1db02dba"
+    },
+    {
+      "path": "core-contracts/emulator-lab/test-identity-rtdb-v04.js",
+      "sha256": "4bf5c33bcb1c1fc9e107bc7261b3af1ca9eaf0d6fa0f28a9f9584aefd79d5eba"
+    },
+    {
+      "path": "core-contracts/emulator-lab/booking-http-lab.v0.5.js",
+      "sha256": "4518de4670ee0df1bdb9b5f37ae8badbd5927ada0b55c6047df215e2d06bfc3d"
+    },
+    {
+      "path": "core-contracts/emulator-lab/test-booking-trust-rtdb-v01.js",
+      "sha256": "485d4cdbd5c90960a99f9d19f6c58e4756886c4b1dc592b3be0268f7a3d759c7"
+    },
+    {
+      "path": "core-contracts/emulator-lab/test-rtdb-v03-suite.js",
+      "sha256": "97f1efe59a81aedce66787db9b95672775d2cb68cbca58e4522e2b7399c42932"
+    },
+    {
+      "path": "core-contracts/emulator-lab/test-booking-http-smoke-v01.js",
+      "sha256": "07b016135adbbca339fd59c5b9fa3fdde5540556d5f1924edd191889bb66b9da"
+    },
+    {
+      "path": "core-contracts/emulator-lab/test-booking-lifecycle-v04.cjs",
+      "sha256": "b70b5c744e1bdbe0c369a7e81b26647128b7479362eb96dd1bfa71994d80aa14"
+    },
+    {
+      "path": "core-contracts/emulator-lab/test-booking-http-abort-v02.js",
+      "sha256": "a4d310e4810fb8569baafb96438997959c0eb02ad5286f14eef99a1e5167603f"
+    },
+    {
+      "path": "core-contracts/emulator-lab/test-booking-http-errors-v02.js",
+      "sha256": "d74b05d6a5c7c22993ee8bc78c983153aa9e02ef11999e467885dec3bf3f367d"
+    },
+    {
+      "path": "core-contracts/emulator-lab/database.rules.json",
+      "sha256": "baafba819b7e9cd03209b6e9968d641a58e91e20dfc2d9290a21d92d350cd3a5"
+    },
+    {
+      "path": "core-contracts/emulator-lab/test-booking-trust-boundary-v01.js",
+      "sha256": "b7fbbc8704037e252ef573c3fb77e6875f8a6d07959135ab9b4cbadc992c6122"
+    },
+    {
+      "path": "core-contracts/emulator-lab/booking-http-lab.v0.3.js",
+      "sha256": "0b9b3536b46f7fecc185e1aad09adbacf278c780dc06cd60bb5f12a79d0ebf80"
+    },
+    {
+      "path": "core-contracts/emulator-lab/booking-http-lab.v0.2.js",
+      "sha256": "2a6738c85ae8e17e0b4b653410c760fb642d5f7ff20c9e1e156f54af59f81fd4"
+    },
+    {
+      "path": "core-contracts/emulator-lab/test-rtdb-v03.js",
+      "sha256": "d2791d43f7d56e7c7ce51f66166c7db9611921ffc947fb9b8a8c7fc23cb63524"
+    },
+    {
+      "path": "core-contracts/emulator-lab/booking-http-lab.v0.4.js",
+      "sha256": "da09e933acd80d5da9ad50132610ee6dbde0136b5dea125102eea6c4c60bbc06"
+    },
+    {
+      "path": "core-contracts/emulator-lab/test-booking-http-negative-v01.js",
+      "sha256": "b2ac1cb36406a7f7090e28c4983d8cf164e40c957f5b5f5876fcbc212ab190c7"
+    },
+    {
+      "path": "core-contracts/tests/unit-event-log.test.js",
+      "sha256": "d3defd63485472e9801f47a83dbe753c5ca43d3de8bf93634ce1e8185e03488a"
+    },
+    {
+      "path": "core-contracts/tests/unit-operational-proof.test.js",
+      "sha256": "eeb50f401cf907e06f9d5545a3731b4d547262e85be135504597294a38e1c204"
+    },
+    {
+      "path": "core-contracts/tests/catalog-identity-audit.test.js",
+      "sha256": "5e812f164aceea6490f4816ccaa0a54fe2d09a7aa58c84b85a98ac10f9bb6365"
+    },
+    {
+      "path": "core-contracts/tests/unit-event-transactional.test.js",
+      "sha256": "6db74b56b200569f3845a06d05a46e6eabc3dc7e4a1b602eb289ead191f86c4b"
+    },
+    {
+      "path": "core-contracts/tests/unit-event-store.test.js",
+      "sha256": "8466003e764b5ba2359546f7f40856311b71538a07428c92a20a931c271eaa83"
+    },
+    {
+      "path": "core-contracts/tests/booking-identity-guard.v0.1.1.test.js",
+      "sha256": "5cae10d38c2e3351c6c129c6097899970c23bb123b0f523da91eed2311110a5b"
+    },
+    {
+      "path": "core-contracts/tests/booking-commit-gate.v0.1.1.test.js",
+      "sha256": "4ac0456c30b6e1676da32a18f834dac36e1eaeea2c73a990a19e8a8700516971"
+    },
+    {
+      "path": "core-contracts/tests/unit-operational-validation.test.js",
+      "sha256": "2e386dbb38a1cb7d8a5b4e1855ecdfe9fa0d553afb6c4c70e7005d7deb2dd3bf"
+    },
+    {
+      "path": "core-contracts/tests/booking-commit-gate.v0.2.test.js",
+      "sha256": "80371c1179e05e91e952bc5933a57b0202c8e504472efd8538335154802bfc4a"
+    },
+    {
+      "path": "core-contracts/tests/unit-event-store-hardening.test.js",
+      "sha256": "e401b3c45f3b7fc4a67130c5d9b2e6f0cd4a6c5a7fa9bebc2e0ebfb11c8a2ef5"
+    },
+    {
+      "path": "core-contracts/tests/booking-identity-guard.v0.1.test.js",
+      "sha256": "c09d6a2fc53fccc34b19223fd4dc26b5bd79f6530c76d974061ff618fc6b4714"
+    },
+    {
+      "path": "core-contracts/tests/unit-identity-bridge.test.js",
+      "sha256": "775eeddc2b2204c9b43ed011fa96966a807aa9c05a190743e7803e1138f80a7e"
+    },
+    {
+      "path": "core-contracts/tests/commercial-identity-resolver.v0.1.1.test.js",
+      "sha256": "e4ec4d0ed41761543d250cc72b3508061779ecaf4d8c4f8748068ce7147d5a84"
+    },
+    {
+      "path": "core-contracts/tests/catalog-identity-cases.v0.5.1.test.js",
+      "sha256": "efce0bb8c5e9dfafe57073a56a2fb445d5c0c51adcbb758c1424a660ed8040d1"
+    },
+    {
+      "path": "core-contracts/tests/unit-operational-status.test.js",
+      "sha256": "912619d4b27893d1a60bc8bad33d35cdf265d6f4854898b6471948a5c9494d11"
+    },
+    {
+      "path": "core-contracts/tests/unit-identity-event-integration.test.js",
+      "sha256": "aaac7aee1d331594689dd54898169b4a69c359ecb91d2e0c1bd2da39268c8c8c"
+    },
+    {
+      "path": "core-contracts/tests/catalog-identity-hardening.v0.5.1.test.js",
+      "sha256": "f7c6311591777d68484154b6e62f1e180c5d62d6c1ea335a18dcfe6eb3909955"
+    },
+    {
+      "path": "core-contracts/tests/booking-commit-gate.v0.1.test.js",
+      "sha256": "39b71410056ccb963b729431dda43626094e02d1a0677572cde63e076fabe1f1"
+    },
+    {
+      "path": "core-contracts/tests/unit-operational-evidence.test.js",
+      "sha256": "1f05adb311f89806a956a29f6ee37c8a1adcdbeb31a3011a196e43466f9edd0d"
+    },
+    {
+      "path": "core-contracts/tests/unit-identity-bridge-hardening.test.js",
+      "sha256": "094c9eefc7bff2c76110cae2779b6a458723e2de384787ec2aba4f5edd8abb0a"
+    },
+    {
+      "path": "core-contracts/tests/unit-operational-identity.test.js",
+      "sha256": "455ea604a98650f587737ad261d648435a4548fe1529e5abeafb11149f064c39"
+    },
+    {
+      "path": "index.html",
+      "importSha256": "7dfeb7237f4903ba3df05ee4c848e2bf7e07457836ecee299a02e4749cdc266f"
+    },
+    {
+      "path": "reservar.html",
+      "importSha256": "3140c01e59b9755a374fc15e25369e29660006eb2bbbddce59d19b6e9bca17be"
+    },
+    {
+      "path": "agenda.html",
+      "importSha256": "11f967828cea1b70913dc89cca4076d950ca3b82d8a27cc92394bf7d63c61325"
+    }
+  ]
+}
